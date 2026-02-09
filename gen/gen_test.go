@@ -3,7 +3,6 @@ package gen_test
 import (
 	"bytes"
 	"flag"
-	"go/format"
 	"os"
 	"regexp"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	"github.com/iskorotkov/avro/v2/gen"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/tools/imports"
 )
 
 var update = flag.Bool("update", false, "Update golden files")
@@ -338,7 +338,7 @@ func TestGenerator_GenEnum(t *testing.T) {
 	err = g.Write(&buf)
 	require.NoError(t, err)
 
-	formatted, err := format.Source(buf.Bytes())
+	formatted, err := imports.Process("", buf.Bytes(), nil)
 	require.NoError(t, err)
 
 	if *update {
@@ -362,7 +362,7 @@ func TestGenerator_GenEnumDeduplication(t *testing.T) {
 	err = g.Write(&buf)
 	require.NoError(t, err)
 
-	formatted, err := format.Source(buf.Bytes())
+	formatted, err := imports.Process("", buf.Bytes(), nil)
 	require.NoError(t, err)
 
 	output := string(formatted)
@@ -385,7 +385,7 @@ func TestGenerator(t *testing.T) {
 	err = g.Write(&buf)
 	require.NoError(t, err)
 
-	formatted, err := format.Source(buf.Bytes())
+	formatted, err := imports.Process("", buf.Bytes(), nil)
 	require.NoError(t, err)
 
 	if *update {
@@ -425,7 +425,7 @@ package {{ .PackageName }}
 	err = g.Write(&buf)
 	require.NoError(t, err)
 
-	formatted, err := format.Source(buf.Bytes())
+	formatted, err := imports.Process("", buf.Bytes(), nil)
 	require.NoError(t, err)
 
 	if *update {

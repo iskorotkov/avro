@@ -2,9 +2,10 @@
 package something
 
 import (
-	"github.com/iskorotkov/avro/v2"
 	"math/big"
 	"time"
+
+	"github.com/iskorotkov/avro/v2"
 )
 
 type Cards string
