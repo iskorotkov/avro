@@ -21,6 +21,8 @@ A fast Go avro codec
 
 **What about other alternatives?** There are none as far as I know. All libraries are either slow, hard to use or both. Feel free to contact me or create a GitHub Issue if you know a good alternative.
 
+Unresolved issues from hamba/avro are tracked in [ISSUES.md](./ISSUES.md) file.
+
 ---
 
 **How to migrate from hamba/avro to iskorotkov/avro?**

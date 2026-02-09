@@ -12,7 +12,7 @@ This is a list of unresolved issues from original [hamba/avro repository](https:
 - <https://github.com/hamba/avro/issues/510> high memory usage of avro.Parse/avro.ParseWithCache
 - <https://github.com/hamba/avro/issues/581> gen: Create type safe union types
 - <https://github.com/hamba/avro/issues/591> Allow non-pointer receiver for nullable values
-- <https://github.com/hamba/avro/issues/595> Enum types are being duplicated in the Go code generation
+- ~~<https://github.com/hamba/avro/issues/595> Enum types are being duplicated in the Go code generation~~
 
 Below is the list of unmerged PRs from original [hamba/avro repository](https://github.com/hamba/avro/pulls?q=is%3Apr+is%3Aclosed+sort%3Aupdated-desc):
 
