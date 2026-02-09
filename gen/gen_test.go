@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hamba/avro/v2"
-	"github.com/hamba/avro/v2/gen"
+	"github.com/iskorotkov/avro/v2"
+	"github.com/iskorotkov/avro/v2/gen"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -342,7 +342,7 @@ func TestGenerator_GenEnum(t *testing.T) {
 	require.NoError(t, err)
 
 	if *update {
-		err = os.WriteFile("testdata/golden_enum.go", formatted, 0600)
+		err = os.WriteFile("testdata/golden_enum.go", formatted, 0o600)
 		require.NoError(t, err)
 	}
 

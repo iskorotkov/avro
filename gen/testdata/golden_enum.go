@@ -2,7 +2,7 @@
 package something
 
 import (
-	"github.com/hamba/avro/v2"
+	"github.com/iskorotkov/avro/v2"
 	"math/big"
 	"time"
 )

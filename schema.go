@@ -13,7 +13,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/hamba/avro/v2/pkg/crc64"
+	"github.com/iskorotkov/avro/v2/pkg/crc64"
 	jsoniter "github.com/json-iterator/go"
 )
 

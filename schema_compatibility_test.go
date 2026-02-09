@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hamba/avro/v2"
+	"github.com/iskorotkov/avro/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -564,7 +564,7 @@ func TestSchemaCompatibility_Resolve(t *testing.T) {
 		{
 			name: "Record Writer Field Missing With Record Default",
 			reader: `{
-						"type":"record", "name":"test", "namespace": "org.hamba.avro", 
+						"type":"record", "name":"test", "namespace": "org.hamba.avro",
 						"fields":[
 							{"name": "a", "type": "int"},
 							{
@@ -590,8 +590,8 @@ func TestSchemaCompatibility_Resolve(t *testing.T) {
 			// decoder cache must be aware of fields defaults.
 			name: "Record Writer Field Missing With Record Default 2",
 			reader: `{
-						"type":"record", 
-						"name":"test", 
+						"type":"record",
+						"name":"test",
 						"namespace": "org.hamba.avro",
 						"fields":[
 							{"name": "a", "type": "int"},
@@ -616,7 +616,7 @@ func TestSchemaCompatibility_Resolve(t *testing.T) {
 		{
 			name: "Record Writer Field Missing With Map Default",
 			reader: `{
-						"type":"record", "name":"test", "namespace": "org.hamba.avro", 
+						"type":"record", "name":"test", "namespace": "org.hamba.avro",
 						"fields":[
 							{"name": "a", "type": "int"},
 							{
@@ -635,7 +635,7 @@ func TestSchemaCompatibility_Resolve(t *testing.T) {
 		{
 			name: "Record Writer Field Missing With Array Default",
 			reader: `{
-						"type":"record", "name":"test", "namespace": "org.hamba.avro", 
+						"type":"record", "name":"test", "namespace": "org.hamba.avro",
 						"fields":[
 							{"name": "a", "type": "int"},
 							{
@@ -654,7 +654,7 @@ func TestSchemaCompatibility_Resolve(t *testing.T) {
 		{
 			name: "Record Writer Field Missing With Union Null Default",
 			reader: `{
-						"type":"record", "name":"test", "namespace": "org.hamba.avro", 
+						"type":"record", "name":"test", "namespace": "org.hamba.avro",
 						"fields":[
 							{"name": "a", "type": "int"},
 							{
@@ -671,7 +671,7 @@ func TestSchemaCompatibility_Resolve(t *testing.T) {
 		{
 			name: "Record Writer Field Missing With Union Non-null Default",
 			reader: `{
-						"type":"record", "name":"test", "namespace": "org.hamba.avro", 
+						"type":"record", "name":"test", "namespace": "org.hamba.avro",
 						"fields":[
 							{"name": "a", "type": "int"},
 							{
@@ -688,7 +688,7 @@ func TestSchemaCompatibility_Resolve(t *testing.T) {
 		{
 			name: "Record Writer Field Missing With Fixed Duration Default",
 			reader: `{
-						"type":"record", "name":"test", "namespace": "org.hamba.avro", 
+						"type":"record", "name":"test", "namespace": "org.hamba.avro",
 						"fields":[
 							{"name": "a", "type": "int"},
 							{
@@ -698,7 +698,7 @@ func TestSchemaCompatibility_Resolve(t *testing.T) {
 									"name": "test.fixed",
 									"logicalType":"duration",
 									"size":12
-								}, 
+								},
 								"default": "\u000c\u0000\u0000\u0000\u0022\u0000\u0000\u0000\u0052\u00aa\u0008\u0000"
 							}
 						]
@@ -717,7 +717,7 @@ func TestSchemaCompatibility_Resolve(t *testing.T) {
 		{
 			name: "Record Writer Field Missing With Fixed Logical Decimal Default",
 			reader: `{
-						"type":"record", "name":"test", "namespace": "org.hamba.avro", 
+						"type":"record", "name":"test", "namespace": "org.hamba.avro",
 						"fields":[
 							{"name": "a", "type": "int"},
 							{
@@ -744,7 +744,7 @@ func TestSchemaCompatibility_Resolve(t *testing.T) {
 		{
 			name: "Record Writer Field Missing With Enum Duration Default",
 			reader: `{
-						"type":"record", "name":"test", "namespace": "org.hamba.avro", 
+						"type":"record", "name":"test", "namespace": "org.hamba.avro",
 						"fields":[
 							{"name": "a", "type": "int"},
 							{
@@ -819,21 +819,21 @@ func TestSchemaCompatibility_Resolve(t *testing.T) {
 		{
 			name: "Record Writer Field Missing With Long timestamp-millis Default",
 			reader: `{
-						"type":"record", "name":"test", "namespace": "org.hamba.avro", 
+						"type":"record", "name":"test", "namespace": "org.hamba.avro",
 						"fields":[
 							{"name": "a", "type": "string"},
 							{
 								"name": "b",
 								"type": {
-									"type": "long", 
+									"type": "long",
 									"logicalType": "timestamp-millis"
-								}, 
+								},
 								"default": ` + strconv.FormatInt(1725616800000, 10) + `
 							}
 						]
 					}`,
 			writer: `{
-						"type":"record", "name":"test", "namespace": "org.hamba.avro", 
+						"type":"record", "name":"test", "namespace": "org.hamba.avro",
 						"fields":[
 							{"name": "a", "type": "string"}
 						]
@@ -847,21 +847,21 @@ func TestSchemaCompatibility_Resolve(t *testing.T) {
 		{
 			name: "Record Writer Field Missing With Long timestamp-micros Default",
 			reader: `{
-						"type":"record", "name":"test", "namespace": "org.hamba.avro", 
+						"type":"record", "name":"test", "namespace": "org.hamba.avro",
 						"fields":[
 							{"name": "a", "type": "string"},
 							{
 								"name": "b",
 								"type": {
-									"type": "long", 
+									"type": "long",
 									"logicalType": "timestamp-micros"
-								}, 
+								},
 								"default": ` + strconv.FormatInt(1725616800000000, 10) + `
 							}
 						]
 					}`,
 			writer: `{
-						"type":"record", "name":"test", "namespace": "org.hamba.avro", 
+						"type":"record", "name":"test", "namespace": "org.hamba.avro",
 						"fields":[
 							{"name": "a", "type": "string"}
 						]
@@ -941,15 +941,15 @@ func TestSchemaCompatibility_ResolveWithComplexUnion(t *testing.T) {
 				{
 					"type":"record",
 					"name":"testA",
-					"aliases": ["test1"], 
-					"namespace": "org.hamba.avro", 
+					"aliases": ["test1"],
+					"namespace": "org.hamba.avro",
 					"fields":[{"name": "a", "type": "long"}]
 				},
 				{
 					"type":"record",
 					"name":"testB",
-					"aliases": ["test2"], 
-					"namespace": "org.hamba.avro", 
+					"aliases": ["test2"],
+					"namespace": "org.hamba.avro",
 					"fields":[{"name": "b", "type": "bytes"}]
 				}
 			]`)
@@ -957,7 +957,7 @@ func TestSchemaCompatibility_ResolveWithComplexUnion(t *testing.T) {
 	w := avro.MustParse(`{
 				"type":"record",
 				"name":"test2",
-				"namespace": "org.hamba.avro", 
+				"namespace": "org.hamba.avro",
 				"fields":[{"name": "b", "type": "string"}]
 			}`)
 
@@ -979,14 +979,14 @@ func TestSchemaCompatibility_ResolveWithComplexUnion(t *testing.T) {
 
 func TestSchemaCompatibility_ResolveWithFieldMissingInWriterAndReaderStruct(t *testing.T) {
 	w := avro.MustParse(`{
-				"type":"record", "name":"test", "namespace": "org.hamba.avro", 
+				"type":"record", "name":"test", "namespace": "org.hamba.avro",
 				"fields":[
 					{"name": "a", "type": "string"}
 				]
 			}`)
 
 	r := avro.MustParse(`{
-				"type":"record", "name":"test", "namespace": "org.hamba.avro", 
+				"type":"record", "name":"test", "namespace": "org.hamba.avro",
 				"fields":[
 					{"name": "a", "type": "string"},
 					{"name": "b", "type": "int", "default": 10},

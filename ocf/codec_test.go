@@ -37,7 +37,7 @@ benchmark results always creating a new zstd encoder/decoder
 
 goos: linux
 goarch: amd64
-pkg: github.com/hamba/avro/v2/ocf
+pkg: github.com/iskorotkov/avro/v2/ocf
 cpu: AMD Ryzen 5 3550H with Radeon Vega Mobile Gfx
 
 

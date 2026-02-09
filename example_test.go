@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/hamba/avro/v2"
+	"github.com/iskorotkov/avro/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -255,9 +255,9 @@ func TestEncoderDecoder_UnionConverterInterface(t *testing.T) {
 	    "name": "Payload",
 	    "fields" : [
 			{
-				"name": "union", 
+				"name": "union",
 				"type": [
-					"int", 
+					"int",
 					{"type": "record", "name": "test", "fields" : [{"name": "a", "type": "long"}, {"name": "b", "type": "string"}]}
 				]
 			}

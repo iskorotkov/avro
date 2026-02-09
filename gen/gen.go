@@ -14,7 +14,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/ettle/strcase"
-	"github.com/hamba/avro/v2"
+	"github.com/iskorotkov/avro/v2"
 	"golang.org/x/tools/imports"
 )
 
@@ -127,7 +127,7 @@ func WithEncoders(b bool) OptsFunc {
 	return func(g *Generator) {
 		g.encoders = b
 		if b {
-			g.thirdPartyImports = append(g.thirdPartyImports, "github.com/hamba/avro/v2")
+			g.thirdPartyImports = append(g.thirdPartyImports, "github.com/iskorotkov/avro/v2")
 		}
 	}
 }
@@ -431,7 +431,7 @@ func (g *Generator) resolveLogicalSchema(logicalType avro.LogicalType) string {
 		g.addImport("math/big")
 	}
 	if strings.Contains(typ, "avro") {
-		g.addThirdPartyImport("github.com/hamba/avro/v2")
+		g.addThirdPartyImport("github.com/iskorotkov/avro/v2")
 	}
 	return typ
 }
