@@ -351,6 +351,25 @@ func TestGenerator_GenEnum(t *testing.T) {
 	assert.Equal(t, string(want), string(formatted))
 }
 
+func TestGenerator_GenEnumDeduplication(t *testing.T) {
+	schema, err := avro.ParseFiles("testdata/duplicate_enum.avsc")
+	require.NoError(t, err)
+
+	g := gen.NewGenerator("something", map[string]gen.TagStyle{}, gen.WithEnums(true))
+	g.Parse(schema)
+
+	var buf bytes.Buffer
+	err = g.Write(&buf)
+	require.NoError(t, err)
+
+	formatted, err := format.Source(buf.Bytes())
+	require.NoError(t, err)
+
+	output := string(formatted)
+	count := strings.Count(output, "type Color string")
+	assert.Equal(t, 1, count, "enum Color should appear exactly once, got %d", count)
+}
+
 func TestGenerator(t *testing.T) {
 	unionSchema, err := avro.ParseFiles("testdata/uniontype.avsc")
 	require.NoError(t, err)

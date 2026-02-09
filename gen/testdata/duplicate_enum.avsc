@@ -1,0 +1,19 @@
+{
+  "type": "record",
+  "name": "TestDuplicateEnum",
+  "namespace": "test",
+  "fields": [
+    {
+      "name": "firstColor",
+      "type": {
+        "type": "enum",
+        "name": "Color",
+        "symbols": ["RED", "GREEN", "BLUE"]
+      }
+    },
+    {
+      "name": "secondColor",
+      "type": "Color"
+    }
+  ]
+}

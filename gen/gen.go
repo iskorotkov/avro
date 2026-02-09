@@ -327,8 +327,19 @@ func (g *Generator) generate(schema avro.Schema, metadata any) string {
 }
 
 func (g *Generator) resolveEnum(s *avro.EnumSchema) string {
-	g.typeenums = append(g.typeenums, newTypeEnum(s.Name(), s.Symbols()))
+	if !g.hasTypeEnum(s.Name()) {
+		g.typeenums = append(g.typeenums, newTypeEnum(s.Name(), s.Symbols()))
+	}
 	return s.Name()
+}
+
+func (g *Generator) hasTypeEnum(name string) bool {
+	for _, e := range g.typeenums {
+		if e.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 func (g *Generator) resolveTypeName(s avro.NamedSchema) string {
