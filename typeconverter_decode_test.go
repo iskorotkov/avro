@@ -99,7 +99,7 @@ func TestDecoderTypeConverter_UnionNullablePtr(t *testing.T) {
 		AvroType: avro.Union,
 		DecoderTypeConversion: func(in any, schema avro.Schema) (any, error) {
 			i := in.(int)
-			i = i * 2
+			i *= 2
 			return i, nil
 		},
 	})

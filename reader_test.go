@@ -107,7 +107,6 @@ func TestReader_Read(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			r := avro.NewReader(bytes.NewReader(test.data), 2)
 
@@ -154,7 +153,6 @@ func TestReader_ReadBool(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			r := avro.NewReader(bytes.NewReader(test.data), 10)
 
@@ -426,7 +424,6 @@ func TestReader_ReadFloat(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		r := avro.NewReader(bytes.NewReader(test.data), 2)
 
 		got := r.ReadFloat()
@@ -553,7 +550,6 @@ func TestReader_ReadBytes(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		test := test
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			r := avro.NewReader(bytes.NewReader(test.data), 10)
 
@@ -642,7 +638,6 @@ func TestReader_ReadString(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		test := test
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			r := avro.NewReader(bytes.NewReader(test.data), 10)
 

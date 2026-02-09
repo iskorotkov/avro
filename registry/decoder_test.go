@@ -47,7 +47,6 @@ func TestDecoder_Decode(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			h := http.NewServeMux()
 			h.Handle("/schemas/ids/42", http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {

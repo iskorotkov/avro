@@ -1,7 +1,7 @@
 package avro
 
 import (
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -77,7 +77,7 @@ func NewProtocol(
 		doc:        cfg.doc,
 	}
 
-	b := md5.Sum([]byte(p.String()))
+	b := md5.Sum([]byte(p.String())) //nolint:gosec
 	p.hash = hex.EncodeToString(b[:])
 
 	return p, nil
@@ -204,7 +204,7 @@ func (m *Message) String() string {
 
 // ParseProtocolFile parses an Avro protocol from a file.
 func ParseProtocolFile(path string) (*Protocol, error) {
-	s, err := os.ReadFile(path)
+	s, err := os.ReadFile(path) //nolint:gosec
 	if err != nil {
 		return nil, err
 	}

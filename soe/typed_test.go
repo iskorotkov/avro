@@ -19,8 +19,8 @@ func newTypedCodec(t *testing.T) *soe.TypedCodec[*testdata.Generated] {
 
 // Used to test over all decoder functions.
 func typedDecoderFuncs[T soe.AvroGenerated](codec *soe.TypedCodec[T]) map[string]func([]byte, T) error {
-	return map[string]func([]byte, T) error {
-		"Decode": codec.Decode,
+	return map[string]func([]byte, T) error{
+		"Decode":           codec.Decode,
 		"DecodeUnverified": codec.DecodeUnverified,
 	}
 }
@@ -47,7 +47,6 @@ func TestTypedCodec_Roundtrip(t *testing.T) {
 			require.Equal(t, v0, v1)
 		})
 	}
-
 }
 
 func TestTypedCodec_DecodeShortHeader(t *testing.T) {

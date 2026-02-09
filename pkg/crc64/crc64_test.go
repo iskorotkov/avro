@@ -29,7 +29,6 @@ func TestGolden(t *testing.T) {
 	hash := New()
 
 	for i, test := range tests {
-		test := test
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			hash.Reset()
 			_, _ = hash.Write([]byte(test.in))
@@ -63,7 +62,6 @@ func TestGoldenBytes(t *testing.T) {
 	hash := New()
 
 	for i, test := range tests {
-		test := test
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			hash.Reset()
 			_, _ = hash.Write([]byte(test.in))
@@ -128,8 +126,8 @@ func bench(b *testing.B, size int64) {
 	}
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		h.Reset()
 		_, _ = h.Write(data)
 		h.Sum(in)
@@ -159,16 +157,16 @@ func BenchmarkSum(b *testing.B) {
 	b.Run("BigEndian", func(b *testing.B) {
 		b.SetBytes(int64(len(data)))
 		b.ReportAllocs()
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+
+		for b.Loop() {
 			_ = SumWithByteOrder(data, BigEndian)
 		}
 	})
 	b.Run("LittleEndian", func(b *testing.B) {
 		b.SetBytes(int64(len(data)))
 		b.ReportAllocs()
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+
+		for b.Loop() {
 			_ = SumWithByteOrder(data, LittleEndian)
 		}
 	})

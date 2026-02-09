@@ -54,7 +54,6 @@ func TestReader_SkipInt(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			r := avro.NewReader(bytes.NewReader(test.data), 10)
 
@@ -82,7 +81,6 @@ func TestReader_SkipLong(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			r := avro.NewReader(bytes.NewReader(test.data), 10)
 

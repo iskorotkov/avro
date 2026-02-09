@@ -182,7 +182,6 @@ func TestStruct_ConfigurableFieldTags(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(string(test.tagStyle), func(t *testing.T) {
 			gc := gen.Config{
 				PackageName: "Something",
@@ -454,7 +453,7 @@ func generate(t *testing.T, schema string, gc gen.Config) ([]byte, []string) {
 
 func removeSpaceAndEmptyLines(goCode []byte) []string {
 	var lines []string
-	for _, lineBytes := range bytes.Split(goCode, []byte("\n")) {
+	for lineBytes := range bytes.SplitSeq(goCode, []byte("\n")) {
 		if len(lineBytes) == 0 {
 			continue
 		}
@@ -467,5 +466,5 @@ func removeSpaceAndEmptyLines(goCode []byte) []string {
 // removeMoreThanOneConsecutiveSpaces replaces all sequences of more than one space, with a single one
 func removeMoreThanOneConsecutiveSpaces(lineBytes []byte) string {
 	lines := strings.TrimSpace(string(lineBytes))
-	return strings.Join(regexp.MustCompile("\\s+|\\t+").Split(lines, -1), " ")
+	return strings.Join(regexp.MustCompile(`\s+|\t+`).Split(lines, -1), " ")
 }

@@ -363,7 +363,6 @@ func TestIsValidDefault(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -460,7 +459,6 @@ func TestSchema_IsPromotable(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		test := test
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			t.Parallel()
 
@@ -537,7 +535,6 @@ func TestSchema_IsNative(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		test := test
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			t.Parallel()
 
@@ -645,7 +642,6 @@ func TestEnumSchema_GetSymbol(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		test := test
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			t.Parallel()
 

@@ -151,7 +151,6 @@ func TestPrimitiveSchema(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.schema, func(t *testing.T) {
 			t.Parallel()
 
@@ -266,7 +265,6 @@ func TestRecordSchema(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -326,7 +324,6 @@ func TestErrorRecordSchema(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -446,7 +443,6 @@ func TestRecordSchema_ValidatesDefault(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -506,7 +502,6 @@ func TestRecordSchema_ValidatesOrder(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -705,7 +700,6 @@ func TestEnumSchema(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -761,7 +755,6 @@ func TestArraySchema(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -810,7 +803,6 @@ func TestMapSchema(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -875,7 +867,6 @@ func TestUnionSchema(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -914,7 +905,6 @@ func TestUnionSchema_Indices(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -986,7 +976,6 @@ func TestFixedSchema(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1189,7 +1178,6 @@ func TestSchema_LogicalTypes(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1295,7 +1283,6 @@ func TestSchema_FingerprintUsing(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -2264,7 +2251,7 @@ func TestNewSchema_IgnoresInvalidProperties(t *testing.T) {
 func TestConcurrentParse(t *testing.T) {
 	var wg sync.WaitGroup
 
-	for i := 0; i < 10000; i++ {
+	for range 10000 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

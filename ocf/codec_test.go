@@ -62,8 +62,8 @@ func BenchmarkZstdEncodeDecodeLowEntropyLong(b *testing.B) {
 	require.NoError(b, err)
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		compressed := codec.Encode(input)
 		_, decodeErr := codec.Decode(compressed)
 		require.NoError(b, decodeErr)
@@ -77,8 +77,8 @@ func BenchmarkZstdEncodeDecodeHighEntropyLong(b *testing.B) {
 	require.NoError(b, err)
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		compressed := codec.Encode(input)
 		_, decodeErr := codec.Decode(compressed)
 		require.NoError(b, decodeErr)
@@ -98,7 +98,7 @@ func verifyZstdEncodeDecode(t *testing.T, input []byte) {
 
 func makeTestData(length int, charMaker func() byte) []byte {
 	input := make([]byte, length)
-	for i := 0; i < length; i++ {
+	for i := range length {
 		input[i] = charMaker()
 	}
 	return input

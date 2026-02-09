@@ -2,7 +2,7 @@ package avro
 
 import (
 	"bytes"
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -328,7 +328,7 @@ func (f *fingerprinter) FingerprintUsing(typ FingerprintType, stringer fmt.Strin
 		h := crc64.SumWithByteOrder(data, crc64.LittleEndian)
 		fingerprint = h[:]
 	case MD5:
-		h := md5.Sum(data)
+		h := md5.Sum(data) //nolint:gosec
 		fingerprint = h[:]
 	case SHA256:
 		h := sha256.Sum256(data)

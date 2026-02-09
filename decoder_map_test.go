@@ -150,7 +150,7 @@ func (t textUnmarshallerNope) UnmarshalText(text []byte) error {
 	if err != nil {
 		return err
 	}
-	t = textUnmarshallerNope(i)
+	_ = textUnmarshallerNope(i)
 	return nil
 }
 

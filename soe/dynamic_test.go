@@ -208,12 +208,12 @@ func TestDynamicDecoder_DecodeDynamicallyIntoMap(t *testing.T) {
 	require.NoError(t, err1)
 	require.Equal(t, map[string]any{
 		"name": "Bob",
-		"age": 16,
+		"age":  16,
 	}, v1)
 
 	require.NoError(t, err2)
 	require.Equal(t, map[string]any{
-		"key": "ABC",
+		"key":     "ABC",
 		"enabled": true,
 	}, v2)
 }

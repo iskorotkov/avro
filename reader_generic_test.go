@@ -197,7 +197,6 @@ func TestReader_ReadNext(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			schema := avro.MustParse(test.schema)
 			r := avro.NewReader(bytes.NewReader(test.data), 10)

@@ -520,8 +520,8 @@ func TestEncoder_UnionInterfaceRecursiveType(t *testing.T) {
 	defer ConfigTeardown()
 
 	type record struct {
-		A int         `avro:"a"`
-		B interface{} `avro:"b"`
+		A int `avro:"a"`
+		B any `avro:"b"`
 	}
 
 	schema := `{

@@ -47,8 +47,8 @@ func BenchmarkSuperheroDecode(b *testing.B) {
 	super := &Superhero{}
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = avro.Unmarshal(schema, data, super)
 	}
 }
@@ -73,8 +73,8 @@ func BenchmarkSuperheroEncode(b *testing.B) {
 	}
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_, _ = avro.Marshal(schema, super)
 	}
 }
@@ -93,8 +93,8 @@ func BenchmarkPartialSuperheroDecode(b *testing.B) {
 	super := &PartialSuperhero{}
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = avro.Unmarshal(schema, data, super)
 	}
 }
@@ -111,8 +111,8 @@ func BenchmarkSuperheroGenericDecode(b *testing.B) {
 	}
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		var m any
 		_ = avro.Unmarshal(schema, data, &m)
 	}
@@ -138,8 +138,8 @@ func BenchmarkSuperheroGenericEncode(b *testing.B) {
 	}
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_, _ = avro.Marshal(schema, super)
 	}
 }
@@ -164,10 +164,9 @@ func BenchmarkSuperheroWriteFlush(b *testing.B) {
 	}
 
 	b.ReportAllocs()
-	b.ResetTimer()
 
 	w := avro.NewWriter(io.Discard, 128)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		w.WriteVal(schema, super)
 		_ = w.Flush()
 	}

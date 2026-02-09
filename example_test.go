@@ -224,7 +224,7 @@ func TestEncoderDecoder_Concurrency(t *testing.T) {
 	}
 
 	wg := &sync.WaitGroup{}
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		wg.Add(1)
 		go func(schema avro.Schema, wg *sync.WaitGroup, idx int64) {
 			defer wg.Done()

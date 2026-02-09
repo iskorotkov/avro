@@ -33,7 +33,6 @@ func TestAvroSv_RequiredFlags(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			got := realMain(test.args, io.Discard, io.Discard)
 
@@ -76,7 +75,6 @@ func TestAvroSv_ValidatesSchema(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			avro.DefaultSchemaCache = &avro.SchemaCache{} // reset the schema cache
 			got := realMain(test.args, io.Discard, io.Discard)
@@ -114,7 +112,6 @@ func TestAvroSv_Verbose(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			var buf bytes.Buffer
 

@@ -721,7 +721,7 @@ func TestEncoder_ExistingOCF(t *testing.T) {
 	require.NoError(t, err)
 
 	if *update {
-		err = os.WriteFile("testdata/full-appended.avro", got, 0o644)
+		err = os.WriteFile("testdata/full-appended.avro", got, 0o600)
 		require.NoError(t, err)
 	}
 
@@ -1268,7 +1268,7 @@ func TestWithSchemaMarshaler(t *testing.T) {
 	require.NoError(t, err)
 
 	if *update {
-		err = os.WriteFile("testdata/full-schema.json", got, 0o644)
+		err = os.WriteFile("testdata/full-schema.json", got, 0o600)
 		require.NoError(t, err)
 	}
 
@@ -1533,7 +1533,7 @@ func TestEncoder_ResetMultipleTimes(t *testing.T) {
 	enc, err := ocf.NewEncoder(`"long"`, buffers[0])
 	require.NoError(t, err)
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		if i > 0 {
 			err = enc.Reset(buffers[i])
 			require.NoError(t, err)
@@ -1547,7 +1547,7 @@ func TestEncoder_ResetMultipleTimes(t *testing.T) {
 	}
 
 	// Verify all files
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		dec, err := ocf.NewDecoder(buffers[i])
 		require.NoError(t, err, "file %d", i)
 
@@ -1570,10 +1570,9 @@ func TestEncoder_AppendToExistingFile(t *testing.T) {
 	record1 := SimpleRecord{Name: "first", ID: 1}
 	record2 := SimpleRecord{Name: "second", ID: 2}
 
-	tmpFile, err := os.CreateTemp("", "append-test-*.avro")
+	tmpFile, err := os.CreateTemp(t.TempDir(), "append-test-*.avro")
 	require.NoError(t, err)
 	tmpName := tmpFile.Name()
-	t.Cleanup(func() { _ = os.Remove(tmpName) })
 
 	// Write first record
 	enc, err := ocf.NewEncoder(simpleSchema, tmpFile)
@@ -1586,7 +1585,7 @@ func TestEncoder_AppendToExistingFile(t *testing.T) {
 	require.NoError(t, err)
 
 	// Reopen file and append second record
-	file, err := os.OpenFile(tmpName, os.O_RDWR, 0o644)
+	file, err := os.OpenFile(tmpName, os.O_RDWR, 0o600)
 	require.NoError(t, err)
 
 	enc2, err := ocf.NewEncoder(simpleSchema, file)

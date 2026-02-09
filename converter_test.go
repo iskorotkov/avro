@@ -22,7 +22,6 @@ func TestLongConverter(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		test := test
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			r := NewReader(bytes.NewReader(test.data), 10)
 
@@ -52,7 +51,6 @@ func TestFloatConverter(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		test := test
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			r := NewReader(bytes.NewReader(test.data), 10)
 
@@ -87,7 +85,6 @@ func TestDoubleConverter(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		test := test
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			r := NewReader(bytes.NewReader(test.data), 10)
 

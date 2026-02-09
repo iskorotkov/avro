@@ -53,7 +53,6 @@ func TestAvroGen_RequiredFlags(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			got := realMain(test.args, io.Discard, io.Discard)
 
@@ -75,11 +74,7 @@ func TestAvroGen_GeneratesSchemaStdout(t *testing.T) {
 }
 
 func TestAvroGen_GeneratesSchema(t *testing.T) {
-	path, err := os.MkdirTemp("./", "avrogen")
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = os.RemoveAll(path) })
-
-	file := filepath.Join(path, "test.go")
+	file := filepath.Join(t.TempDir(), "test.go")
 	args := []string{"avrogen", "-o", file, "-pkg", "testpkg", "-pkgdoc", "package testpkg is generated from schema.avsc", "testdata/schema.avsc"}
 	gotCode := realMain(args, io.Discard, io.Discard)
 	require.Equal(t, 0, gotCode)
@@ -98,11 +93,7 @@ func TestAvroGen_GeneratesSchema(t *testing.T) {
 }
 
 func TestAvroGen_GeneratesSchemaWithFullname(t *testing.T) {
-	path, err := os.MkdirTemp("./", "avrogen")
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = os.RemoveAll(path) })
-
-	file := filepath.Join(path, "test.go")
+	file := filepath.Join(t.TempDir(), "test.go")
 	args := []string{"avrogen", "-pkg", "testpkg", "-o", file, "-fullname", "testdata/schema.avsc"}
 	gotCode := realMain(args, io.Discard, io.Discard)
 	require.Equal(t, 0, gotCode)
@@ -121,11 +112,7 @@ func TestAvroGen_GeneratesSchemaWithFullname(t *testing.T) {
 }
 
 func TestAvroGen_GeneratesSchemaWithEncoders(t *testing.T) {
-	path, err := os.MkdirTemp("./", "avrogen")
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = os.RemoveAll(path) })
-
-	file := filepath.Join(path, "test.go")
+	file := filepath.Join(t.TempDir(), "test.go")
 	args := []string{"avrogen", "-pkg", "testpkg", "-o", file, "-encoders", "testdata/schema.avsc"}
 	gotCode := realMain(args, io.Discard, io.Discard)
 	require.Equal(t, 0, gotCode)
@@ -144,11 +131,7 @@ func TestAvroGen_GeneratesSchemaWithEncoders(t *testing.T) {
 }
 
 func TestAvroGen_GeneratesSchemaWithFullSchema(t *testing.T) {
-	path, err := os.MkdirTemp("./", "avrogen")
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = os.RemoveAll(path) })
-
-	file := filepath.Join(path, "test.go")
+	file := filepath.Join(t.TempDir(), "test.go")
 	args := []string{"avrogen", "-pkg", "testpkg", "-o", file, "-encoders", "-fullschema", "testdata/schema.avsc"}
 	gotCode := realMain(args, io.Discard, io.Discard)
 	require.Equal(t, 0, gotCode)
@@ -167,11 +150,7 @@ func TestAvroGen_GeneratesSchemaWithFullSchema(t *testing.T) {
 }
 
 func TestAvroGen_GeneratesSchemaWithStrictTypes(t *testing.T) {
-	path, err := os.MkdirTemp("./", "avrogen")
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = os.RemoveAll(path) })
-
-	file := filepath.Join(path, "test.go")
+	file := filepath.Join(t.TempDir(), "test.go")
 	args := []string{"avrogen", "-pkg", "testpkg", "-o", file, "-strict-types", "testdata/schema.avsc"}
 	gotCode := realMain(args, io.Discard, io.Discard)
 	require.Equal(t, 0, gotCode)
@@ -190,11 +169,7 @@ func TestAvroGen_GeneratesSchemaWithStrictTypes(t *testing.T) {
 }
 
 func TestAvroGen_GeneratesSchemaWithCustomLogicalTypes(t *testing.T) {
-	path, err := os.MkdirTemp("./", "avrogen")
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = os.RemoveAll(path) })
-
-	file := filepath.Join(path, "test.go")
+	file := filepath.Join(t.TempDir(), "test.go")
 	args := []string{
 		"avrogen", "-pkg", "testpkg", "-o", file,
 		// test mapping to an external package type
@@ -249,7 +224,6 @@ func TestParseTags(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			_, err := parseTags(test.tags)
 
@@ -282,7 +256,6 @@ func TestParseInitialisms(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			_, err := parseInitialisms(test.initialisms)
 

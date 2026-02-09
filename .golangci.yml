@@ -1,11 +1,14 @@
 version: "2"
+
 run:
-  tests: false
+  tests: true
+
+issues:
+  max-issues-per-linter: 100
+  max-same-issues: 100
 
 formatters:
   enable:
-    - gci
-    - gofmt
     - gofumpt
     - goimports
   settings:
@@ -15,45 +18,64 @@ formatters:
     generated: lax
 
 linters:
-  default: all
-  disable:
-    - cyclop    # duplicate of gocyclo
-    - depguard
-    - err113
-    - exhaustive
-    - exhaustruct
-    - forcetypeassert
-    - funlen
-    - funcorder
-    - gochecknoglobals
-    - gochecknoinits
-    - gocognit
-    - goconst
-    - gocyclo
-    - gosmopolitan
-    - inamedparam
-    - interfacebloat
-    - ireturn
-    - mnd
-    - nestif
-    - nlreturn
-    - noinlineerr
-    - nonamedreturns
-    - tagliatelle
-    - varnamelen
-    - wrapcheck
-    - wsl
-    - wsl_v5
-  settings:
-    gosec:
-      excludes:
-        - G115
-        - G103
+  default: standard
+  enable:
+    # Bug catchers
+    - bodyclose
+    - contextcheck
+    - durationcheck
+    - makezero
+    - nilerr
+    - nilnesserr
+    - noctx
+    - rowserrcheck
+    - sqlclosecheck
+    # Code quality
+    - errname
+    - gocritic
+    - mirror
+    - reassign
+    - recvcheck
+    - revive
+    - unconvert
+    - unparam
+    - wastedassign
+    # Modernization
+    - copyloopvar
+    - exptostd
+    - intrange
+    - modernize
+    - usetesting
+    # Security
+    - gosec
   exclusions:
     generated: lax
     rules:
       - linters:
+          - errcheck
+        path: .*_test\.go$
+      - linters:
+          - gocritic
+        text: "^exitAfterDefer: .*"
+        path: .*_test\.go$
+      - linters:
           - gosec
-        path: (schema|protocol)\.go
-      - path: (.+)\.go$
-        text: 'package-comments: should have a package comment'
+        text: "^G304: .*"
+        path: .*_test\.go$
+      - linters:
+          - gosec
+        text: "^G404: .*"
+        path: .*_test\.go$
+  settings:
+    staticcheck:
+      checks:
+        - -QF1010 # could convert argument to string
+    gosec:
+      # TODO: Enable all gosec rules
+      excludes:
+        - G103 # Use of unsafe calls should be audited
+        - G115 # integer overflow conversion int -> int32
+    revive:
+      rules:
+        - name: package-comments
+          disabled: true
