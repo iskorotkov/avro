@@ -4,32 +4,38 @@
   <img alt="Logo" src="http://svg.wiersma.co.za/hamba/project?title=avro&tag=A%20fast%20Go%20avro%20codec">
 </picture>
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/hamba/avro/v2)](https://goreportcard.com/report/github.com/hamba/avro/v2)
-[![Build Status](https://github.com/hamba/avro/actions/workflows/test.yml/badge.svg)](https://github.com/hamba/avro/actions)
-[![Coverage Status](https://coveralls.io/repos/github/hamba/avro/badge.svg?branch=main)](https://coveralls.io/github/hamba/avro?branch=main)
-[![Go Reference](https://pkg.go.dev/badge/github.com/hamba/avro/v2.svg)](https://pkg.go.dev/github.com/hamba/avro/v2)
-[![GitHub release](https://img.shields.io/github/release/hamba/avro.svg)](https://github.com/hamba/avro/releases)
-[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/hamba/avro/master/LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/iskorotkov/avro/v2)](https://goreportcard.com/report/github.com/iskorotkov/avro/v2)
+[![Build Status](https://github.com/iskorotkov/avro/actions/workflows/test.yml/badge.svg)](https://github.com/iskorotkov/avro/actions)
+[![Coverage Status](https://coveralls.io/repos/github/iskorotkov/avro/badge.svg?branch=main)](https://coveralls.io/github/iskorotkov/avro?branch=main)
+[![Go Reference](https://pkg.go.dev/badge/github.com/iskorotkov/avro/v2.svg)](https://pkg.go.dev/github.com/iskorotkov/avro/v2)
+[![GitHub release](https://img.shields.io/github/release/iskorotkov/avro.svg)](https://github.com/iskorotkov/avro/releases)
+[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/iskorotkov/avro/master/LICENSE)
 
 A fast Go avro codec
 
-> [!WARNING]
-> This project is no longer maintained.
->
-> If you wish to update or extend `avro`, please do so in a fork.
+---
 
-I am grateful for the contributions and support from the community over the years.
+**What about the original hamba/avro?** hamba/avro was archived in January 2026 and will no longer receive updates or bugfixes.
 
-This project was born out of necessity for a fast and reliable Avro codec for Go.
-It has been a labor of love, and I hope has served you well in your projects, but
-I no longer have the time to maintain it.
+**What is this fork?** I decided to step up and continue development of this library in my fork. I've extensively used it in 2 companies already. I wish to see it being developed further and get new features.
+
+**What about other alternatives?** There are none as far as I know. All libraries are either slow, hard to use or both. Feel free to contact me or create a GitHub Issue if you know a good alternative.
+
+---
+
+**How to migrate from hamba/avro to iskorotkov/avro?**
+
+You have 2 options:
+
+1. Use `replace` directive in `go.mod` and replace hamba/avro with this library. Only 1 file needs to be changed.
+2. Replace hamba/avro with iskorotkov/avro in `go.mod`, then rewrite imports in all Go files from hamba/avro to iskorotkov/avro. A lot of files must be updated, but it is a cleaner approach and can be automated with bash script or LLM.
 
 ## Overview
 
 Install with:
 
 ```shell
-go get github.com/hamba/avro/v2
+go get github.com/iskorotkov/avro/v2
 ```
 
 **Note:** This project has renamed the default branch from `master` to `main`. You will need to update your local environment.
@@ -45,7 +51,7 @@ type SimpleRecord struct {
 schema, err := avro.Parse(`{
     "type": "record",
     "name": "simple",
-    "namespace": "org.hamba.avro",
+    "namespace": "org.iskorotkov.avro",
     "fields" : [
         {"name": "a", "type": "long"},
         {"name": "b", "type": "string"}
@@ -75,12 +81,12 @@ fmt.Println(out)
 // Outputs: {27 foo}
 ```
 
-More examples in the [godoc](https://pkg.go.dev/github.com/hamba/avro/v2).
+More examples in the [godoc](https://pkg.go.dev/github.com/iskorotkov/avro/v2).
 
-#### Types Conversions
+### Types Conversions
 
 | Avro                          | Go Struct                                                  | Go Interface             |
-|-------------------------------|------------------------------------------------------------|--------------------------|
+| ----------------------------- | ---------------------------------------------------------- | ------------------------ |
 | `null`                        | `nil`                                                      | `nil`                    |
 | `boolean`                     | `bool`                                                     | `bool`                   |
 | `bytes`                       | `[]byte`                                                   | `[]byte`                 |
@@ -117,7 +123,7 @@ when converting between the Avro type and Go type. For example, storing a *negat
 would be interpreted as `uint16 = 65,436` in Go. Another example would be storing numbers in Avro `int = 256` that
 are larger than the Go type `uint8 = 0`.
 
-##### Unions
+#### Unions
 
 The following union types are accepted: `map[string]any`, `*T` and `any`.
 
@@ -179,18 +185,20 @@ type TestRecord struct {
     B string `avro:"b"`
 }
 ```
-Note due to way Go checks if some type implements these interface, the type used _must_ be a pointer as the interface methods _must_
+
+Note due to way Go checks if some type implements these interface, the type used *must* be a pointer as the interface methods *must*
 be implemented with pointer receivers.
+
 * **any:** An `interface` can be provided and the type or name resolved. Primitive types
 are pre-registered, but named types, maps and slices will need to be registered with the `Register` function.
 In the case of arrays and maps the enclosed schema type or name is postfix to the type with a `:` separator,
 e.g `"map:string"`. Behavior when a type cannot be resolved will depend on your chosen configuation options:
-	* !Config.UnionResolutionError && !Config.PartialUnionTypeResolution: the map type above is used
-	* Config.UnionResolutionError && !Config.PartialUnionTypeResolution: an error is returned
-	* !Config.UnionResolutionError && Config.PartialUnionTypeResolution: any registered type will get resolved while any unregistered type will fallback to the map type above.
-	* Config.UnionResolutionError && !Config.PartialUnionTypeResolution: any registered type will get resolved while any unregistered type will return an error.
+ 	* !Config.UnionResolutionError && !Config.PartialUnionTypeResolution: the map type above is used
+ 	* Config.UnionResolutionError && !Config.PartialUnionTypeResolution: an error is returned
+ 	* !Config.UnionResolutionError && Config.PartialUnionTypeResolution: any registered type will get resolved while any unregistered type will fallback to the map type above.
+ 	* Config.UnionResolutionError && !Config.PartialUnionTypeResolution: any registered type will get resolved while any unregistered type will return an error.
 
-##### TextMarshaler and TextUnmarshaler
+#### TextMarshaler and TextUnmarshaler
 
 The interfaces `TextMarshaler` and `TextUnmarshaler` are supported for a `string` schema type. The object will
 be tested first for implementation of these interfaces, in the case of a `string` schema, before trying regular
@@ -198,21 +206,21 @@ encoding and decoding.
 
 Enums may also implement `TextMarshaler` and `TextUnmarshaler`, and must resolve to valid symbols in the given enum schema.
 
-##### Identical Underlying Types
+#### Identical Underlying Types
 
 One type can be [ConvertibleTo](https://go.dev/ref/spec#Conversions) another type if they have identical underlying types.
 A non-native type is allowed to be used if it can be convertible to *time.Time*, *big.Rat* or *avro.LogicalDuration* for the particular of *LogicalTypes*.
 
 Ex.: `type Timestamp time.Time`
 
-##### Custom Type Conversion
+#### Custom Type Conversion
 
 In case of incompatible types, custom type conversion functions can be registered with the `RegisterTypeConverters` function.
 This requires the use of `map[string]any` or `[]any`.
 The type conversion for encoding will receive the original value that is to be encoded, and must return a data type that is compatible with the schema, as specified in the table above.
 The type conversion for decoding will receive the decoded value with a data type that is compatible with the schema, and its return value will be used as the final decoded value.
 
-##### Untrusted Input With Bytes and Strings
+#### Untrusted Input With Bytes and Strings
 
 For security reasons, the configuration `Config.MaxByteSliceSize` restricts the maximum size of `bytes` and `string` types created
 by the `Reader`. The default maximum size is `1MiB` and is configurable. This is required to stop untrusted input from consuming all memory and
@@ -222,7 +230,7 @@ crashing the application. Should this not be need, setting a negative number wil
 
 Benchmark source code can be found at: [https://github.com/nrwiersma/avro-benchmarks](https://github.com/nrwiersma/avro-benchmarks)
 
-```
+```go
 BenchmarkGoAvroDecode-8      	  788455	      1505 ns/op	     418 B/op	      27 allocs/op
 BenchmarkGoAvroEncode-8      	  624343	      1908 ns/op	     806 B/op	      63 allocs/op
 BenchmarkGoGenAvroDecode-8   	 1360375	       876.4 ns/op	     320 B/op	      11 allocs/op
@@ -243,7 +251,7 @@ You can use the avrogen command line tool to generate the structs, or use it as 
 Install the struct generator with:
 
 ```shell
-go install github.com/hamba/avro/v2/cmd/avrogen@<version>
+go install github.com/iskorotkov/avro/v2/cmd/avrogen@<version>
 ```
 
 Example usage assuming there's a valid schema in `in.avsc`:
@@ -262,7 +270,7 @@ avrogen -h
 
 ### Custom logical type mapping with avrogen
 
-You can register custom logical type mappings to be used during code generation. 
+You can register custom logical type mappings to be used during code generation.
 
 The format of a custom logical type mapper is `avroLogicalType,goType[,importPath]`. For example,
 to map the logical type `uuid` to the Go type `github.com/google/uuid.UUID`, you would use:
@@ -290,7 +298,7 @@ schemas to the console. It can be used in CI/CD pipelines to validate schema cha
 Install the Avro schema validator with:
 
 ```shell
-go install github.com/hamba/avro/v2/cmd/avrosv@<version>
+go install github.com/iskorotkov/avro/v2/cmd/avrosv@<version>
 ```
 
 Example usage assuming there's a valid schema in `in.avsc` (exit status code is `0`):
@@ -339,8 +347,10 @@ This library supports the last two versions of Go. While the minimum Go version 
 not guaranteed to increase along side Go, it may jump from time to time to support
 additional features. This will be not be considered a breaking change.
 
-## Who uses hamba/avro?
+## Who uses this library?
 
-- [Apache Arrow for Go](https://github.com/apache/arrow-go)
-- [confluent-kafka-go](https://github.com/confluentinc/confluent-kafka-go)
-- [pulsar-client-go](https://github.com/apache/pulsar-client-go)
+* [Apache Arrow for Go](https://github.com/apache/arrow-go)
+* [confluent-kafka-go](https://github.com/confluentinc/confluent-kafka-go)
+* [pulsar-client-go](https://github.com/apache/pulsar-client-go)
+
+Create a GitHub Issue if you use this library and want to be included in this list!
