@@ -230,17 +230,23 @@ crashing the application. Should this not be need, setting a negative number wil
 
 ## Benchmark
 
-Benchmark source code can be found at: [https://github.com/nrwiersma/avro-benchmarks](https://github.com/nrwiersma/avro-benchmarks)
+Benchmark source code can be found at: [https://github.com/iskorotkov/avro-benchmarks](https://github.com/iskorotkov/avro-benchmarks)
 
 ```go
-BenchmarkGoAvroDecode-8      	  788455	      1505 ns/op	     418 B/op	      27 allocs/op
-BenchmarkGoAvroEncode-8      	  624343	      1908 ns/op	     806 B/op	      63 allocs/op
-BenchmarkGoGenAvroDecode-8   	 1360375	       876.4 ns/op	     320 B/op	      11 allocs/op
-BenchmarkGoGenAvroEncode-8   	 2801583	       425.9 ns/op	     240 B/op	       3 allocs/op
-BenchmarkHambaDecode-8       	 5046832	       238.7 ns/op	      47 B/op	       0 allocs/op
-BenchmarkHambaEncode-8       	 6017635	       196.2 ns/op	     112 B/op	       1 allocs/op
-BenchmarkLinkedinDecode-8    	 1000000	      1003 ns/op	    1688 B/op	      35 allocs/op
-BenchmarkLinkedinEncode-8    	 3170553	       381.5 ns/op	     248 B/op	       5 allocs/op
+goos: darwin
+goarch: arm64
+pkg: github.com/iskorotkov/avro-benchmarks
+cpu: Apple M4 Pro
+BenchmarkGoAvroDecode-12        	 1262725	       952.7 ns/op	     418 B/op      27 allocs/op
+BenchmarkGoAvroEncode-12        	  921210	      1285 ns/op	     883 B/op      63 allocs/op
+BenchmarkGoGenAvroDecode-12     	 2628411	       464.0 ns/op	     320 B/op      11 allocs/op
+BenchmarkGoGenAvroEncode-12     	 4695589	       233.8 ns/op	     240 B/op       3 allocs/op
+BenchmarkHambaDecode-12         	 8214915	       144.9 ns/op	      47 B/op       0 allocs/op
+BenchmarkHambaEncode-12         	 8826021	       136.4 ns/op	     112 B/op       1 allocs/op
+BenchmarkIskorotkovDecode-12    	 8174200	       145.7 ns/op	      47 B/op       0 allocs/op
+BenchmarkIskorotkovEncode-12    	 8739876	       138.0 ns/op	     112 B/op       1 allocs/op
+BenchmarkLinkedinDecode-12      	 1925295	       622.8 ns/op	    1688 B/op      35 allocs/op
+BenchmarkLinkedinEncode-12      	 4478540	       270.0 ns/op	     248 B/op       5 allocs/op
 ```
 
 Always benchmark with your own workload. The result depends heavily on the data input.
