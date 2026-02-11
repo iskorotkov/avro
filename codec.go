@@ -38,7 +38,7 @@ func (r *Reader) ReadVal(schema Schema, obj any) {
 	decoder := r.cfg.getDecoderFromCache(schema.CacheFingerprint(), reflect2.RTypeOf(obj))
 	if decoder == nil {
 		typ := reflect2.TypeOf(obj)
-		if typ.Kind() != reflect.Ptr {
+		if typ.Kind() != reflect.Pointer {
 			r.ReportError("ReadVal", "can only unmarshal into pointer")
 			return
 		}

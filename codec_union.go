@@ -32,7 +32,7 @@ func createDecoderOfUnion(d *decoderContext, schema *UnionSchema, typ reflect2.T
 			break
 		}
 		return decoderOfNullableUnion(d, schema, typ)
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if typ.Implements(reflect2.Type2(reflect.TypeFor[UnionConverter]())) {
 			return decoderOfUnionConverterCodec(d, schema, typ)
 		}
@@ -69,7 +69,7 @@ func createEncoderOfUnion(e *encoderContext, schema *UnionSchema, typ reflect2.T
 			break
 		}
 		return encoderOfNullableUnion(e, schema, typ)
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if typ.Implements(reflect2.Type2(reflect.TypeFor[UnionConverter]())) {
 			return encoderOfUnionConverterCodec(e, schema, typ)
 		}
@@ -496,7 +496,7 @@ func (d *unionResolvedDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 		mapType := typ.(*reflect2.UnsafeSliceType)
 		newPtr = mapType.UnsafeMakeSlice(0, 0)
 
-	case reflect.Ptr:
+	case reflect.Pointer:
 		elemType := typ.(*reflect2.UnsafePtrType).Elem()
 		newPtr = elemType.UnsafeNew()
 
@@ -544,7 +544,7 @@ func (d *unionConverterFromAnyCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 		return
 	}
 
-	if d.typ.Kind() == reflect.Ptr {
+	if d.typ.Kind() == reflect.Pointer {
 		ptrType := d.typ.(*reflect2.UnsafePtrType).Elem()
 		elemPtr := ptrType.UnsafeNew()
 		*((*unsafe.Pointer)(ptr)) = elemPtr

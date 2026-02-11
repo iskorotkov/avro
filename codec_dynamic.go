@@ -42,7 +42,7 @@ func (d *efaceDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 	}
 
 	typ := reflect2.TypeOf(*pObj)
-	if typ.Kind() != reflect.Ptr {
+	if typ.Kind() != reflect.Pointer {
 		*pObj = genericDecode(d.typ, d.dec, r)
 		return
 	}

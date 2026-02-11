@@ -24,7 +24,7 @@ func createDecoderOfFixed(fixed *FixedSchema, typ reflect2.Type) ValDecoder {
 		}
 
 		return &fixedUint64Codec{}
-	case reflect.Ptr:
+	case reflect.Pointer:
 		ptrType := typ.(*reflect2.UnsafePtrType)
 		elemType := ptrType.Elem()
 
@@ -67,7 +67,7 @@ func createEncoderOfFixed(fixed *FixedSchema, typ reflect2.Type) ValEncoder {
 		}
 
 		return &fixedUint64Codec{}
-	case reflect.Ptr:
+	case reflect.Pointer:
 		ptrType := typ.(*reflect2.UnsafePtrType)
 		elemType := ptrType.Elem()
 

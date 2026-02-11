@@ -23,7 +23,7 @@ func createDecoderOfRecord(d *decoderContext, schema Schema, typ reflect2.Type) 
 		}
 		return decoderOfRecord(d, schema, typ)
 
-	case reflect.Ptr:
+	case reflect.Pointer:
 		return decoderOfPtr(d, schema, typ)
 
 	case reflect.Interface:
@@ -47,7 +47,7 @@ func createEncoderOfRecord(e *encoderContext, schema *RecordSchema, typ reflect2
 		}
 		return encoderOfRecord(e, schema, typ)
 
-	case reflect.Ptr:
+	case reflect.Pointer:
 		return encoderOfPtr(e, schema, typ)
 	}
 
@@ -141,7 +141,7 @@ func (d *structDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 				break
 			}
 
-			if f.Type().Kind() == reflect.Ptr {
+			if f.Type().Kind() == reflect.Pointer {
 				if *((*unsafe.Pointer)(fieldPtr)) == nil {
 					newPtr := f.Type().(*reflect2.UnsafePtrType).Elem().UnsafeNew()
 					*((*unsafe.Pointer)(fieldPtr)) = newPtr
@@ -238,7 +238,7 @@ func (e *structEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 				break
 			}
 
-			if f.Type().Kind() == reflect.Ptr {
+			if f.Type().Kind() == reflect.Pointer {
 				if *((*unsafe.Pointer)(fieldPtr)) == nil {
 					w.Error = fmt.Errorf("embedded field %q is nil", f.Name())
 					return
@@ -476,7 +476,7 @@ func describeStruct(tagKey string, typ reflect2.Type) *structDescriptor {
 
 				if field.Anonymous() {
 					t := field.Type()
-					if t.Kind() == reflect.Ptr {
+					if t.Kind() == reflect.Pointer {
 						t = t.(*reflect2.UnsafePtrType).Elem()
 					}
 					if t.Kind() != reflect.Struct {

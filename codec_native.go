@@ -161,7 +161,7 @@ func createDecoderOfNative(schema *PrimitiveSchema, typ reflect2.Type) ValDecode
 		default:
 			break
 		}
-	case reflect.Ptr:
+	case reflect.Pointer:
 		ptrType := typ.(*reflect2.UnsafePtrType)
 		elemType := ptrType.Elem()
 		typ1 := elemType.Type1()
@@ -307,7 +307,7 @@ func createEncoderOfNative(schema *PrimitiveSchema, typ reflect2.Type) ValEncode
 			break
 		}
 
-	case reflect.Ptr:
+	case reflect.Pointer:
 		ptrType := typ.(*reflect2.UnsafePtrType)
 		elemType := ptrType.Elem()
 		typ1 := elemType.Type1()
