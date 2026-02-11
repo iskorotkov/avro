@@ -97,11 +97,19 @@ func (r *Reader) loadMore() bool {
 }
 
 func (r *Reader) readByte() byte {
-	if r.head == r.tail {
-		if !r.loadMore() {
-			r.Error = io.ErrUnexpectedEOF
-			return 0
-		}
+	if r.head != r.tail {
+		r.head++
+		return r.buf[r.head-1]
+	}
+
+	return r.readByteSlow()
+}
+
+//go:noinline
+func (r *Reader) readByteSlow() byte {
+	if !r.loadMore() {
+		r.Error = io.ErrUnexpectedEOF
+		return 0
 	}
 
 	b := r.buf[r.head]
@@ -158,6 +166,23 @@ func (r *Reader) ReadInt() int32 {
 		return 0
 	}
 
+	// Fast path: enough bytes in buffer for maximum varint size.
+	if r.tail-r.head >= maxIntBufSize {
+		var v uint32
+		var s uint8
+		for i, b := range r.buf[r.head : r.head+maxIntBufSize] {
+			v |= uint32(b&0x7f) << s
+			if b&0x80 == 0 {
+				r.head += i + 1
+				return int32((v >> 1) ^ -(v & 1))
+			}
+			s += 7
+		}
+		r.ReportError("ReadInt", "int overflow")
+		return 0
+	}
+
+	// Slow path: not enough bytes in buffer, may need to load more.
 	var (
 		n int
 		v uint32
@@ -205,6 +230,23 @@ func (r *Reader) ReadLong() int64 {
 		return 0
 	}
 
+	// Fast path: enough bytes in buffer for maximum varint size.
+	if r.tail-r.head >= maxLongBufSize {
+		var v uint64
+		var s uint8
+		for i, b := range r.buf[r.head : r.head+maxLongBufSize] {
+			v |= uint64(b&0x7f) << s
+			if b&0x80 == 0 {
+				r.head += i + 1
+				return int64((v >> 1) ^ -(v & 1))
+			}
+			s += 7
+		}
+		r.ReportError("ReadLong", "int overflow")
+		return 0
+	}
+
+	// Slow path: not enough bytes in buffer, may need to load more.
 	var (
 		n int
 		v uint64
@@ -246,20 +288,36 @@ func (r *Reader) ReadLong() int64 {
 
 // ReadFloat reads a Float from the Reader.
 func (r *Reader) ReadFloat() float32 {
+	r.head += 4
+	if r.head <= r.tail {
+		return *(*float32)(unsafe.Pointer(&r.buf[r.head-4]))
+	}
+	return r.readFloatSlow()
+}
+
+//go:noinline
+func (r *Reader) readFloatSlow() float32 {
+	r.head -= 4
 	var buf [4]byte
 	r.Read(buf[:])
-
-	float := *(*float32)(unsafe.Pointer(&buf[0]))
-	return float
+	return *(*float32)(unsafe.Pointer(&buf[0]))
 }
 
 // ReadDouble reads a Double from the Reader.
 func (r *Reader) ReadDouble() float64 {
+	r.head += 8
+	if r.head <= r.tail {
+		return *(*float64)(unsafe.Pointer(&r.buf[r.head-8]))
+	}
+	return r.readDoubleSlow()
+}
+
+//go:noinline
+func (r *Reader) readDoubleSlow() float64 {
+	r.head -= 8
 	var buf [8]byte
 	r.Read(buf[:])
-
-	float := *(*float64)(unsafe.Pointer(&buf[0]))
-	return float
+	return *(*float64)(unsafe.Pointer(&buf[0]))
 }
 
 // ReadBytes reads Bytes from the Reader.
@@ -299,6 +357,9 @@ func (r *Reader) readBytes(op string) []byte {
 		if cap(r.slab) < size {
 			r.slab = make([]byte, 1024)
 		}
+
+		_ = r.slab[size-1] // Bounds check hint to compiler.
+
 		dst := r.slab[:size]
 		r.slab = r.slab[size:]
 		copy(dst, r.buf[r.head:r.head+size])
