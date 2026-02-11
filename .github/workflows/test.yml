@@ -12,7 +12,7 @@ jobs:
       matrix:
         go-version: ["1.24", "1.25", "1.26"]
     env:
-      GOLANGCI_LINT_VERSION: v2.8
+      GOLANGCI_LINT_VERSION: v2.9
 
     steps:
       - name: Checkout code
