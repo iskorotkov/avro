@@ -122,6 +122,91 @@ func TestEncoder_UnionMapWithDuration(t *testing.T) {
 	assert.Equal(t, []byte{0x02, 0xAA, 0xB4, 0xDE, 0x75}, buf.Bytes())
 }
 
+func TestEncoder_UnionMapWithDate(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `["null", {"type": "int", "logicalType": "date"}]`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	m := map[string]any{
+		"int.date": time.Date(2920, 1, 2, 0, 0, 0, 0, time.UTC),
+	}
+	err = enc.Encode(m)
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x02, 0xCA, 0xAD, 0x2A}, buf.Bytes())
+}
+
+func TestEncoder_UnionMapWithTimeMicros(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `["null", {"type": "long", "logicalType": "time-micros"}]`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	m := map[string]any{
+		"long.time-micros": 123456789123 * time.Microsecond,
+	}
+	err = enc.Encode(m)
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x02, 0x86, 0xEA, 0xC8, 0xE9, 0x97, 0x07}, buf.Bytes())
+}
+
+func TestEncoder_UnionMapWithTimestampMillis(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `["null", {"type": "long", "logicalType": "timestamp-millis"}]`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	m := map[string]any{
+		"long.timestamp-millis": time.Date(2020, 1, 2, 3, 4, 5, 0, time.UTC),
+	}
+	err = enc.Encode(m)
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x02, 0x90, 0xB2, 0xAE, 0xC3, 0xEC, 0x5B}, buf.Bytes())
+}
+
+func TestEncoder_UnionMapWithLocalTimestampMillis(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `["null", {"type": "long", "logicalType": "local-timestamp-millis"}]`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	m := map[string]any{
+		"long.local-timestamp-millis": time.Date(2020, 1, 2, 3, 4, 5, 0, time.Local),
+	}
+	err = enc.Encode(m)
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x02, 0x90, 0xB2, 0xAE, 0xC3, 0xEC, 0x5B}, buf.Bytes())
+}
+
+func TestEncoder_UnionMapWithLocalTimestampMicros(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `["null", {"type": "long", "logicalType": "local-timestamp-micros"}]`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	m := map[string]any{
+		"long.local-timestamp-micros": time.Date(2020, 1, 2, 3, 4, 5, 0, time.Local),
+	}
+	err = enc.Encode(m)
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x02, 0x80, 0xCD, 0xB7, 0xA2, 0xEE, 0xC7, 0xCD, 0x05}, buf.Bytes())
+}
+
 func TestEncoder_UnionMapWithDecimal(t *testing.T) {
 	defer ConfigTeardown()
 
@@ -576,6 +661,81 @@ func TestEncoder_UnionInterfaceWithDuration(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, []byte{0x02, 0xAA, 0xB4, 0xDE, 0x75}, buf.Bytes())
+}
+
+func TestEncoder_UnionInterfaceWithDate(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `["null", {"type": "int", "logicalType": "date"}]`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	var val any = time.Date(2920, 1, 2, 0, 0, 0, 0, time.UTC)
+	err = enc.Encode(val)
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x02, 0xCA, 0xAD, 0x2A}, buf.Bytes())
+}
+
+func TestEncoder_UnionInterfaceWithTimeMicros(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `["null", {"type": "long", "logicalType": "time-micros"}]`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	var val any = 123456789123 * time.Microsecond
+	err = enc.Encode(val)
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x02, 0x86, 0xEA, 0xC8, 0xE9, 0x97, 0x07}, buf.Bytes())
+}
+
+func TestEncoder_UnionInterfaceWithTimestampMillis(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `["null", {"type": "long", "logicalType": "timestamp-millis"}]`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	var val any = time.Date(2020, 1, 2, 3, 4, 5, 0, time.UTC)
+	err = enc.Encode(val)
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x02, 0x90, 0xB2, 0xAE, 0xC3, 0xEC, 0x5B}, buf.Bytes())
+}
+
+func TestEncoder_UnionInterfaceWithLocalTimestampMillis(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `["null", {"type": "long", "logicalType": "local-timestamp-millis"}]`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	var val any = time.Date(2020, 1, 2, 3, 4, 5, 0, time.Local)
+	err = enc.Encode(val)
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x02, 0x90, 0xB2, 0xAE, 0xC3, 0xEC, 0x5B}, buf.Bytes())
+}
+
+func TestEncoder_UnionInterfaceWithLocalTimestampMicros(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `["null", {"type": "long", "logicalType": "local-timestamp-micros"}]`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	var val any = time.Date(2020, 1, 2, 3, 4, 5, 0, time.Local)
+	err = enc.Encode(val)
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x02, 0x80, 0xCD, 0xB7, 0xA2, 0xEE, 0xC7, 0xCD, 0x05}, buf.Bytes())
 }
 
 func TestEncoder_UnionInterfaceWithDecimal(t *testing.T) {

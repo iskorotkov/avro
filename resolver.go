@@ -39,6 +39,8 @@ func NewTypeResolver() *TypeResolver {
 	r.Register(string(Int)+"."+string(TimeMillis), time.Duration(0))
 	r.Register(string(Long)+"."+string(TimestampMillis), time.Time{})
 	r.Register(string(Long)+"."+string(TimestampMicros), time.Time{})
+	r.Register(string(Long)+"."+string(LocalTimestampMillis), time.Time{})
+	r.Register(string(Long)+"."+string(LocalTimestampMicros), time.Time{})
 	r.Register(string(Long)+"."+string(TimeMicros), time.Duration(0))
 	r.Register(string(Bytes)+"."+string(Decimal), big.NewRat(1, 1))
 	r.Register(string(String)+"."+string(UUID), "")
