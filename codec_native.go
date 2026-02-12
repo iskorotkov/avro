@@ -84,7 +84,8 @@ func createDecoderOfNative(schema *PrimitiveSchema, typ reflect2.Type) ValDecode
 			}
 
 		case st == Long:
-			isTimestamp := (lt == TimestampMillis || lt == TimestampMicros)
+			isTimestamp := (lt == TimestampMillis || lt == TimestampMicros || lt == TimestampNanos ||
+				lt == LocalTimestampMillis || lt == LocalTimestampMicros || lt == LocalTimestampNanos)
 			if isTimestamp && typ.Type1() == timeDurationType {
 				return &errorDecoder{err: fmt.Errorf("avro: %s is unsupported for Avro %s and logicalType %s",
 					typ.Type1().String(), schema.Type(), lt)}
@@ -144,6 +145,10 @@ func createDecoderOfNative(schema *PrimitiveSchema, typ reflect2.Type) ValDecode
 			return &timestampMicrosCodec{
 				convert: createLongConverter(schema.encodedType),
 			}
+		case isTime && st == Long && lt == TimestampNanos:
+			return &timestampNanosCodec{
+				convert: createLongConverter(schema.encodedType),
+			}
 		case isTime && st == Long && lt == LocalTimestampMillis:
 			return &timestampMillisCodec{
 				local:   true,
@@ -151,6 +156,11 @@ func createDecoderOfNative(schema *PrimitiveSchema, typ reflect2.Type) ValDecode
 			}
 		case isTime && st == Long && lt == LocalTimestampMicros:
 			return &timestampMicrosCodec{
+				local:   true,
+				convert: createLongConverter(schema.encodedType),
+			}
+		case isTime && st == Long && lt == LocalTimestampNanos:
+			return &timestampNanosCodec{
 				local:   true,
 				convert: createLongConverter(schema.encodedType),
 			}
@@ -247,7 +257,8 @@ func createEncoderOfNative(schema *PrimitiveSchema, typ reflect2.Type) ValEncode
 			return &timeMicrosCodec{}
 
 		case st == Long:
-			isTimestamp := (lt == TimestampMillis || lt == TimestampMicros)
+			isTimestamp := (lt == TimestampMillis || lt == TimestampMicros || lt == TimestampNanos ||
+				lt == LocalTimestampMillis || lt == LocalTimestampMicros || lt == LocalTimestampNanos)
 			if isTimestamp && typ.Type1() == timeDurationType {
 				return &errorEncoder{err: fmt.Errorf("avro: %s is unsupported for Avro %s and logicalType %s",
 					typ.Type1().String(), schema.Type(), lt)}
@@ -295,10 +306,14 @@ func createEncoderOfNative(schema *PrimitiveSchema, typ reflect2.Type) ValEncode
 			return &timestampMillisCodec{}
 		case isTime && st == Long && lt == TimestampMicros:
 			return &timestampMicrosCodec{}
+		case isTime && st == Long && lt == TimestampNanos:
+			return &timestampNanosCodec{}
 		case isTime && st == Long && lt == LocalTimestampMillis:
 			return &timestampMillisCodec{local: true}
 		case isTime && st == Long && lt == LocalTimestampMicros:
 			return &timestampMicrosCodec{local: true}
+		case isTime && st == Long && lt == LocalTimestampNanos:
+			return &timestampNanosCodec{local: true}
 		case typ.Type1().ConvertibleTo(ratType) && st != Bytes || lt == Decimal:
 			ls := getLogicalSchema(schema)
 			dec := ls.(*DecimalLogicalSchema)
@@ -547,6 +562,43 @@ func (c *timestampMicrosCodec) Encode(ptr unsafe.Pointer, w *Writer) {
 		t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
 	}
 	w.WriteLong(t.Unix()*1e6 + int64(t.Nanosecond()/1e3))
+}
+
+type timestampNanosCodec struct {
+	local   bool
+	convert func(*Reader) int64
+}
+
+func (c *timestampNanosCodec) Decode(ptr unsafe.Pointer, r *Reader) {
+	var i int64
+	if c.convert != nil {
+		i = c.convert(r)
+	} else {
+		i = r.ReadLong()
+	}
+	sec := i / 1e9
+	nsec := i - sec*1e9
+	t := time.Unix(sec, nsec)
+
+	if c.local {
+		// When doing unix time, Go will convert the time from UTC to Local,
+		// changing the time by the number of seconds in the zone offset.
+		// Remove those added seconds.
+		_, offset := t.Zone()
+		t = t.Add(time.Duration(-1*offset) * time.Second)
+		*((*time.Time)(ptr)) = t
+		return
+	}
+	*((*time.Time)(ptr)) = t.UTC()
+}
+
+func (c *timestampNanosCodec) Encode(ptr unsafe.Pointer, w *Writer) {
+	t := *((*time.Time)(ptr))
+	if c.local {
+		t = t.Local()
+		t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
+	}
+	w.WriteLong(t.Unix()*1e9 + int64(t.Nanosecond()))
 }
 
 type timeMillisCodec struct{}

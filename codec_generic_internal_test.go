@@ -96,6 +96,20 @@ func TestGenericDecode(t *testing.T) {
 			wantErr: require.NoError,
 		},
 		{
+			name:    "Long Timestamp-Nanos",
+			data:    []byte{0x80, 0xc8, 0xb1, 0x82, 0xbd, 0xb5, 0xf9, 0xe5, 0x2b},
+			schema:  `{"type":"long","logicalType":"timestamp-nanos"}`,
+			want:    time.Date(2020, 1, 2, 3, 4, 5, 0, time.UTC),
+			wantErr: require.NoError,
+		},
+		{
+			name:    "Long Local-Timestamp-Nanos",
+			data:    []byte{0x80, 0xc8, 0xb1, 0x82, 0xbd, 0xb5, 0xf9, 0xe5, 0x2b},
+			schema:  `{"type":"long","logicalType":"local-timestamp-nanos"}`,
+			want:    time.Date(2020, 1, 2, 3, 4, 5, 0, time.Local),
+			wantErr: require.NoError,
+		},
+		{
 			name:    "Float",
 			data:    []byte{0x33, 0x33, 0x93, 0x3F},
 			schema:  "float",

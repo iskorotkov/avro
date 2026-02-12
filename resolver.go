@@ -37,11 +37,13 @@ func NewTypeResolver() *TypeResolver {
 	// Register logical types
 	r.Register(string(Int)+"."+string(Date), time.Time{})
 	r.Register(string(Int)+"."+string(TimeMillis), time.Duration(0))
+	r.Register(string(Long)+"."+string(TimeMicros), time.Duration(0))
 	r.Register(string(Long)+"."+string(TimestampMillis), time.Time{})
 	r.Register(string(Long)+"."+string(TimestampMicros), time.Time{})
+	r.Register(string(Long)+"."+string(TimestampNanos), time.Time{})
 	r.Register(string(Long)+"."+string(LocalTimestampMillis), time.Time{})
 	r.Register(string(Long)+"."+string(LocalTimestampMicros), time.Time{})
-	r.Register(string(Long)+"."+string(TimeMicros), time.Duration(0))
+	r.Register(string(Long)+"."+string(LocalTimestampNanos), time.Time{})
 	r.Register(string(Bytes)+"."+string(Decimal), big.NewRat(1, 1))
 	r.Register(string(String)+"."+string(UUID), "")
 
