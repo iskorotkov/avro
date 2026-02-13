@@ -82,6 +82,10 @@ type Test struct {
 	ALongTimeMicros                 time.Duration          `avro:"aLongTimeMicros"`
 	ALongTimestampMillis            time.Time              `avro:"aLongTimestampMillis"`
 	ALongTimestampMicro             time.Time              `avro:"aLongTimestampMicro"`
+	ALongTimestampNanos             time.Time              `avro:"aLongTimestampNanos"`
+	ALongLocalTimestampMillis       time.Time              `avro:"aLongLocalTimestampMillis"`
+	ALongLocalTimestampMicros       time.Time              `avro:"aLongLocalTimestampMicros"`
+	ALongLocalTimestampNanos        time.Time              `avro:"aLongLocalTimestampNanos"`
 	ABytesDecimal                   *big.Rat               `avro:"aBytesDecimal"`
 	ARecordArray                    []RecordInArray        `avro:"aRecordArray"`
 	NullableRecordUnion             *RecordInNullableUnion `avro:"nullableRecordUnion"`
