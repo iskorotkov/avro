@@ -1,6 +1,8 @@
 package avro_test
 
 import (
+	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"testing"
@@ -169,5 +171,100 @@ func BenchmarkSuperheroWriteFlush(b *testing.B) {
 	for b.Loop() {
 		w.WriteVal(schema, super)
 		_ = w.Flush()
+	}
+}
+
+func largeSuperhero(nPowers int) *Superhero {
+	powers := make([]*Superpower, nPowers)
+	for i := range nPowers {
+		powers[i] = &Superpower{
+			ID:      i,
+			Name:    fmt.Sprintf("Power-%04d-of-the-universe", i),
+			Damage:  float32(i) * 1.5,
+			Energy:  float32(i) * 0.3,
+			Passive: i%2 == 0,
+		}
+	}
+	return &Superhero{
+		ID:            234765,
+		AffiliationID: 9867,
+		Name:          "Wolverine",
+		Life:          85.25,
+		Energy:        32.75,
+		Powers:        powers,
+	}
+}
+
+func BenchmarkDecodeSlabSize(b *testing.B) {
+	schema, err := avro.ParseFiles("testdata/superhero.avsc")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	data, err := avro.Marshal(schema, largeSuperhero(100))
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for _, size := range []int{128, 512, 1024, 4096} {
+		b.Run(fmt.Sprintf("%d", size), func(b *testing.B) {
+			api := avro.Config{SlabSize: size}.Freeze()
+			super := &Superhero{}
+
+			b.ReportAllocs()
+
+			for b.Loop() {
+				_ = api.Unmarshal(schema, data, super)
+			}
+		})
+	}
+}
+
+func BenchmarkEncodeWriteBufSize(b *testing.B) {
+	schema, err := avro.ParseFiles("testdata/superhero.avsc")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	super := largeSuperhero(100)
+
+	for _, size := range []int{128, 512, 1024, 4096} {
+		b.Run(fmt.Sprintf("%d", size), func(b *testing.B) {
+			api := avro.Config{WriteBufSize: size}.Freeze()
+
+			b.ReportAllocs()
+
+			enc := api.NewEncoder(schema, io.Discard)
+			for b.Loop() {
+				_ = enc.Encode(super)
+			}
+		})
+	}
+}
+
+func BenchmarkDecodeReadBufSize(b *testing.B) {
+	schema, err := avro.ParseFiles("testdata/superhero.avsc")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	data, err := avro.Marshal(schema, largeSuperhero(100))
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for _, size := range []int{128, 512, 1024, 4096} {
+		b.Run(fmt.Sprintf("%d", size), func(b *testing.B) {
+			api := avro.Config{ReadBufSize: size}.Freeze()
+			super := &Superhero{}
+
+			b.ReportAllocs()
+
+			for b.Loop() {
+				r := bytes.NewReader(data)
+				dec := api.NewDecoder(schema, r)
+				_ = dec.Decode(super)
+			}
+		})
 	}
 }

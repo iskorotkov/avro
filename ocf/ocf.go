@@ -120,7 +120,7 @@ func NewDecoder(r io.Reader, opts ...DecoderFunc) (*Decoder, error) {
 		opt(&cfg)
 	}
 
-	reader := avro.NewReader(r, 1024)
+	reader := avro.NewReader(r, 0, avro.WithReaderConfig(cfg.DecoderConfig))
 
 	h, err := readHeader(reader, cfg.SchemaCache, cfg.CodecOptions)
 	if err != nil {
@@ -388,7 +388,7 @@ func newEncoder(schema avro.Schema, w io.Writer, cfg encoderConfig) (*Encoder, e
 		}
 
 		if info.Size() > 0 {
-			reader := avro.NewReader(file, 1024)
+			reader := avro.NewReader(file, 0, avro.WithReaderConfig(cfg.EncodingConfig))
 			h, err := readHeader(reader, cfg.SchemaCache, cfg.CodecOptions)
 			if err != nil {
 				return nil, err
@@ -397,7 +397,7 @@ func newEncoder(schema avro.Schema, w io.Writer, cfg encoderConfig) (*Encoder, e
 				return nil, err
 			}
 
-			writer := avro.NewWriter(w, 512, avro.WithWriterConfig(cfg.EncodingConfig))
+			writer := avro.NewWriter(w, 0, avro.WithWriterConfig(cfg.EncodingConfig))
 			buf := &bytes.Buffer{}
 			e := &Encoder{
 				writer:      writer,
@@ -438,7 +438,7 @@ func newEncoder(schema avro.Schema, w io.Writer, cfg encoderConfig) (*Encoder, e
 		return nil, err
 	}
 
-	writer := avro.NewWriter(w, 512, avro.WithWriterConfig(cfg.EncodingConfig))
+	writer := avro.NewWriter(w, 0, avro.WithWriterConfig(cfg.EncodingConfig))
 	writer.WriteVal(HeaderSchema, header)
 	if err = writer.Flush(); err != nil {
 		return nil, err

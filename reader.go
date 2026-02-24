@@ -39,15 +39,11 @@ func NewReader(r io.Reader, bufSize int, opts ...ReaderFunc) *Reader {
 	reader := &Reader{
 		cfg:    DefaultConfig.(*frozenConfig),
 		reader: r,
-		buf:    make([]byte, bufSize),
-		head:   0,
-		tail:   0,
 	}
-
 	for _, opt := range opts {
 		opt(reader)
 	}
-
+	reader.buf = make([]byte, max(0, reader.cfg.getReadBufSize()))
 	return reader
 }
 
@@ -353,9 +349,9 @@ func (r *Reader) readBytes(op string) []byte {
 
 	// The bytes are entirely in the buffer and of a reasonable size.
 	// Use the byte slab.
-	if r.head+size <= r.tail && size <= 1024 {
+	if r.head+size <= r.tail && size <= r.cfg.getSlabSize() {
 		if cap(r.slab) < size {
-			r.slab = make([]byte, 1024)
+			r.slab = make([]byte, r.cfg.getSlabSize())
 		}
 
 		_ = r.slab[size-1] // Bounds check hint to compiler.

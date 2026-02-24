@@ -27,16 +27,13 @@ type Writer struct {
 // NewWriter creates a new Writer.
 func NewWriter(out io.Writer, bufSize int, opts ...WriterFunc) *Writer {
 	writer := &Writer{
-		cfg:   DefaultConfig.(*frozenConfig),
-		out:   out,
-		buf:   make([]byte, 0, bufSize),
-		Error: nil,
+		cfg: DefaultConfig.(*frozenConfig),
+		out: out,
 	}
-
 	for _, opt := range opts {
 		opt(writer)
 	}
-
+	writer.buf = make([]byte, 0, max(0, writer.cfg.getWriteBufSize()))
 	return writer
 }
 

@@ -10,6 +10,11 @@ import (
 
 const (
 	defaultMaxByteSliceSize = 1_048_576 // 1 MiB
+
+	defaultSlabSize = 1024
+
+	defaultWriteBufSize = 512
+	defaultReadBufSize  = 512
 )
 
 // DefaultConfig is the default API.
@@ -56,6 +61,19 @@ type Config struct {
 	// allocation size by default.
 	// If this size is exceeded, the decoder returns an error.
 	MaxSliceAllocSize int
+
+	// SlabSize is the size of the byte slab used by the Reader for small string/bytes allocations.
+	// This defaults to 1024 bytes. Reads up to this size use the slab allocator, avoiding per-read
+	// heap allocations. Larger values reduce allocations but may retain more memory.
+	SlabSize int
+
+	// WriteBufSize is the initial capacity of the Writer buffer.
+	// This defaults to 512 bytes.
+	WriteBufSize int
+
+	// ReadBufSize is the size of the Reader buffer used when reading from an io.Reader.
+	// This defaults to 512 bytes.
+	ReadBufSize int
 }
 
 // Freeze makes the configuration immutable.
@@ -69,21 +87,15 @@ func (c Config) Freeze() API {
 	api.readerPool = &sync.Pool{
 		New: func() any {
 			return &Reader{
-				cfg:    api,
-				reader: nil,
-				buf:    nil,
-				head:   0,
-				tail:   0,
+				cfg: api,
 			}
 		},
 	}
 	api.writerPool = &sync.Pool{
 		New: func() any {
 			return &Writer{
-				cfg:   api,
-				out:   nil,
-				buf:   make([]byte, 0, 512),
-				Error: nil,
+				cfg: api,
+				buf: make([]byte, 0, api.getWriteBufSize()),
 			}
 		},
 	}
@@ -196,7 +208,7 @@ func (c *frozenConfig) returnReader(reader *Reader) {
 func (c *frozenConfig) NewEncoder(schema Schema, w io.Writer) *Encoder {
 	writer, ok := w.(*Writer)
 	if !ok {
-		writer = NewWriter(w, 512, WithWriterConfig(c))
+		writer = NewWriter(w, c.getWriteBufSize(), WithWriterConfig(c))
 	}
 	return &Encoder{
 		s: schema,
@@ -205,7 +217,7 @@ func (c *frozenConfig) NewEncoder(schema Schema, w io.Writer) *Encoder {
 }
 
 func (c *frozenConfig) NewDecoder(schema Schema, r io.Reader) *Decoder {
-	reader := NewReader(r, 512, WithReaderConfig(c))
+	reader := NewReader(r, c.getReadBufSize(), WithReaderConfig(c))
 	return &Decoder{
 		s: schema,
 		r: reader,
@@ -301,6 +313,30 @@ func (c *frozenConfig) getMaxSliceAllocSize() int {
 	size := c.config.MaxSliceAllocSize
 	if size > maxAllocSize || size <= 0 {
 		return maxAllocSize
+	}
+	return size
+}
+
+func (c *frozenConfig) getSlabSize() int {
+	size := c.config.SlabSize
+	if size <= 0 {
+		return defaultSlabSize
+	}
+	return size
+}
+
+func (c *frozenConfig) getWriteBufSize() int {
+	size := c.config.WriteBufSize
+	if size <= 0 {
+		return defaultWriteBufSize
+	}
+	return size
+}
+
+func (c *frozenConfig) getReadBufSize() int {
+	size := c.config.ReadBufSize
+	if size <= 0 {
+		return defaultReadBufSize
 	}
 	return size
 }
