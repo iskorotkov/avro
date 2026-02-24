@@ -57,9 +57,7 @@ type mapDecoder struct {
 }
 
 func (d *mapDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
-	if d.mapType.UnsafeIsNil(ptr) {
-		d.mapType.UnsafeSet(ptr, d.mapType.UnsafeMakeMap(0))
-	}
+	isNil := d.mapType.UnsafeIsNil(ptr)
 
 	for {
 		l, _ := r.ReadBlockHeader()
@@ -67,9 +65,19 @@ func (d *mapDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 			break
 		}
 
+		if isNil {
+			d.mapType.UnsafeSet(ptr, d.mapType.UnsafeMakeMap(int(l)))
+			isNil = false
+		}
+
 		for range l {
 			keyPtr := reflect2.PtrOf(r.ReadString())
-			elemPtr := d.elemType.UnsafeNew()
+
+			elemPtr := d.mapType.UnsafeGetIndex(ptr, keyPtr)
+			if elemPtr == nil {
+				elemPtr = d.elemType.UnsafeNew()
+			}
+
 			d.decoder.Decode(elemPtr, r)
 			if r.Error != nil {
 				r.Error = fmt.Errorf("reading map[string]%s: %w", d.elemType.String(), r.Error)
@@ -78,6 +86,10 @@ func (d *mapDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 
 			d.mapType.UnsafeSetIndex(ptr, keyPtr, elemPtr)
 		}
+	}
+
+	if isNil {
+		d.mapType.UnsafeSet(ptr, d.mapType.UnsafeMakeMap(0))
 	}
 
 	if r.Error != nil && !errors.Is(r.Error, io.EOF) {
@@ -105,14 +117,17 @@ type mapDecoderUnmarshaler struct {
 }
 
 func (d *mapDecoderUnmarshaler) Decode(ptr unsafe.Pointer, r *Reader) {
-	if d.mapType.UnsafeIsNil(ptr) {
-		d.mapType.UnsafeSet(ptr, d.mapType.UnsafeMakeMap(0))
-	}
+	isNil := d.mapType.UnsafeIsNil(ptr)
 
 	for {
 		l, _ := r.ReadBlockHeader()
 		if l == 0 {
 			break
+		}
+
+		if isNil {
+			d.mapType.UnsafeSet(ptr, d.mapType.UnsafeMakeMap(int(l)))
+			isNil = false
 		}
 
 		for range l {
@@ -136,6 +151,10 @@ func (d *mapDecoderUnmarshaler) Decode(ptr unsafe.Pointer, r *Reader) {
 
 			d.mapType.UnsafeSetIndex(ptr, keyPtr, elemPtr)
 		}
+	}
+
+	if isNil {
+		d.mapType.UnsafeSet(ptr, d.mapType.UnsafeMakeMap(0))
 	}
 
 	if r.Error != nil && !errors.Is(r.Error, io.EOF) {

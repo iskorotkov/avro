@@ -195,6 +195,77 @@ func largeSuperhero(nPowers int) *Superhero {
 	}
 }
 
+type Entry struct {
+	Key   string  `avro:"key"`
+	Value int64   `avro:"value"`
+	Score float64 `avro:"score"`
+}
+
+type MapBench struct {
+	Tags    map[string]string  `avro:"tags"`
+	Metrics map[string]float64 `avro:"metrics"`
+	Nested  map[string]*Entry  `avro:"nested"`
+}
+
+func makeMapBench(n int) *MapBench {
+	m := &MapBench{
+		Tags:    make(map[string]string, n),
+		Metrics: make(map[string]float64, n),
+		Nested:  make(map[string]*Entry, n),
+	}
+	for i := range n {
+		k := fmt.Sprintf("key-%04d", i)
+		m.Tags[k] = fmt.Sprintf("value-%04d", i)
+		m.Metrics[k] = float64(i) * 1.5
+		m.Nested[k] = &Entry{Key: k, Value: int64(i), Score: float64(i) * 0.3}
+	}
+	return m
+}
+
+func BenchmarkMapDecode(b *testing.B) {
+	schema, err := avro.ParseFiles("testdata/mapbench.avsc")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for _, n := range []int{10, 50, 200} {
+		data, err := avro.Marshal(schema, makeMapBench(n))
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		b.Run(fmt.Sprintf("n=%d", n), func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				var m MapBench
+				_ = avro.Unmarshal(schema, data, &m)
+			}
+		})
+	}
+}
+
+func BenchmarkMapGenericDecode(b *testing.B) {
+	schema, err := avro.ParseFiles("testdata/mapbench.avsc")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for _, n := range []int{10, 50, 200} {
+		data, err := avro.Marshal(schema, makeMapBench(n))
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		b.Run(fmt.Sprintf("n=%d", n), func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				var m any
+				_ = avro.Unmarshal(schema, data, &m)
+			}
+		})
+	}
+}
+
 func BenchmarkDecodeSlabSize(b *testing.B) {
 	schema, err := avro.ParseFiles("testdata/superhero.avsc")
 	if err != nil {

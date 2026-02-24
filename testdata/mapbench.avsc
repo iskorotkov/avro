@@ -1,0 +1,18 @@
+{
+    "type": "record",
+    "name": "MapBench",
+    "namespace": "com.bench",
+    "fields": [
+        {"name": "tags", "type": {"type": "map", "values": "string"}},
+        {"name": "metrics", "type": {"type": "map", "values": "double"}},
+        {"name": "nested", "type": {"type": "map", "values": {
+            "type": "record",
+            "name": "Entry",
+            "fields": [
+                {"name": "key", "type": "string"},
+                {"name": "value", "type": "long"},
+                {"name": "score", "type": "double"}
+            ]
+        }}}
+    ]
+}
