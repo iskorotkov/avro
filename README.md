@@ -15,19 +15,21 @@ A fast Go avro codec
 
 ---
 
-**What about the original hamba/avro?** hamba/avro was archived in January 2026 and will no longer receive updates or bugfixes.
+## Why this fork?
 
-**What is this fork?** I decided to step up and continue development of this library in my fork. I've extensively used it in 2 companies already. I wish to see it being developed further and get new features.
+`hamba/avro` was archived in January 2026 and will receive no further updates or bug fixes. There is no other actively maintained Go Avro library that matches its performance. This fork exists to keep the library maintained, fix bugs, and improve it further.
 
-**What about other alternatives?** There are none as far as I know. All libraries are either slow, hard to use or both. Feel free to contact me or create a GitHub Issue if you know a good alternative.
+Unresolved issues from hamba/avro are tracked in [ISSUES.md](./ISSUES.md).
 
-Unresolved issues from hamba/avro are tracked in [ISSUES.md](./ISSUES.md) file.
+## Changes since fork
 
-I already fixed 1 bug and made it 19.5% faster when decoding.
+- **Bug fix:** registered missing logical types for local timestamps (`local-timestamp-millis`, `local-timestamp-micros`), which caused decoding errors
+- **Bug fix:** fixed enum type duplication in Go code generation (`avrogen`)
+- **Go 1.24+ modernization:** updated codebase to use latest Go idioms
+- **CI updated:** Go 1.26 and golangci-lint 2.9
+- **19.5% decode speedup on internally used benchmark:** optimized inlining and bounds checks in number parsing; iskorotkov/avro now decodes at 118.6 ns/op vs hamba/avro's 147.3 ns/op (Apple M4 Pro, zero allocations)
 
----
-
-**How to migrate from hamba/avro to iskorotkov/avro?**
+## How to migrate from hamba/avro?
 
 You have 2 options:
 
