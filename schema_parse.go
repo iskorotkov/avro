@@ -210,8 +210,10 @@ func parsePrimitiveLogicalType(typ Type, lt string, props map[string]any) Logica
 		(typ == Long && ltyp == TimeMicros) ||
 		(typ == Long && ltyp == TimestampMillis) ||
 		(typ == Long && ltyp == TimestampMicros) ||
+		(typ == Long && ltyp == TimestampNanos) ||
 		(typ == Long && ltyp == LocalTimestampMillis) ||
-		(typ == Long && ltyp == LocalTimestampMicros) {
+		(typ == Long && ltyp == LocalTimestampMicros) ||
+		(typ == Long && ltyp == LocalTimestampNanos) {
 		return NewPrimitiveLogicalSchema(ltyp)
 	}
 

@@ -424,7 +424,8 @@ func (g *Generator) resolveLogicalSchema(logicalType avro.LogicalType) string {
 
 	var typ string
 	switch logicalType {
-	case "date", "timestamp-millis", "timestamp-micros":
+	case "date", "timestamp-millis", "timestamp-micros", "timestamp-nanos",
+		"local-timestamp-millis", "local-timestamp-micros", "local-timestamp-nanos":
 		typ = "time.Time"
 	case "time-millis", "time-micros":
 		typ = "time.Duration"

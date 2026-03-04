@@ -93,8 +93,10 @@ const (
 	TimeMicros           LogicalType = "time-micros"
 	TimestampMillis      LogicalType = "timestamp-millis"
 	TimestampMicros      LogicalType = "timestamp-micros"
+	TimestampNanos       LogicalType = "timestamp-nanos"
 	LocalTimestampMillis LogicalType = "local-timestamp-millis"
 	LocalTimestampMicros LogicalType = "local-timestamp-micros"
+	LocalTimestampNanos  LogicalType = "local-timestamp-nanos"
 	Duration             LogicalType = "duration"
 )
 
