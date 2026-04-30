@@ -113,6 +113,21 @@ func TestDecoder_MapMapError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestDecoder_MapBigMap(t *testing.T) {
+	avro.DefaultConfig = avro.Config{MaxMapAllocSize: 20}.Freeze()
+	defer ConfigTeardown()
+
+	data := []byte{0x72} // map size 57
+	schema := `{"type":"map", "values": "string"}`
+	dec, err := avro.NewDecoder(schema, bytes.NewReader(data))
+	require.NoError(t, err)
+
+	var got map[string]string
+	err = dec.Decode(&got)
+
+	assert.ErrorContains(t, err, "size is greater than `Config.MaxMapAllocSize`")
+}
+
 type textUnmarshallerInt int
 
 func (t *textUnmarshallerInt) UnmarshalText(text []byte) error {
@@ -141,6 +156,20 @@ func TestDecoder_MapUnmarshallerMap(t *testing.T) {
 		assert.True(t, ok)
 		assert.Equal(t, wantVal, v)
 	}
+}
+
+func TestDecoder_MapBigUnmarshallerMap(t *testing.T) {
+	avro.DefaultConfig = avro.Config{MaxMapAllocSize: 20}.Freeze()
+	defer ConfigTeardown()
+
+	data := []byte{0x72} // map size 57
+	schema := `{"type":"map", "values": "string"}`
+	dec, _ := avro.NewDecoder(schema, bytes.NewReader(data))
+
+	var got map[*textUnmarshallerInt]string
+	err := dec.Decode(&got)
+
+	assert.ErrorContains(t, err, "size is greater than `Config.MaxMapAllocSize`")
 }
 
 type textUnmarshallerNope int

@@ -62,6 +62,11 @@ type Config struct {
 	// If this size is exceeded, the decoder returns an error.
 	MaxSliceAllocSize int
 
+	// MaxMapAllocSize is the maximum size that the decoder will allocate, set to the max heap
+	// allocation size by default.
+	// If this size is exceeded, the decoder returns an error.
+	MaxMapAllocSize int
+
 	// SlabSize is the size of the byte slab used by the Reader for small string/bytes allocations.
 	// This defaults to 1024 bytes. Reads up to this size use the slab allocator, avoiding per-read
 	// heap allocations. Larger values reduce allocations but may retain more memory.
@@ -311,6 +316,14 @@ func (c *frozenConfig) getMaxByteSliceSize() int {
 
 func (c *frozenConfig) getMaxSliceAllocSize() int {
 	size := c.config.MaxSliceAllocSize
+	if size > maxAllocSize || size <= 0 {
+		return maxAllocSize
+	}
+	return size
+}
+
+func (c *frozenConfig) getMaxMapAllocSize() int {
+	size := c.config.MaxMapAllocSize
 	if size > maxAllocSize || size <= 0 {
 		return maxAllocSize
 	}
