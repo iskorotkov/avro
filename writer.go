@@ -110,20 +110,16 @@ func (w *Writer) WriteLong(i int64) {
 }
 
 func (w *Writer) encodeInt(i uint64) {
-	if i == 0 {
-		w.writeByte(0)
+	if i < 0x80 {
+		w.buf = append(w.buf, byte(i))
+		return
+	}
+	if i < 0x4000 {
+		w.buf = append(w.buf, byte(i)|0x80, byte(i>>7))
 		return
 	}
 
-	for i > 0 {
-		b := byte(i) & 0x7F
-		i >>= 7
-
-		if i != 0 {
-			b |= 0x80
-		}
-		w.writeByte(b)
-	}
+	w.buf = binary.AppendUvarint(w.buf, i)
 }
 
 // WriteFloat writes a Float to the Writer.
