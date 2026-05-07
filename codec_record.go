@@ -98,14 +98,14 @@ func decoderOfStruct(d *decoderContext, schema Schema, typ reflect2.Type) ValDec
 			if field.hasDef {
 				fields = append(fields, &structFieldDecoder{
 					field:   sf.Field,
-					decoder: createDefaultDecoder(d, field, sf.Field[len(sf.Field)-1].Type()),
+					decoder: createDefaultDecoder(d, field, sf.Field[len(sf.Field)-1].field.Type()),
 				})
 
 				continue
 			}
 		}
 
-		dec := decoderOfType(d, field.Type(), sf.Field[len(sf.Field)-1].Type())
+		dec := decoderOfType(d, field.Type(), sf.Field[len(sf.Field)-1].field.Type())
 		fields = append(fields, &structFieldDecoder{
 			field:   sf.Field,
 			decoder: dec,
@@ -115,8 +115,13 @@ func decoderOfStruct(d *decoderContext, schema Schema, typ reflect2.Type) ValDec
 	return &structDecoder{typ: typ, fields: fields}
 }
 
+type structFieldStep struct {
+	field     *reflect2.UnsafeStructField
+	isPointer bool
+}
+
 type structFieldDecoder struct {
-	field   []*reflect2.UnsafeStructField
+	field   []structFieldStep
 	decoder ValDecoder
 }
 
@@ -134,16 +139,16 @@ func (d *structDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 		}
 
 		fieldPtr := ptr
-		for i, f := range field.field {
-			fieldPtr = f.UnsafeGet(fieldPtr)
+		for i, step := range field.field {
+			fieldPtr = step.field.UnsafeGet(fieldPtr)
 
 			if i == len(field.field)-1 {
 				break
 			}
 
-			if f.Type().Kind() == reflect.Pointer {
+			if step.isPointer {
 				if *((*unsafe.Pointer)(fieldPtr)) == nil {
-					newPtr := f.Type().(*reflect2.UnsafePtrType).Elem().UnsafeNew()
+					newPtr := step.field.Type().(*reflect2.UnsafePtrType).Elem().UnsafeNew()
 					*((*unsafe.Pointer)(fieldPtr)) = newPtr
 				}
 
@@ -153,8 +158,8 @@ func (d *structDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 		field.decoder.Decode(fieldPtr, r)
 
 		if r.Error != nil && !errors.Is(r.Error, io.EOF) {
-			for _, f := range field.field {
-				r.Error = fmt.Errorf("%s: %w", f.Name(), r.Error)
+			for _, step := range field.field {
+				r.Error = fmt.Errorf("%s: %w", step.field.Name(), r.Error)
 				return
 			}
 		}
@@ -170,7 +175,7 @@ func encoderOfStruct(e *encoderContext, rec *RecordSchema, typ reflect2.Type) Va
 		if sf != nil {
 			fields = append(fields, &structFieldEncoder{
 				field:   sf.Field,
-				encoder: encoderOfType(e, field.Type(), sf.Field[len(sf.Field)-1].Type()),
+				encoder: encoderOfType(e, field.Type(), sf.Field[len(sf.Field)-1].field.Type()),
 			})
 			continue
 		}
@@ -212,7 +217,7 @@ func encoderOfStruct(e *encoderContext, rec *RecordSchema, typ reflect2.Type) Va
 }
 
 type structFieldEncoder struct {
-	field      []*reflect2.UnsafeStructField
+	field      []structFieldStep
 	defaultPtr unsafe.Pointer
 	encoder    ValEncoder
 }
@@ -231,16 +236,16 @@ func (e *structEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 		}
 
 		fieldPtr := ptr
-		for i, f := range field.field {
-			fieldPtr = f.UnsafeGet(fieldPtr)
+		for i, step := range field.field {
+			fieldPtr = step.field.UnsafeGet(fieldPtr)
 
 			if i == len(field.field)-1 {
 				break
 			}
 
-			if f.Type().Kind() == reflect.Pointer {
+			if step.isPointer {
 				if *((*unsafe.Pointer)(fieldPtr)) == nil {
-					w.Error = fmt.Errorf("embedded field %q is nil", f.Name())
+					w.Error = fmt.Errorf("embedded field %q is nil", step.field.Name())
 					return
 				}
 
@@ -250,8 +255,8 @@ func (e *structEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 		field.encoder.Encode(fieldPtr, w)
 
 		if w.Error != nil && !errors.Is(w.Error, io.EOF) {
-			for _, f := range field.field {
-				w.Error = fmt.Errorf("%s: %w", f.Name(), w.Error)
+			for _, step := range field.field {
+				w.Error = fmt.Errorf("%s: %w", step.field.Name(), w.Error)
 				return
 			}
 		}
@@ -442,7 +447,7 @@ func (sf structFields) Get(name string) *structField {
 
 type structField struct {
 	Name  string
-	Field []*reflect2.UnsafeStructField
+	Field []structFieldStep
 
 	anon *reflect2.UnsafeStructType
 }
@@ -470,9 +475,12 @@ func describeStruct(tagKey string, typ reflect2.Type) *structDescriptor {
 				field := f.anon.Field(i).(*reflect2.UnsafeStructField)
 				isUnexported := field.PkgPath() != ""
 
-				chain := make([]*reflect2.UnsafeStructField, len(f.Field)+1)
+				chain := make([]structFieldStep, len(f.Field)+1)
 				copy(chain, f.Field)
-				chain[len(f.Field)] = field
+				chain[len(f.Field)] = structFieldStep{
+					field:     field,
+					isPointer: field.Type().Kind() == reflect.Pointer,
+				}
 
 				if field.Anonymous() {
 					t := field.Type()
