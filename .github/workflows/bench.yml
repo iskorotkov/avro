@@ -49,7 +49,7 @@ jobs:
 
       - name: Resolve base and head SHAs
         id: shas
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
@@ -103,7 +103,7 @@ jobs:
         run: benchstat base.txt head.txt | tee result.txt
 
       - name: Build comment body
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           BASE_SHA: ${{ steps.shas.outputs.base }}
           HEAD_SHA: ${{ steps.shas.outputs.head }}
@@ -243,14 +243,14 @@ jobs:
         if: github.event_name == 'pull_request'
         # Forks can't write to the PR; skip rather than fail the run.
         continue-on-error: true
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: bench-report
           path: comment.md
 
       - name: Upload raw bench output
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: bench-results
           path: |
