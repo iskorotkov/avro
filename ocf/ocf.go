@@ -58,6 +58,7 @@ type decoderConfig struct {
 	DecoderConfig avro.API
 	SchemaCache   *avro.SchemaCache
 	CodecOptions  codecOptions
+	MaxBlockBytes int
 }
 
 // DecoderFunc represents a configuration function for Decoder.
@@ -94,6 +95,13 @@ func WithZStandardDecoder(dec *zstd.Decoder) DecoderFunc {
 	}
 }
 
+// WithMaxBlockBytes caps the size in bytes of a single OCF data block. A block header claiming a larger size errors out before any allocation, defending against OOM from hostile or corrupt OCF files. Values <= 0 disable the check (unlimited, the default).
+func WithMaxBlockBytes(n int) DecoderFunc {
+	return func(cfg *decoderConfig) {
+		cfg.MaxBlockBytes = n
+	}
+}
+
 // Decoder reads and decodes Avro values from a container file.
 type Decoder struct {
 	reader      *avro.Reader
@@ -105,7 +113,8 @@ type Decoder struct {
 
 	codec Codec
 
-	count int64
+	count         int64
+	maxBlockBytes int
 }
 
 // NewDecoder returns a new decoder that reads from reader r.
@@ -131,13 +140,14 @@ func NewDecoder(r io.Reader, opts ...DecoderFunc) (*Decoder, error) {
 	decReader := bytesx.NewResetReader([]byte{})
 
 	return &Decoder{
-		reader:      reader,
-		resetReader: decReader,
-		decoder:     cfg.DecoderConfig.NewDecoder(h.Schema, decReader),
-		meta:        h.Meta,
-		sync:        h.Sync,
-		codec:       h.Codec,
-		schema:      h.Schema,
+		reader:        reader,
+		resetReader:   decReader,
+		decoder:       cfg.DecoderConfig.NewDecoder(h.Schema, decReader),
+		meta:          h.Meta,
+		sync:          h.Sync,
+		codec:         h.Codec,
+		schema:        h.Schema,
+		maxBlockBytes: cfg.MaxBlockBytes,
 	}, nil
 }
 
@@ -209,6 +219,10 @@ func (d *Decoder) readBlock() int64 {
 	}
 	if size64 > math.MaxInt {
 		d.reader.ReportError("ocf decoder: read block", "block size is too big")
+		return 0
+	}
+	if d.maxBlockBytes > 0 && size64 > int64(d.maxBlockBytes) {
+		d.reader.ReportError("ocf decoder: read block", "block size is greater than `WithMaxBlockBytes`")
 		return 0
 	}
 	size := int(size64)

@@ -1237,6 +1237,10 @@ type UnionSchema struct {
 
 // NewUnionSchema creates a union schema instance.
 func NewUnionSchema(types []Schema, opts ...SchemaOption) (*UnionSchema, error) {
+	if len(types) == 0 {
+		return nil, errors.New("avro: union type must have at least one member")
+	}
+
 	var cfg schemaConfig
 	for _, opt := range opts {
 		opt(&cfg)

@@ -260,3 +260,45 @@ func TestDecoder_ArrayMultiBlockUnderMaxAlloc(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []bool{false, true, false, true, false, true}, got)
 }
+
+func TestUnmarshal_HugeArrayLengthDoesNotPanic(t *testing.T) {
+	avro.DefaultConfig = avro.Config{MaxSliceAllocSize: 1 << 22}.Freeze()
+	defer ConfigTeardown()
+
+	schema := avro.MustParse(`{"type":"array","items":"long"}`)
+	input := avro.EncodeIntToBytes(math.MaxInt - 2)
+
+	var out []int64
+	err := avro.Unmarshal(schema, input, &out)
+
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "Config.MaxSliceAllocSize")
+}
+
+func TestUnmarshal_HugeBytesLengthDoesNotPanic(t *testing.T) {
+	avro.DefaultConfig = avro.Config{MaxByteSliceSize: 1 << 20}.Freeze()
+	defer ConfigTeardown()
+
+	schema := avro.MustParse(`"bytes"`)
+	input := avro.EncodeIntToBytes(math.MaxInt - 2)
+
+	var out []byte
+	err := avro.Unmarshal(schema, input, &out)
+
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "Config.MaxByteSliceSize")
+}
+
+func TestUnmarshal_HugeMapBlockDoesNotPanic(t *testing.T) {
+	avro.DefaultConfig = avro.Config{MaxMapAllocSize: 1 << 20}.Freeze()
+	defer ConfigTeardown()
+
+	schema := avro.MustParse(`{"type":"map","values":"string"}`)
+	input := avro.EncodeIntToBytes(math.MaxInt - 2)
+
+	var out map[string]string
+	err := avro.Unmarshal(schema, input, &out)
+
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "Config.MaxMapAllocSize")
+}

@@ -124,10 +124,6 @@ func TestSchema_JSON(t *testing.T) {
 			json:  `{"type":"string","logicalType":"uuid"}`,
 		},
 		{
-			input: `[  ]`,
-			json:  `[]`,
-		},
-		{
 			input: `[ "int"  ]`,
 			json:  `["int"]`,
 		},

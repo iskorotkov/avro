@@ -1,0 +1,83 @@
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+name: run fuzz
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    env:
+      GO_VERSION: "1.26"
+      FUZZTIME: "30s"
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, "386"]
+        target:
+          - name: FuzzDecoder
+            pkg: .
+          - name: FuzzSchemaParse
+            pkg: .
+          - name: FuzzOCFReader
+            pkg: ./ocf
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install Go
+        id: install-go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+        if: steps.install-go.outputs.cache-hit != 'true'
+
+      - name: Run fuzz target
+        env:
+          FUZZ_NAME: ${{ matrix.target.name }}
+          FUZZ_PKG: ${{ matrix.target.pkg }}
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: "0"
+        run: go test -run=^$ -fuzz="^${FUZZ_NAME}$" -fuzztime="${FUZZTIME}" -parallel=1 -v "${FUZZ_PKG}"
+
+      - name: Show failing seed
+        if: failure()
+        env:
+          FUZZ_NAME: ${{ matrix.target.name }}
+          FUZZ_PKG: ${{ matrix.target.pkg }}
+        run: |
+          set +e
+          seed_dir="${FUZZ_PKG}/testdata/fuzz/${FUZZ_NAME}"
+          echo "::group::Failing seeds in ${seed_dir}"
+          if [ -d "${seed_dir}" ]; then
+            for f in "${seed_dir}"/*; do
+              [ -f "$f" ] || continue
+              echo "--- $f ---"
+              cat "$f"
+              echo
+            done
+          else
+            echo "no seed directory at ${seed_dir}"
+          fi
+          echo "::endgroup::"
+          echo "Reproduce locally with:"
+          echo "  go test -run='^${FUZZ_NAME}\$/<seed-name>' ${FUZZ_PKG}"
+
+      - name: Upload failing seed corpus
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-corpus-${{ matrix.target.name }}-${{ matrix.arch }}
+          path: |
+            **/testdata/fuzz/${{ matrix.target.name }}/**
+          if-no-files-found: ignore

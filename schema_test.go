@@ -864,6 +864,16 @@ func TestUnionSchema(t *testing.T) {
 			schema:  `["null", "blah"]`,
 			wantErr: require.Error,
 		},
+		{
+			name:    "Empty Union",
+			schema:  `[]`,
+			wantErr: require.Error,
+		},
+		{
+			name:    "Empty Union In Record Field",
+			schema:  `{"type":"record","name":"R","fields":[{"name":"f","type":[]}]}`,
+			wantErr: require.Error,
+		},
 	}
 
 	for _, test := range tests {
@@ -879,6 +889,17 @@ func TestUnionSchema(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParseBytes_EmptyUnionDefaultDoesNotPanic(t *testing.T) {
+	defer ConfigTeardown()
+
+	input := []byte(`{"type":"record","nAme":"A","fields":[` +
+		`{"nAme":"A","tYpe":"long"},` +
+		`{"nAme":"A","tYpe":[],"defAult":[]}]}`)
+
+	_, err := avro.ParseBytes(input)
+	require.Error(t, err)
 }
 
 func TestUnionSchema_Indices(t *testing.T) {
