@@ -302,4 +302,3 @@ func TestUnmarshal_HugeMapBlockDoesNotPanic(t *testing.T) {
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "Config.MaxMapAllocSize")
 }
-

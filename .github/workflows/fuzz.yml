@@ -6,6 +6,9 @@ on:
 
 name: run fuzz
 
+permissions:
+  contents: read
+
 jobs:
   fuzz:
     runs-on: ubuntu-latest

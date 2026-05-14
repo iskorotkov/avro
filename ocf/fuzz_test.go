@@ -50,7 +50,7 @@ func FuzzOCFReader(f *testing.F) {
 		if len(data) > 1<<24 {
 			return
 		}
-		dec, err := ocf.NewDecoder(bytes.NewReader(data))
+		dec, err := ocf.NewDecoder(bytes.NewReader(data), ocf.WithMaxBlockBytes(16<<20))
 		if err != nil {
 			return
 		}
