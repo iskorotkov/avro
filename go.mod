@@ -10,7 +10,7 @@ require (
 	github.com/klauspost/compress v1.18.2
 	github.com/modern-go/reflect2 v1.0.2
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/tools v0.40.0
+	golang.org/x/tools v0.41.0
 )
 
 require (
@@ -32,6 +32,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/MirrexOne/unqueryvet v1.4.0 // indirect
 	github.com/OpenPeeDeeP/depguard/v2 v2.2.1 // indirect
+	github.com/aclements/go-moremath v0.0.0-20210112150236-f10218a38794 // indirect
 	github.com/alecthomas/chroma/v2 v2.21.1 // indirect
 	github.com/alecthomas/go-check-sumtype v0.3.1 // indirect
 	github.com/alexkohler/nakedret/v2 v2.0.6 // indirect
@@ -211,11 +212,12 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20251023183803-a4bb9ffd2546 // indirect
-	golang.org/x/mod v0.31.0 // indirect
+	golang.org/x/mod v0.32.0 // indirect
+	golang.org/x/perf v0.0.0-20260209182753-b57e4e371b65 // indirect
 	golang.org/x/sync v0.19.0 // indirect
-	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/term v0.38.0 // indirect
-	golang.org/x/text v0.31.0 // indirect
+	golang.org/x/text v0.34.0 // indirect
 	google.golang.org/protobuf v1.36.8 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
@@ -228,5 +230,6 @@ require (
 
 tool (
 	github.com/golangci/golangci-lint/v2/cmd/golangci-lint
+	golang.org/x/perf/cmd/benchstat
 	gotest.tools/gotestsum
 )
