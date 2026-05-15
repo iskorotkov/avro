@@ -164,6 +164,22 @@ func TestWriter_WriteInt(t *testing.T) {
 			want: []byte{0x80, 0x01},
 		},
 		{
+			data: 8191, // zigzag 0x3FFE -- max-but-one 2-byte
+			want: []byte{0xFE, 0x7F},
+		},
+		{
+			data: -8192, // zigzag 0x3FFF -- max 2-byte
+			want: []byte{0xFF, 0x7F},
+		},
+		{
+			data: 8192, // zigzag 0x4000 -- min 3-byte (just over the 2-byte/3-byte boundary)
+			want: []byte{0x80, 0x80, 0x01},
+		},
+		{
+			data: -8193, // zigzag 0x4001 -- min-plus-one 3-byte
+			want: []byte{0x81, 0x80, 0x01},
+		},
+		{
 			data: 123456789,
 			want: []byte{0xAA, 0xB4, 0xDE, 0x75},
 		},
@@ -214,6 +230,22 @@ func TestWriter_WriteLong(t *testing.T) {
 		{
 			data: 64,
 			want: []byte{0x80, 0x01},
+		},
+		{
+			data: 8191, // zigzag 0x3FFE -- max-but-one 2-byte
+			want: []byte{0xFE, 0x7F},
+		},
+		{
+			data: -8192, // zigzag 0x3FFF -- max 2-byte
+			want: []byte{0xFF, 0x7F},
+		},
+		{
+			data: 8192, // zigzag 0x4000 -- min 3-byte (just over the 2-byte/3-byte boundary)
+			want: []byte{0x80, 0x80, 0x01},
+		},
+		{
+			data: -8193, // zigzag 0x4001 -- min-plus-one 3-byte
+			want: []byte{0x81, 0x80, 0x01},
 		},
 		{
 			data: 123456789,

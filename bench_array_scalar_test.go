@@ -50,6 +50,68 @@ func benchScalarArrayDecode[T any](b *testing.B, schemaStr string, gen func(int)
 	}
 }
 
+func benchScalarArrayEncode[T any](b *testing.B, schemaStr string, gen func(int) T) {
+	b.Helper()
+
+	for _, n := range []int{10, 100, 1000} {
+		b.Run(fmt.Sprintf("n=%d", n), func(b *testing.B) {
+			src := make([]T, n)
+			for i := range src {
+				src[i] = gen(i)
+			}
+
+			schema, err := avro.Parse(schemaStr)
+			if err != nil {
+				b.Fatal(err)
+			}
+
+			payload, err := avro.Marshal(schema, src)
+			if err != nil {
+				b.Fatal(err)
+			}
+
+			b.ReportAllocs()
+			b.SetBytes(int64(len(payload)))
+
+			for b.Loop() {
+				if _, err := avro.Marshal(schema, src); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+// Sub-bench naming reflects which varint-width branch in encodeInt the
+// generated values exercise after Avro's zigzag transform:
+//   1B: zigzag(v) < 0x80                   -> 1-byte fast path
+//   2B: zigzag(v) in [0x80, 0x4000)        -> 2-byte fast path
+//   Wide: zigzag(v) >= 0x4000              -> binary.AppendUvarint (3-10 bytes)
+
+func BenchmarkArrayEncode_Int32_1B(b *testing.B) {
+	benchScalarArrayEncode(b, `{"type":"array","items":"int"}`, func(i int) int32 { return int32(i & 0x3F) })
+}
+
+func BenchmarkArrayEncode_Int32_2B(b *testing.B) {
+	benchScalarArrayEncode(b, `{"type":"array","items":"int"}`, func(i int) int32 { return int32(0x40 + i&0x1F80) })
+}
+
+func BenchmarkArrayEncode_Int32_Wide(b *testing.B) {
+	benchScalarArrayEncode(b, `{"type":"array","items":"int"}`, func(i int) int32 { return int32(i*7919 + 1<<24) })
+}
+
+func BenchmarkArrayEncode_Int64_1B(b *testing.B) {
+	benchScalarArrayEncode(b, `{"type":"array","items":"long"}`, func(i int) int64 { return int64(i & 0x3F) })
+}
+
+func BenchmarkArrayEncode_Int64_2B(b *testing.B) {
+	benchScalarArrayEncode(b, `{"type":"array","items":"long"}`, func(i int) int64 { return int64(0x40 + i&0x1F80) })
+}
+
+func BenchmarkArrayEncode_Int64_Wide(b *testing.B) {
+	benchScalarArrayEncode(b, `{"type":"array","items":"long"}`, func(i int) int64 { return int64(i)*7919 + 1<<48 })
+}
+
 func BenchmarkArrayDecode_Int32(b *testing.B) {
 	benchScalarArrayDecode(b, `{"type":"array","items":"int"}`, func(i int) int32 { return int32(i) })
 }
