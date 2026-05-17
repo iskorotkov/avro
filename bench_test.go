@@ -339,3 +339,37 @@ func BenchmarkDecodeReadBufSize(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkNullableUnionPtrDecode(b *testing.B) {
+	schema := avro.MustParse(`["null","long"]`)
+	data, err := avro.Marshal(schema, int64(42))
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	var got *int64
+
+	b.ReportAllocs()
+	b.SetBytes(int64(len(data)))
+
+	for b.Loop() {
+		_ = avro.Unmarshal(schema, data, &got)
+	}
+}
+
+func BenchmarkNullableUnionSliceDecode(b *testing.B) {
+	schema := avro.MustParse(`["null","bytes"]`)
+	data, err := avro.Marshal(schema, []byte("hello"))
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	var got []byte
+
+	b.ReportAllocs()
+	b.SetBytes(int64(len(data)))
+
+	for b.Loop() {
+		_ = avro.Unmarshal(schema, data, &got)
+	}
+}

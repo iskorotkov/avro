@@ -3,6 +3,7 @@ package avro
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 )
 
 var errNoTypeConverter = errors.New("no type converter")
@@ -29,12 +30,18 @@ type specificType struct {
 
 // TypeConverters holds the user-provided type conversion functions.
 type TypeConverters struct {
-	convs sync.Map // map[specificType]TypeConverter
+	convs  sync.Map // map[specificType]TypeConverter
+	hasAny atomic.Bool
 }
 
 // NewTypeConverters creates a new type converter.
 func NewTypeConverters() *TypeConverters {
 	return &TypeConverters{}
+}
+
+// HasAny reports whether at least one type converter has been registered. Monotonic — never returns to false.
+func (c *TypeConverters) HasAny() bool {
+	return c.hasAny.Load()
 }
 
 // RegisterTypeConverters registers type converters for converting the data types during encoding and decoding.
@@ -43,6 +50,8 @@ func (c *TypeConverters) RegisterTypeConverters(convs ...TypeConverter) {
 		if typ := conv.Type(); len(typ) == 0 {
 			continue
 		}
+		// Flip the gate before publishing so a concurrent decode either dispatches and finds nothing (swallowed) or sees the converter — never the reverse.
+		c.hasAny.Store(true)
 		c.convs.Store(specificType{typ: conv.Type(), lt: conv.LogicalType()}, conv)
 	}
 }
