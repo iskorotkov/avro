@@ -160,28 +160,31 @@ func (w *Writer) WriteBlockHeader(l, s int64) {
 	w.WriteLong(l)
 }
 
+const writeBlockHeaderMaxBytes = 20
+
 // WriteBlockCB writes a block using the callback.
 func (w *Writer) WriteBlockCB(callback func(w *Writer) int64) int64 {
-	var dummyHeader [18]byte
 	headerStart := len(w.buf)
+	capturedAt := headerStart + writeBlockHeaderMaxBytes
+	if capturedAt > cap(w.buf) {
+		var pad [writeBlockHeaderMaxBytes]byte
+		w.buf = append(w.buf, pad[:]...)
+	} else {
+		w.buf = w.buf[:capturedAt]
+	}
 
-	// Write dummy header
-	_, _ = w.Write(dummyHeader[:])
-
-	// Write block data
-	capturedAt := len(w.buf)
 	length := callback(w)
-	size := int64(len(w.buf) - capturedAt)
+	blockEnd := len(w.buf)
+	size := int64(blockEnd - capturedAt)
 
-	// Take a reference to the block data
-	captured := w.buf[capturedAt:len(w.buf)]
-
-	// Rewrite the header
 	w.buf = w.buf[:headerStart]
 	w.WriteBlockHeader(length, size)
+	hdrEnd := len(w.buf)
 
-	// Copy the block data back to its position
-	w.buf = append(w.buf, captured...)
+	if hdrEnd < capturedAt {
+		copy(w.buf[hdrEnd:hdrEnd+int(size)], w.buf[capturedAt:blockEnd])
+	}
+	w.buf = w.buf[:hdrEnd+int(size)]
 
 	return length
 }
