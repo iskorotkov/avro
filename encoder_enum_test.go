@@ -161,3 +161,125 @@ func (m *testEnumTextMarshaler) MarshalText() ([]byte, error) {
 		return nil, errors.New("unknown symbol")
 	}
 }
+
+type testEnumTextAppender int
+
+func (m *testEnumTextAppender) AppendText(b []byte) ([]byte, error) {
+	switch *m {
+	case 0:
+		return append(b, "foo"...), nil
+	case 1:
+		return append(b, "bar"...), nil
+	case 2:
+		return append(b, "baz"...), nil
+	default:
+		return nil, errors.New("unknown symbol")
+	}
+}
+
+func (m *testEnumTextAppender) MarshalText() ([]byte, error) {
+	b, err := m.AppendText(nil)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+func TestEncoder_EnumTextAppender(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `{"type":"enum", "name": "test", "symbols": ["foo", "bar"]}`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	m := testEnumTextAppender(1)
+	err = enc.Encode(&m)
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x02}, buf.Bytes())
+}
+
+func TestEncoder_EnumTextAppenderValue(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `{"type":"enum", "name": "test", "symbols": ["foo", "bar"]}`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	m := testEnumTextAppender(1)
+	err = enc.Encode(m)
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x02}, buf.Bytes())
+}
+
+type testEnumTextAppenderValRcv int
+
+func (m testEnumTextAppenderValRcv) AppendText(b []byte) ([]byte, error) {
+	switch m {
+	case 0:
+		return append(b, "foo"...), nil
+	case 1:
+		return append(b, "bar"...), nil
+	}
+	return nil, errors.New("unknown symbol")
+}
+
+func TestEncoder_EnumTextAppenderValueReceiver(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `{"type":"enum", "name": "test", "symbols": ["foo", "bar"]}`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	m := testEnumTextAppenderValRcv(1)
+	err = enc.Encode(m)
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x02}, buf.Bytes())
+}
+
+func TestEncoder_EnumTextAppenderInvalidSymbol(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `{"type":"enum", "name": "test", "symbols": ["foo", "bar"]}`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	m := testEnumTextAppender(2)
+	err = enc.Encode(&m)
+
+	assert.Error(t, err)
+}
+
+func TestEncoder_EnumTextAppenderNil(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `{"type":"enum", "name": "test", "symbols": ["foo", "bar"]}`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	var m *testEnumTextAppender
+	err = enc.Encode(m)
+
+	assert.Error(t, err)
+}
+
+func TestEncoder_EnumTextAppenderError(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `{"type":"enum", "name": "test", "symbols": ["foo", "bar"]}`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	m := testEnumTextAppender(3)
+	err = enc.Encode(&m)
+
+	assert.Error(t, err)
+}

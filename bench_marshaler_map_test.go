@@ -3,6 +3,7 @@ package avro_test
 import (
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/iskorotkov/avro/v2"
 )
@@ -63,6 +64,35 @@ func BenchmarkMapTextMarshalerEncode(b *testing.B) {
 
 	for _, n := range []int{10, 100, 1000} {
 		in := benchMakeMarshalerMap(n)
+
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				if _, err := avro.Marshal(schema, in); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func benchMakeTimeMap(n int) map[time.Time]int64 {
+	out := make(map[time.Time]int64, n)
+	base := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	for i := range n {
+		out[base.Add(time.Duration(i)*time.Second)] = int64(i)
+	}
+	return out
+}
+
+func BenchmarkMapTimeKeyEncode(b *testing.B) {
+	schema, err := avro.Parse(`{"type":"map","values":"long"}`)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for _, n := range []int{10, 100, 1000} {
+		in := benchMakeTimeMap(n)
 
 		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			b.ReportAllocs()

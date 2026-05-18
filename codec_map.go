@@ -31,6 +31,8 @@ func createEncoderOfMap(e *encoderContext, schema *MapSchema, typ reflect2.Type)
 		switch {
 		case keyType.Kind() == reflect.String:
 			return encoderOfMap(e, schema, typ)
+		case keyType.Implements(textAppenderType):
+			return encoderOfMapAppender(e, schema, typ)
 		case keyType.Implements(textMarshalerType):
 			return encoderOfMapMarshaler(e, schema, typ)
 		}
@@ -260,6 +262,67 @@ func (e *mapEncoderMarshaller) Encode(ptr unsafe.Pointer, w *Writer) {
 					w.Error = err
 					return int64(0)
 				}
+
+				w.WriteBytes(b)
+
+				e.encoder.Encode(elemPtr, w)
+			}
+			return int64(i)
+		})
+
+		if wrote == 0 {
+			break
+		}
+	}
+
+	if w.Error != nil && !errors.Is(w.Error, io.EOF) {
+		w.Error = fmt.Errorf("%v: %w", e.mapType, w.Error)
+	}
+}
+
+func encoderOfMapAppender(e *encoderContext, m *MapSchema, typ reflect2.Type) ValEncoder {
+	mapType := typ.(*reflect2.UnsafeMapType)
+	encoder := encoderOfType(e, m.Values(), mapType.Elem())
+
+	return &mapEncoderAppender{
+		blockLength: e.cfg.getBlockLength(),
+		mapType:     mapType,
+		keyType:     mapType.Key(),
+		encoder:     encoder,
+	}
+}
+
+type mapEncoderAppender struct {
+	blockLength int
+	mapType     *reflect2.UnsafeMapType
+	keyType     reflect2.Type
+	encoder     ValEncoder
+}
+
+func (e *mapEncoderAppender) Encode(ptr unsafe.Pointer, w *Writer) {
+	blockLength := e.blockLength
+
+	iter := e.mapType.UnsafeIterate(ptr)
+
+	for {
+		wrote := w.WriteBlockCB(func(w *Writer) int64 {
+			var i int
+			for i = 0; iter.HasNext() && i < blockLength; i++ {
+				keyPtr, elemPtr := iter.UnsafeNext()
+
+				obj := e.keyType.UnsafeIndirect(keyPtr)
+				if e.keyType.IsNullable() && reflect2.IsNil(obj) {
+					w.Error = errors.New("avro: mapEncoderAppender: encoding nil TextAppender")
+					return int64(0)
+				}
+				// AppendText must derive its result from the passed-in buffer, not alias internal state, or w.scratch reuse will corrupt later keys.
+				appender := (obj).(encoding.TextAppender)
+				b, err := appender.AppendText(w.scratch[:0])
+				if err != nil {
+					w.Error = err
+					return int64(0)
+				}
+				w.scratch = b
 
 				w.WriteBytes(b)
 

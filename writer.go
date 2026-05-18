@@ -6,6 +6,9 @@ import (
 	"math"
 )
 
+// maxPooledScratchCap caps Writer.scratch retention across writerPool checkouts so one pathological key can't park unbounded memory.
+const maxPooledScratchCap = 4096
+
 // WriterFunc is a function used to customize the Writer.
 type WriterFunc func(w *Writer)
 
@@ -18,10 +21,11 @@ func WithWriterConfig(cfg API) WriterFunc {
 
 // Writer is an Avro specific io.Writer.
 type Writer struct {
-	cfg   *frozenConfig
-	out   io.Writer
-	buf   []byte
-	Error error
+	cfg     *frozenConfig
+	out     io.Writer
+	buf     []byte
+	scratch []byte
+	Error   error
 }
 
 // NewWriter creates a new Writer.

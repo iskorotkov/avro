@@ -27,6 +27,10 @@ func createEncoderOfEnum(schema *EnumSchema, typ reflect2.Type) ValEncoder {
 	switch {
 	case typ.Kind() == reflect.String:
 		return &enumCodec{enum: schema}
+	case typ.Implements(textAppenderType):
+		return &enumTextAppenderCodec{typ: typ, enum: schema}
+	case reflect2.PtrTo(typ).Implements(textAppenderType):
+		return &enumTextAppenderCodec{typ: typ, enum: schema, ptr: true}
 	case typ.Implements(textMarshalerType):
 		return &enumTextMarshalerCodec{typ: typ, enum: schema}
 	case reflect2.PtrTo(typ).Implements(textMarshalerType):
@@ -117,9 +121,8 @@ func (c *enumTextMarshalerCodec) Encode(ptr unsafe.Pointer, w *Writer) {
 		return
 	}
 
-	str := string(b)
 	for i, sym := range c.enum.symbols {
-		if str != sym {
+		if string(b) != sym {
 			continue
 		}
 
@@ -127,5 +130,44 @@ func (c *enumTextMarshalerCodec) Encode(ptr unsafe.Pointer, w *Writer) {
 		return
 	}
 
-	w.Error = fmt.Errorf("avro: unknown enum symbol: %s", str)
+	w.Error = fmt.Errorf("avro: unknown enum symbol: %s", string(b))
+}
+
+type enumTextAppenderCodec struct {
+	typ  reflect2.Type
+	enum *EnumSchema
+	ptr  bool
+}
+
+func (c *enumTextAppenderCodec) Encode(ptr unsafe.Pointer, w *Writer) {
+	var obj any
+	if c.ptr {
+		obj = c.typ.PackEFace(ptr)
+	} else {
+		obj = c.typ.UnsafeIndirect(ptr)
+	}
+	if c.typ.IsNullable() && reflect2.IsNil(obj) {
+		w.Error = errors.New("encoding nil enum text appender")
+		return
+	}
+	// AppendText must derive its result from the passed-in buffer, not alias internal state, or w.scratch reuse will corrupt later calls.
+	appender := (obj).(encoding.TextAppender)
+	b, err := appender.AppendText(w.scratch[:0])
+	if err != nil {
+		w.Error = err
+		return
+	}
+
+	for i, sym := range c.enum.symbols {
+		if string(b) != sym {
+			continue
+		}
+
+		w.scratch = b
+		w.WriteInt(int32(i))
+		return
+	}
+
+	w.scratch = b
+	w.Error = fmt.Errorf("avro: unknown enum symbol: %s", string(b))
 }

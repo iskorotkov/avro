@@ -10,6 +10,8 @@ import (
 var (
 	textMarshalerType   = reflect2.TypeOfPtr((*encoding.TextMarshaler)(nil)).Elem()
 	textUnmarshalerType = reflect2.TypeOfPtr((*encoding.TextUnmarshaler)(nil)).Elem()
+	// textAppenderType is preferred over textMarshalerType at every dispatch site; encoding contract requires AppendText output to match MarshalText.
+	textAppenderType = reflect2.TypeOfPtr((*encoding.TextAppender)(nil)).Elem()
 )
 
 func createDecoderOfMarshaler(schema Schema, typ reflect2.Type) ValDecoder {
@@ -26,10 +28,14 @@ func createDecoderOfMarshaler(schema Schema, typ reflect2.Type) ValDecoder {
 }
 
 func createEncoderOfMarshaler(schema Schema, typ reflect2.Type) ValEncoder {
-	if typ.Implements(textMarshalerType) && schema.Type() == String {
-		return &textMarshalerCodec{
-			typ: typ,
-		}
+	if schema.Type() != String {
+		return nil
+	}
+	if typ.Implements(textAppenderType) {
+		return &textAppenderCodec{typ: typ}
+	}
+	if typ.Implements(textMarshalerType) {
+		return &textMarshalerCodec{typ: typ}
 	}
 	return nil
 }
@@ -66,5 +72,26 @@ func (c textMarshalerCodec) Encode(ptr unsafe.Pointer, w *Writer) {
 		w.Error = err
 		return
 	}
+	w.WriteBytes(b)
+}
+
+type textAppenderCodec struct {
+	typ reflect2.Type
+}
+
+func (c textAppenderCodec) Encode(ptr unsafe.Pointer, w *Writer) {
+	obj := c.typ.UnsafeIndirect(ptr)
+	if c.typ.IsNullable() && reflect2.IsNil(obj) {
+		w.WriteBytes(nil)
+		return
+	}
+	// AppendText must derive its result from the passed-in buffer, not alias internal state, or w.scratch reuse will corrupt later calls.
+	appender := (obj).(encoding.TextAppender)
+	b, err := appender.AppendText(w.scratch[:0])
+	if err != nil {
+		w.Error = err
+		return
+	}
+	w.scratch = b
 	w.WriteBytes(b)
 }
