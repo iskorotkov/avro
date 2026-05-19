@@ -36,6 +36,81 @@ func TestEncoder_Array(t *testing.T) {
 	assert.Equal(t, []byte{0x03, 0x04, 0x36, 0x38, 0x0}, buf.Bytes())
 }
 
+func TestEncoder_ArrayScalarFloatWireFormat(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `{"type":"array", "items": "float"}`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	err = enc.Encode([]float32{1.0, 2.0})
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{
+		0x03, 0x10,
+		0x00, 0x00, 0x80, 0x3F,
+		0x00, 0x00, 0x00, 0x40,
+		0x00,
+	}, buf.Bytes())
+}
+
+func TestEncoder_ArrayScalarDoubleWireFormat(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `{"type":"array", "items": "double"}`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	err = enc.Encode([]float64{1.0, 2.0})
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{
+		0x03, 0x20,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0x3F,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40,
+		0x00,
+	}, buf.Bytes())
+}
+
+func TestEncoder_ArrayScalarBoolWireFormat(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `{"type":"array", "items": "boolean"}`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	err = enc.Encode([]bool{true, false, true, false})
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{
+		0x07, 0x08,
+		0x01, 0x00, 0x01, 0x00,
+		0x00,
+	}, buf.Bytes())
+}
+
+func TestEncoder_ArrayScalarStringWireFormat(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `{"type":"array", "items": "string"}`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	err = enc.Encode([]string{"a", "bb"})
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{
+		0x03, 0x0A,
+		0x02, 0x61,
+		0x04, 0x62, 0x62,
+		0x00,
+	}, buf.Bytes())
+}
+
 func TestEncoder_ArrayEmpty(t *testing.T) {
 	defer ConfigTeardown()
 

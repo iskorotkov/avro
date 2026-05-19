@@ -114,11 +114,49 @@ func roundTripMultiBlockArray[T any](t *testing.T, schemaStr string, want []T) {
 func TestDecoder_ArrayScalarMultiBlock(t *testing.T) {
 	defer ConfigTeardown()
 
+	t.Run("int", func(t *testing.T) {
+		roundTripMultiBlockArray(t, `{"type":"array","items":"int"}`, []int32{0, -1, 1, 2147483647, -2147483648, 42, 100})
+	})
+	t.Run("long", func(t *testing.T) {
+		roundTripMultiBlockArray(t, `{"type":"array","items":"long"}`, []int64{0, -1, 1, 9223372036854775807, -9223372036854775808, 42})
+	})
+	t.Run("bool", func(t *testing.T) {
+		roundTripMultiBlockArray(t, `{"type":"array","items":"boolean"}`, []bool{true, false, true, true, false})
+	})
+	t.Run("float", func(t *testing.T) {
+		roundTripMultiBlockArray(t, `{"type":"array","items":"float"}`, []float32{0, -1.5, 3.14, 1e10})
+	})
 	t.Run("double", func(t *testing.T) {
 		roundTripMultiBlockArray(t, `{"type":"array","items":"double"}`, []float64{1.1, 2.2, 3.3, 4.4, 5.5})
 	})
 	t.Run("string", func(t *testing.T) {
 		roundTripMultiBlockArray(t, `{"type":"array","items":"string"}`, []string{"a", "bb", "ccc", "dddd"})
+	})
+}
+
+func TestEncoder_ArrayScalarIntKinds(t *testing.T) {
+	defer ConfigTeardown()
+
+	t.Run("int8", func(t *testing.T) {
+		roundTripScalarArray(t, `{"type":"array","items":"int"}`, []int8{0, -1, 1, 127, -128, 42})
+	})
+	t.Run("int16", func(t *testing.T) {
+		roundTripScalarArray(t, `{"type":"array","items":"int"}`, []int16{0, -1, 1, 32767, -32768, 4242})
+	})
+	t.Run("uint", func(t *testing.T) {
+		roundTripScalarArray(t, `{"type":"array","items":"int"}`, []uint{0, 1, 42, 1234567})
+	})
+	t.Run("uint8", func(t *testing.T) {
+		roundTripScalarArray(t, `{"type":"array","items":"int"}`, []uint8{0, 1, 127, 128, 255})
+	})
+	t.Run("uint16", func(t *testing.T) {
+		roundTripScalarArray(t, `{"type":"array","items":"int"}`, []uint16{0, 1, 32767, 32768, 65535})
+	})
+	t.Run("long/int32", func(t *testing.T) {
+		roundTripScalarArray(t, `{"type":"array","items":"long"}`, []int32{0, -1, 1, 2147483647, -2147483648})
+	})
+	t.Run("long/uint32", func(t *testing.T) {
+		roundTripScalarArray(t, `{"type":"array","items":"long"}`, []uint32{0, 1, 2147483647, 2147483648, 4294967295})
 	})
 }
 

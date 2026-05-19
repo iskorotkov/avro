@@ -114,16 +114,18 @@ func (w *Writer) WriteLong(i int64) {
 }
 
 func (w *Writer) encodeInt(i uint64) {
+	w.buf = appendVarint(w.buf, i)
+}
+
+func appendVarint(buf []byte, i uint64) []byte {
 	if i < 0x80 {
-		w.buf = append(w.buf, byte(i))
-		return
+		return append(buf, byte(i))
 	}
 	if i < 0x4000 {
-		w.buf = append(w.buf, byte(i)|0x80, byte(i>>7))
-		return
+		return append(buf, byte(i)|0x80, byte(i>>7))
 	}
 
-	w.buf = binary.AppendUvarint(w.buf, i)
+	return binary.AppendUvarint(buf, i)
 }
 
 // WriteFloat writes a Float to the Writer.
