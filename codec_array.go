@@ -24,11 +24,16 @@ func createDecoderOfArray(d *decoderContext, schema *ArraySchema, typ reflect2.T
 }
 
 func createEncoderOfArray(e *encoderContext, schema *ArraySchema, typ reflect2.Type) ValEncoder {
-	if typ.Kind() == reflect.Slice {
-		return encoderOfArray(e, schema, typ)
+	if typ.Kind() != reflect.Slice {
+		return &errorEncoder{err: fmt.Errorf("avro: %s is unsupported for Avro %s", typ.String(), schema.Type())}
 	}
 
-	return &errorEncoder{err: fmt.Errorf("avro: %s is unsupported for Avro %s", typ.String(), schema.Type())}
+	sliceType := typ.(*reflect2.UnsafeSliceType)
+	if enc, ok := newScalarArrayEncoder(e, schema, sliceType); ok {
+		return enc
+	}
+
+	return encoderOfArray(e, schema, typ)
 }
 
 func decoderOfArray(d *decoderContext, arr *ArraySchema, typ reflect2.Type) ValDecoder {
