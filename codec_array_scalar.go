@@ -114,21 +114,122 @@ func (d *scalarArrayDecoder[T]) Decode(ptr unsafe.Pointer, r *Reader) {
 	}
 }
 
-func fillInts[T smallInt](data []T, r *Reader) {
-	for i := range data {
-		data[i] = T(r.ReadInt())
-		if r.Error != nil {
-			return
+// Pre-allocated sentinel errors so the decode closures stay inlineable
+// (formatting via r.ReportError pushes the closure over Go's inline budget).
+var (
+	errReadIntOverflow  = errors.New("avro: ReadInt: int overflow")
+	errReadLongOverflow = errors.New("avro: ReadLong: int overflow")
+)
+
+// continueVarint32 decodes a multi-byte zigzag varint after the caller has
+// peeked the first byte (with high bit set). Inlines at cost 48.
+func continueVarint32(tail []byte, b0 byte) (uint32, int, bool) {
+	v := uint32(b0 & 0x7f)
+	s := uint8(7)
+	for k, b := range tail {
+		v |= uint32(b&0x7f) << s
+		if b&0x80 == 0 {
+			return v, k + 2, true
 		}
+		s += 7
+	}
+	return 0, 0, false
+}
+
+// continueVarint64 is the maxLongBufSize counterpart of continueVarint32.
+func continueVarint64(tail []byte, b0 byte) (uint64, int, bool) {
+	v := uint64(b0 & 0x7f)
+	s := uint8(7)
+	for k, b := range tail {
+		v |= uint64(b&0x7f) << s
+		if b&0x80 == 0 {
+			return v, k + 2, true
+		}
+		s += 7
+	}
+	return 0, 0, false
+}
+
+// fillInts decodes len(data) zigzag-encoded int varints from r into data.
+// 2× unroll with inline 1-byte peek (dominant case); multi-byte fallback
+// calls continueVarint32, which inlines. The decode closure sets r.Error
+// to a sentinel on overflow so callers only check r.Error in the loop.
+// 4× was tried and lost ~4% — closure captures `head`, so a longer chain
+// of sequential decode() calls serializes through head and kills ILP.
+func fillInts[T smallInt](data []T, r *Reader) {
+	if r.Error != nil {
+		return
+	}
+	head := r.head
+	n := len(data)
+	i := 0
+	decode := func() uint32 {
+		b := r.buf[head]
+		if b < 0x80 {
+			head++
+			return uint32(b)
+		}
+		v, adv, ok := continueVarint32(r.buf[head+1:head+maxIntBufSize], b)
+		if !ok {
+			r.Error = errReadIntOverflow
+			return 0
+		}
+		head += adv
+		return v
+	}
+	for r.Error == nil && i+2 <= n && r.tail-head >= 2*maxIntBufSize {
+		v0, v1 := decode(), decode()
+		data[i] = T(int32((v0 >> 1) ^ -(v0 & 1)))
+		data[i+1] = T(int32((v1 >> 1) ^ -(v1 & 1)))
+		i += 2
+	}
+	for r.Error == nil && i < n && r.tail-head >= maxIntBufSize {
+		v := decode()
+		data[i] = T(int32((v >> 1) ^ -(v & 1)))
+		i++
+	}
+	r.head = head
+	for ; r.Error == nil && i < n; i++ {
+		data[i] = T(r.ReadInt())
 	}
 }
 
+// fillLongs is the maxLongBufSize counterpart of fillInts.
 func fillLongs[T largeInt](data []T, r *Reader) {
-	for i := range data {
-		data[i] = T(r.ReadLong())
-		if r.Error != nil {
-			return
+	if r.Error != nil {
+		return
+	}
+	head := r.head
+	n := len(data)
+	i := 0
+	decode := func() uint64 {
+		b := r.buf[head]
+		if b < 0x80 {
+			head++
+			return uint64(b)
 		}
+		v, adv, ok := continueVarint64(r.buf[head+1:head+maxLongBufSize], b)
+		if !ok {
+			r.Error = errReadLongOverflow
+			return 0
+		}
+		head += adv
+		return v
+	}
+	for r.Error == nil && i+2 <= n && r.tail-head >= 2*maxLongBufSize {
+		v0, v1 := decode(), decode()
+		data[i] = T(int64((v0 >> 1) ^ -(v0 & 1)))
+		data[i+1] = T(int64((v1 >> 1) ^ -(v1 & 1)))
+		i += 2
+	}
+	for r.Error == nil && i < n && r.tail-head >= maxLongBufSize {
+		v := decode()
+		data[i] = T(int64((v >> 1) ^ -(v & 1)))
+		i++
+	}
+	r.head = head
+	for ; r.Error == nil && i < n; i++ {
+		data[i] = T(r.ReadLong())
 	}
 }
 
