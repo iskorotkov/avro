@@ -112,12 +112,28 @@ func BenchmarkArrayEncode_Int64_Wide(b *testing.B) {
 	benchScalarArrayEncode(b, `{"type":"array","items":"long"}`, func(i int) int64 { return int64(i)*7919 + 1<<48 })
 }
 
-func BenchmarkArrayDecode_Int32(b *testing.B) {
-	benchScalarArrayDecode(b, `{"type":"array","items":"int"}`, func(i int) int32 { return int32(i) })
+func BenchmarkArrayDecode_Int32_1B(b *testing.B) {
+	benchScalarArrayDecode(b, `{"type":"array","items":"int"}`, func(i int) int32 { return int32(i & 0x3F) })
 }
 
-func BenchmarkArrayDecode_Int64(b *testing.B) {
-	benchScalarArrayDecode(b, `{"type":"array","items":"long"}`, func(i int) int64 { return int64(i) })
+func BenchmarkArrayDecode_Int32_2B(b *testing.B) {
+	benchScalarArrayDecode(b, `{"type":"array","items":"int"}`, func(i int) int32 { return int32(0x40 + i&0x1F80) })
+}
+
+func BenchmarkArrayDecode_Int32_Wide(b *testing.B) {
+	benchScalarArrayDecode(b, `{"type":"array","items":"int"}`, func(i int) int32 { return int32(i*7919 + 1<<24) })
+}
+
+func BenchmarkArrayDecode_Int64_1B(b *testing.B) {
+	benchScalarArrayDecode(b, `{"type":"array","items":"long"}`, func(i int) int64 { return int64(i & 0x3F) })
+}
+
+func BenchmarkArrayDecode_Int64_2B(b *testing.B) {
+	benchScalarArrayDecode(b, `{"type":"array","items":"long"}`, func(i int) int64 { return int64(0x40 + i&0x1F80) })
+}
+
+func BenchmarkArrayDecode_Int64_Wide(b *testing.B) {
+	benchScalarArrayDecode(b, `{"type":"array","items":"long"}`, func(i int) int64 { return int64(i)*7919 + 1<<48 })
 }
 
 func BenchmarkArrayDecode_Float32(b *testing.B) {
