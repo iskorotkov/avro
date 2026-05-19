@@ -1,10 +1,14 @@
 package avro_test
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
+	"testing"
 
 	"github.com/iskorotkov/avro/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -110,4 +114,34 @@ func errorConverter(typ avro.Type, err error) avro.TypeConversionFuncs {
 			return nil, err
 		},
 	}
+}
+
+func TestDecoderTypeConverter_UnionNullableRegisterAfterFirstDecode(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `["null", "int"]`
+	data := []byte{0x02, 0x36}
+
+	dec, err := avro.NewDecoder(schema, bytes.NewReader(data))
+	require.NoError(t, err)
+
+	var first *int
+	require.NoError(t, dec.Decode(&first))
+	require.NotNil(t, first)
+	assert.Equal(t, 27, *first)
+
+	avro.RegisterTypeConverters(avro.TypeConversionFuncs{
+		AvroType: avro.Union,
+		DecoderTypeConversion: func(in any, _ avro.Schema) (any, error) {
+			return in.(int) * 2, nil
+		},
+	})
+
+	dec2, err := avro.NewDecoder(schema, bytes.NewReader(data))
+	require.NoError(t, err)
+
+	var second *int
+	require.NoError(t, dec2.Decode(&second))
+	require.NotNil(t, second)
+	assert.Equal(t, 54, *second, "converter registered after first decode must apply")
 }
