@@ -181,6 +181,9 @@ func (c *frozenConfig) borrowWriter() *Writer {
 func (c *frozenConfig) returnWriter(writer *Writer) {
 	writer.out = nil
 	writer.Error = nil
+	if cap(writer.scratch) > maxPooledScratchCap {
+		writer.scratch = nil
+	}
 
 	c.writerPool.Put(writer)
 }
