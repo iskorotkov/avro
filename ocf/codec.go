@@ -27,6 +27,7 @@ const (
 type codecOptions struct {
 	DeflateCompressionLevel int
 	ZStandardOptions        zstdOptions
+	MaxDecompressedBytes    int
 }
 
 type zstdOptions struct {
@@ -44,13 +45,16 @@ func resolveCodec(name CodecName, codecOpts codecOptions) (Codec, error) {
 		return &NullCodec{}, nil
 
 	case Deflate:
-		return &DeflateCodec{compLvl: codecOpts.DeflateCompressionLevel}, nil
+		return &DeflateCodec{
+			compLvl:         codecOpts.DeflateCompressionLevel,
+			maxDecompressed: codecOpts.MaxDecompressedBytes,
+		}, nil
 
 	case Snappy:
-		return &SnappyCodec{}, nil
+		return &SnappyCodec{maxDecompressed: codecOpts.MaxDecompressedBytes}, nil
 
 	case ZStandard:
-		return newZStandardCodec(codecOpts.ZStandardOptions), nil
+		return newZStandardCodec(codecOpts.ZStandardOptions, codecOpts.MaxDecompressedBytes), nil
 
 	default:
 		return nil, fmt.Errorf("unknown codec %s", name)
@@ -80,20 +84,29 @@ func (*NullCodec) Encode(b []byte) []byte {
 
 // DeflateCodec is a flate compression codec.
 type DeflateCodec struct {
-	compLvl int
+	compLvl         int
+	maxDecompressed int
 }
 
 // Decode decodes the given bytes.
 func (c *DeflateCodec) Decode(b []byte) ([]byte, error) {
 	r := flate.NewReader(bytes.NewBuffer(b))
-	data, err := io.ReadAll(r)
-	if err != nil {
-		_ = r.Close()
-		return nil, err
-	}
-	_ = r.Close()
 
-	return data, nil
+	var src io.Reader = r
+	if c.maxDecompressed > 0 {
+		src = io.LimitReader(r, int64(c.maxDecompressed)+1)
+	}
+
+	data, readErr := io.ReadAll(src)
+	closeErr := r.Close()
+	if readErr != nil {
+		return nil, readErr
+	}
+	if c.maxDecompressed > 0 && len(data) > c.maxDecompressed {
+		return nil, fmt.Errorf("deflate: decompressed size exceeds %d bytes", c.maxDecompressed)
+	}
+
+	return data, closeErr
 }
 
 // Encode encodes the given bytes.
@@ -108,13 +121,25 @@ func (c *DeflateCodec) Encode(b []byte) []byte {
 }
 
 // SnappyCodec is a snappy compression codec.
-type SnappyCodec struct{}
+type SnappyCodec struct {
+	maxDecompressed int
+}
 
 // Decode decodes the given bytes.
-func (*SnappyCodec) Decode(b []byte) ([]byte, error) {
+func (c *SnappyCodec) Decode(b []byte) ([]byte, error) {
 	l := len(b)
 	if l < 5 {
 		return nil, errors.New("block does not contain snappy checksum")
+	}
+
+	if c.maxDecompressed > 0 {
+		dLen, err := snappy.DecodedLen(b[:l-4])
+		if err != nil {
+			return nil, err
+		}
+		if dLen > c.maxDecompressed {
+			return nil, fmt.Errorf("snappy: claimed decoded size %d exceeds %d bytes", dLen, c.maxDecompressed)
+		}
 	}
 
 	dst, err := snappy.Decode(nil, b[:l-4])
@@ -142,13 +167,14 @@ func (*SnappyCodec) Encode(b []byte) []byte {
 
 // ZStandardCodec is a zstandard compression codec.
 type ZStandardCodec struct {
-	decoder       *zstd.Decoder
-	encoder       *zstd.Encoder
-	sharedDecoder bool // true if decoder was provided externally and should not be closed
-	sharedEncoder bool // true if encoder was provided externally and should not be closed
+	decoder         *zstd.Decoder
+	encoder         *zstd.Encoder
+	sharedDecoder   bool // true if decoder was provided externally and should not be closed
+	sharedEncoder   bool // true if encoder was provided externally and should not be closed
+	maxDecompressed int
 }
 
-func newZStandardCodec(opts zstdOptions) *ZStandardCodec {
+func newZStandardCodec(opts zstdOptions, maxDecompressed int) *ZStandardCodec {
 	var decoder *zstd.Decoder
 	var encoder *zstd.Encoder
 	var sharedDecoder, sharedEncoder bool
@@ -157,7 +183,11 @@ func newZStandardCodec(opts zstdOptions) *ZStandardCodec {
 		decoder = opts.Decoder
 		sharedDecoder = true
 	} else {
-		decoder, _ = zstd.NewReader(nil, opts.DOptions...)
+		dOpts := opts.DOptions
+		if maxDecompressed > 0 {
+			dOpts = append([]zstd.DOption{zstd.WithDecoderMaxMemory(uint64(maxDecompressed))}, dOpts...)
+		}
+		decoder, _ = zstd.NewReader(nil, dOpts...)
 	}
 
 	if opts.Encoder != nil {
@@ -168,22 +198,28 @@ func newZStandardCodec(opts zstdOptions) *ZStandardCodec {
 	}
 
 	return &ZStandardCodec{
-		decoder:       decoder,
-		encoder:       encoder,
-		sharedDecoder: sharedDecoder,
-		sharedEncoder: sharedEncoder,
+		decoder:         decoder,
+		encoder:         encoder,
+		sharedDecoder:   sharedDecoder,
+		sharedEncoder:   sharedEncoder,
+		maxDecompressed: maxDecompressed,
 	}
 }
 
 // Decode decodes the given bytes.
 func (zstdCodec *ZStandardCodec) Decode(b []byte) ([]byte, error) {
-	defer func() { _ = zstdCodec.decoder.Reset(nil) }()
-	return zstdCodec.decoder.DecodeAll(b, nil)
+	out, err := zstdCodec.decoder.DecodeAll(b, nil)
+	if err != nil {
+		return nil, err
+	}
+	if zstdCodec.maxDecompressed > 0 && len(out) > zstdCodec.maxDecompressed {
+		return nil, fmt.Errorf("zstd: decompressed size %d exceeds %d bytes", len(out), zstdCodec.maxDecompressed)
+	}
+	return out, nil
 }
 
 // Encode encodes the given bytes.
 func (zstdCodec *ZStandardCodec) Encode(b []byte) []byte {
-	defer zstdCodec.encoder.Reset(nil)
 	return zstdCodec.encoder.EncodeAll(b, nil)
 }
 

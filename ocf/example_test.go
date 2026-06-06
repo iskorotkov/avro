@@ -39,6 +39,44 @@ func ExampleNewDecoder() {
 	}
 }
 
+func ExampleNewDecoder_untrustedInput() {
+	type SimpleRecord struct {
+		A int64  `avro:"a"`
+		B string `avro:"b"`
+	}
+
+	f, err := os.Open("/your/avro/file.avro")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	// Both caps should be set when reading OCF files from an untrusted
+	// source. WithMaxBlockBytes bounds the declared compressed block size;
+	// WithMaxDecompressedBlockBytes bounds the codec output and so closes
+	// the zip-bomb amplification vector.
+	dec, err := ocf.NewDecoder(
+		f,
+		ocf.WithMaxBlockBytes(16<<20),
+		ocf.WithMaxDecompressedBlockBytes(64<<20),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer dec.Close()
+
+	for dec.HasNext() {
+		var record SimpleRecord
+		if err := dec.Decode(&record); err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	if err := dec.Error(); err != nil {
+		log.Fatal(err)
+	}
+}
+
 func ExampleNewEncoder() {
 	schema := `{
 	    "type": "record",
