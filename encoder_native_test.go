@@ -585,6 +585,183 @@ func TestEncoder_Time_LocalTimestampMicrosOneMicros(t *testing.T) {
 	assert.Equal(t, []byte{0x2}, buf.Bytes())
 }
 
+func TestEncoder_Time_TimestampNanos(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `{"type":"long","logicalType":"timestamp-nanos"}`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	err = enc.Encode(time.Date(2020, 1, 2, 3, 4, 5, 0, time.UTC))
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x80, 0xc8, 0xb1, 0x82, 0xbd, 0xb5, 0xf9, 0xe5, 0x2b}, buf.Bytes())
+}
+
+func TestEncoder_Time_TimestampNanosEpoch(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `{"type":"long","logicalType":"timestamp-nanos"}`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	err = enc.Encode(time.Unix(0, 0).UTC())
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x00}, buf.Bytes())
+}
+
+func TestEncoder_Time_TimestampNanosOneNano(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `{"type":"long","logicalType":"timestamp-nanos"}`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	err = enc.Encode(time.Date(1970, 1, 1, 0, 0, 0, 1, time.UTC))
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x02}, buf.Bytes())
+}
+
+func TestEncoder_Time_LocalTimestampNanos(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `{"type":"long","logicalType":"local-timestamp-nanos"}`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	err = enc.Encode(time.Date(2020, 1, 2, 3, 4, 5, 0, time.Local))
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x80, 0xc8, 0xb1, 0x82, 0xbd, 0xb5, 0xf9, 0xe5, 0x2b}, buf.Bytes())
+}
+
+func TestEncoder_Time_LocalTimestampNanosEpoch(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `{"type":"long","logicalType":"local-timestamp-nanos"}`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	err = enc.Encode(time.Date(1970, 1, 1, 0, 0, 0, 0, time.Local))
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x00}, buf.Bytes())
+}
+
+func TestEncoder_Time_LocalTimestampNanosOneNano(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `{"type":"long","logicalType":"local-timestamp-nanos"}`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	err = enc.Encode(time.Date(1970, 1, 1, 0, 0, 0, 1, time.Local))
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x02}, buf.Bytes())
+}
+
+func TestEncoder_Time_TimestampNanosOverflow(t *testing.T) {
+	defer ConfigTeardown()
+
+	// int64 nanoseconds since epoch can only represent up to ~2262-04-11.
+	cases := []time.Time{
+		time.Date(2300, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(1500, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+	schema := `{"type":"long","logicalType":"timestamp-nanos"}`
+
+	for _, ts := range cases {
+		t.Run(ts.Format(time.RFC3339), func(t *testing.T) {
+			buf := bytes.NewBuffer(nil)
+			enc, err := avro.NewEncoder(schema, buf)
+			require.NoError(t, err)
+
+			err = enc.Encode(ts)
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "out of range")
+		})
+	}
+}
+
+func TestEncoder_Time_TimestampNanosBoundary(t *testing.T) {
+	defer ConfigTeardown()
+
+	cases := map[string]time.Time{
+		// math.MaxInt64 ns since epoch.
+		"max": time.Unix(9223372036, 854775807).UTC(),
+		// math.MinInt64 ns since epoch — what the decoder produces for the smallest int64 input.
+		"min": time.Unix(-9223372037, 145224192).UTC(),
+	}
+	schema := `{"type":"long","logicalType":"timestamp-nanos"}`
+
+	for name, want := range cases {
+		t.Run(name, func(t *testing.T) {
+			buf := bytes.NewBuffer(nil)
+			enc, err := avro.NewEncoder(schema, buf)
+			require.NoError(t, err)
+
+			require.NoError(t, enc.Encode(want))
+
+			dec, err := avro.NewDecoder(schema, bytes.NewReader(buf.Bytes()))
+			require.NoError(t, err)
+			var got time.Time
+			err = dec.Decode(&got)
+
+			require.NoError(t, err)
+			assert.Equal(t, want, got)
+		})
+	}
+}
+
+func TestEncoder_Time_TimestampNanosBelowMinBoundary(t *testing.T) {
+	defer ConfigTeardown()
+
+	// One nanosecond past math.MinInt64 — overflows int64.
+	tooEarly := time.Unix(-9223372037, 145224191).UTC()
+	schema := `{"type":"long","logicalType":"timestamp-nanos"}`
+	buf := bytes.NewBuffer(nil)
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	err = enc.Encode(tooEarly)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "out of range")
+}
+
+func TestEncoder_Time_LocalTimestampNanosOverflow(t *testing.T) {
+	defer ConfigTeardown()
+
+	cases := []time.Time{
+		time.Date(2300, 1, 1, 0, 0, 0, 0, time.Local),
+		time.Date(1500, 1, 1, 0, 0, 0, 0, time.Local),
+	}
+	schema := `{"type":"long","logicalType":"local-timestamp-nanos"}`
+
+	for _, ts := range cases {
+		t.Run(ts.Format(time.RFC3339), func(t *testing.T) {
+			buf := bytes.NewBuffer(nil)
+			enc, err := avro.NewEncoder(schema, buf)
+			require.NoError(t, err)
+
+			err = enc.Encode(ts)
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "out of range")
+		})
+	}
+}
+
 func TestEncoder_TimeInvalidSchema(t *testing.T) {
 	defer ConfigTeardown()
 

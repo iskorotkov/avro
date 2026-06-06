@@ -162,6 +162,34 @@
       }
     },
     {
+      "name": "aLongTimestampNanos",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-nanos"
+      }
+    },
+    {
+      "name": "aLongLocalTimestampMillis",
+      "type": {
+        "type": "long",
+        "logicalType": "local-timestamp-millis"
+      }
+    },
+    {
+      "name": "aLongLocalTimestampMicros",
+      "type": {
+        "type": "long",
+        "logicalType": "local-timestamp-micros"
+      }
+    },
+    {
+      "name": "aLongLocalTimestampNanos",
+      "type": {
+        "type": "long",
+        "logicalType": "local-timestamp-nanos"
+      }
+    },
+    {
       "name": "aBytesDecimal",
       "type": {
         "type": "bytes",
