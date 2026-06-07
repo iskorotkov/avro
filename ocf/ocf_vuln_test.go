@@ -316,6 +316,76 @@ func TestDecoder_HappyPathWithBothCaps(t *testing.T) {
 	}
 }
 
+func TestDecoder_DeflateCapAtMaxIntDoesNotOverflow(t *testing.T) {
+	original := buildOCF(t, ocf.Deflate, []int64{1, 2, 3})
+
+	dec, err := ocf.NewDecoder(bytes.NewReader(original), ocf.WithMaxDecompressedBlockBytes(math.MaxInt))
+	require.NoError(t, err)
+	defer dec.Close()
+
+	var got []int64
+	for dec.HasNext() {
+		var v int64
+		require.NoError(t, dec.Decode(&v))
+		got = append(got, v)
+	}
+	require.NoError(t, dec.Error())
+	assert.Equal(t, []int64{1, 2, 3}, got)
+}
+
+func TestDecoder_DeflateDecompressedSizeBoundary(t *testing.T) {
+	original := buildOCF(t, ocf.Deflate, []int64{1, 2, 3})
+	body := craftDeflate(t, bytes.Repeat([]byte{0}, 1024))
+	mutated := replaceFirstBlockPayload(t, original, body)
+
+	t.Run("exactly at cap decodes", func(t *testing.T) {
+		dec, err := ocf.NewDecoder(bytes.NewReader(mutated), ocf.WithMaxDecompressedBlockBytes(1024))
+		require.NoError(t, err)
+		defer dec.Close()
+
+		n := 0
+		for dec.HasNext() {
+			var v int64
+			require.NoError(t, dec.Decode(&v))
+			n++
+		}
+		require.NoError(t, dec.Error())
+		assert.Equal(t, 3, n)
+	})
+
+	t.Run("one byte over cap rejected", func(t *testing.T) {
+		dec, err := ocf.NewDecoder(bytes.NewReader(mutated), ocf.WithMaxDecompressedBlockBytes(1023))
+		require.NoError(t, err)
+		defer dec.Close()
+
+		assert.False(t, dec.HasNext())
+		require.Error(t, dec.Error())
+		assert.Contains(t, dec.Error().Error(), "deflate: decompressed size exceeds")
+	})
+}
+
+func TestDecoder_ZeroCountBlockSkippedWithoutDecompress(t *testing.T) {
+	original := buildOCF(t, ocf.Deflate, []int64{1, 2, 3})
+	headerEnd := findFirstBlockHeaderOffset(t, original)
+	sync := original[headerEnd-16 : headerEnd]
+
+	bomb := craftDeflate(t, bytes.Repeat([]byte{0}, 1<<20))
+
+	var hostile bytes.Buffer
+	hostile.Write(original[:headerEnd])
+	writeZigZagLong(&hostile, 0)
+	writeZigZagLong(&hostile, int64(len(bomb)))
+	hostile.Write(bomb)
+	hostile.Write(sync)
+
+	dec, err := ocf.NewDecoder(bytes.NewReader(hostile.Bytes()), ocf.WithMaxDecompressedBlockBytes(1<<10))
+	require.NoError(t, err)
+	defer dec.Close()
+
+	assert.False(t, dec.HasNext())
+	require.NoError(t, dec.Error())
+}
+
 // findFirstBlockHeaderOffset returns the offset of the first block-count varint, just past the header sync marker.
 func findFirstBlockHeaderOffset(t testing.TB, data []byte) int {
 	t.Helper()

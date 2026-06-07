@@ -23,6 +23,7 @@ func ExampleNewDecoder() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer dec.Close()
 
 	for dec.HasNext() {
 		var record SimpleRecord

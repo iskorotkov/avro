@@ -107,7 +107,7 @@ func WithMaxBlockBytes(n int) DecoderFunc {
 
 // WithMaxDecompressedBlockBytes caps the size of a single OCF data block after the codec decompresses it; built-in codecs (deflate, snappy, zstandard) reject inputs that would expand past it. Values <= 0 disable the check (the default).
 //
-// It does not apply to user-supplied codecs, nor to a zstandard decoder shared via WithZStandardDecoder — for that, set zstd.WithDecoderMaxMemory on the shared decoder.
+// It does not apply to user-supplied codecs registered outside this package; with a zstandard decoder shared via WithZStandardDecoder it still rejects oversized output but cannot prevent the allocation, so set zstd.WithDecoderMaxMemory on the shared decoder to reject earlier.
 func WithMaxDecompressedBlockBytes(n int) DecoderFunc {
 	return func(cfg *decoderConfig) {
 		cfg.MaxDecompressedBlockBytes = n

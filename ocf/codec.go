@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
+	"math"
 
 	"github.com/golang/snappy"
 	"github.com/klauspost/compress/zstd"
@@ -93,7 +94,7 @@ func (c *DeflateCodec) Decode(b []byte) ([]byte, error) {
 	r := flate.NewReader(bytes.NewBuffer(b))
 
 	var src io.Reader = r
-	if c.maxDecompressed > 0 {
+	if c.maxDecompressed > 0 && c.maxDecompressed < math.MaxInt {
 		src = io.LimitReader(r, int64(c.maxDecompressed)+1)
 	}
 
