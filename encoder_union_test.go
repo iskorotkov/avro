@@ -256,6 +256,21 @@ func TestEncoder_UnionInterfaceWithTimestampNanos(t *testing.T) {
 	assert.Equal(t, []byte{0x02, 0x80, 0xc8, 0xb1, 0x82, 0xbd, 0xb5, 0xf9, 0xe5, 0x2b}, buf.Bytes())
 }
 
+func TestEncoder_UnionInterfaceWithLocalTimestampNanos(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `["null", {"type": "long", "logicalType": "local-timestamp-nanos"}]`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	var val any = time.Date(2020, 1, 2, 3, 4, 5, 0, time.Local)
+	err = enc.Encode(val)
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x02, 0x80, 0xc8, 0xb1, 0x82, 0xbd, 0xb5, 0xf9, 0xe5, 0x2b}, buf.Bytes())
+}
+
 func TestEncoder_UnionMapWithDecimal(t *testing.T) {
 	defer ConfigTeardown()
 

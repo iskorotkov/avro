@@ -699,7 +699,7 @@ func TestEncoder_Time_TimestampNanosBoundary(t *testing.T) {
 	cases := map[string]time.Time{
 		// math.MaxInt64 ns since epoch.
 		"max": time.Unix(9223372036, 854775807).UTC(),
-		// math.MinInt64 ns since epoch — what the decoder produces for the smallest int64 input.
+		// math.MinInt64 ns since epoch.
 		"min": time.Unix(-9223372037, 145224192).UTC(),
 	}
 	schema := `{"type":"long","logicalType":"timestamp-nanos"}`
@@ -760,6 +760,57 @@ func TestEncoder_Time_LocalTimestampNanosOverflow(t *testing.T) {
 			assert.Contains(t, err.Error(), "out of range")
 		})
 	}
+}
+
+func TestEncoder_Time_LocalTimestampNanosBoundary(t *testing.T) {
+	defer ConfigTeardown()
+
+	prev := time.Local
+	time.Local = time.FixedZone("test", 5*60*60+30*60)
+	defer func() { time.Local = prev }()
+
+	cases := map[string]time.Time{
+		"max": time.Date(2262, 4, 11, 23, 47, 16, 854775807, time.Local),
+		"min": time.Date(1677, 9, 21, 0, 12, 43, 145224192, time.Local),
+	}
+	schema := `{"type":"long","logicalType":"local-timestamp-nanos"}`
+
+	for name, want := range cases {
+		t.Run(name, func(t *testing.T) {
+			buf := bytes.NewBuffer(nil)
+			enc, err := avro.NewEncoder(schema, buf)
+			require.NoError(t, err)
+
+			require.NoError(t, enc.Encode(want))
+
+			dec, err := avro.NewDecoder(schema, bytes.NewReader(buf.Bytes()))
+			require.NoError(t, err)
+			var got time.Time
+			err = dec.Decode(&got)
+
+			require.NoError(t, err)
+			assert.Equal(t, want, got)
+		})
+	}
+}
+
+func TestEncoder_Time_LocalTimestampNanosBelowMinBoundary(t *testing.T) {
+	defer ConfigTeardown()
+
+	prev := time.Local
+	time.Local = time.FixedZone("test", 5*60*60+30*60)
+	defer func() { time.Local = prev }()
+
+	tooEarly := time.Date(1677, 9, 21, 0, 12, 43, 145224191, time.Local)
+	schema := `{"type":"long","logicalType":"local-timestamp-nanos"}`
+	buf := bytes.NewBuffer(nil)
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	err = enc.Encode(tooEarly)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "out of range")
 }
 
 func TestEncoder_TimeInvalidSchema(t *testing.T) {
