@@ -230,9 +230,11 @@ The type conversion for decoding will receive the decoded value with a data type
 
 When processing untrusted Avro data, it is important to configure protection against Denial of Service (DoS) attacks. The library provides three configuration options to limit resource allocation:
 
-- `Config.MaxByteSliceSize` - Restricts the maximum size of `bytes` and `string` types (default: `1MiB`)
-- `Config.MaxSliceAllocSize` - Limits the maximum size of slice allocations (default: unlimited)
-- `Config.MaxMapAllocSize` - Limits the maximum size of map allocations (default: unlimited)
+- `Config.MaxByteSliceSize` - Restricts the maximum size in bytes of `bytes` and `string` types (default: `64MiB`)
+- `Config.MaxSliceAllocSize` - Limits the maximum number of elements in a slice allocation (default: `67,108,864`)
+- `Config.MaxMapAllocSize` - Limits the maximum number of entries in a map allocation (default: `67,108,864`)
+
+These defaults apply automatically; negative or zero values select the default, and there is no option to disable the limits entirely. When reading Object Container Files, `ocf.WithMaxBlockBytes` and `ocf.WithMaxDecompressedBlockBytes` additionally cap a single data block's compressed and decompressed sizes (default: `64MiB` each).
 
 For comprehensive security considerations and configuration requirements, please refer to [SECURITY.md](SECURITY.md).
 

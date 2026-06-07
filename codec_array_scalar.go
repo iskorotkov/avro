@@ -105,6 +105,10 @@ func (d *scalarArrayDecoder[T]) Decode(ptr unsafe.Pointer, r *Reader) {
 			r.ReportError("decode array", "size is greater than `Config.MaxSliceAllocSize`")
 			return
 		}
+		if rem := r.remainingInput(); rem >= 0 && l > rem {
+			r.ReportError("decode array", "block count exceeds remaining input")
+			return
+		}
 
 		newSize := size + l
 		sliceType.UnsafeGrow(ptr, newSize)

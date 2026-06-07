@@ -40,12 +40,13 @@ func decoderOfArray(d *decoderContext, arr *ArraySchema, typ reflect2.Type) ValD
 	sliceType := typ.(*reflect2.UnsafeSliceType)
 	decoder := decoderOfType(d, arr.Items(), sliceType.Elem())
 
-	return &arrayDecoder{typ: sliceType, decoder: decoder}
+	return &arrayDecoder{typ: sliceType, decoder: decoder, minItemSize: minWireSize(arr.Items(), 0)}
 }
 
 type arrayDecoder struct {
-	typ     *reflect2.UnsafeSliceType
-	decoder ValDecoder
+	typ         *reflect2.UnsafeSliceType
+	decoder     ValDecoder
+	minItemSize int
 }
 
 func (d *arrayDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
@@ -65,6 +66,10 @@ func (d *arrayDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 		start := size
 		if l > r.cfg.getMaxSliceAllocSize()-size {
 			r.ReportError("decode array", "size is greater than `Config.MaxSliceAllocSize`")
+			return
+		}
+		if rem := r.remainingInput(); rem >= 0 && d.minItemSize > 0 && l > rem/d.minItemSize {
+			r.ReportError("decode array", "block count exceeds remaining input")
 			return
 		}
 		size += l

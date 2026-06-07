@@ -56,6 +56,13 @@ func (r *Reader) Reset(b []byte) *Reader {
 	return r
 }
 
+func (r *Reader) remainingInput() int {
+	if r.reader != nil {
+		return -1
+	}
+	return r.tail - r.head
+}
+
 // ReportError record an error in iterator instance with current position.
 func (r *Reader) ReportError(operation, msg string) {
 	if r.Error != nil && !errors.Is(r.Error, io.EOF) {
@@ -340,15 +347,8 @@ func (r *Reader) readBytes(fnName, op string) []byte {
 	if size64 == 0 {
 		return []byte{}
 	}
-	if maxSize := r.cfg.getMaxByteSliceSize(); maxSize > 0 && size64 > int64(maxSize) {
+	if maxSize := r.cfg.getMaxByteSliceSize(); size64 > int64(maxSize) {
 		r.ReportError(fnName, "size is greater than `Config.MaxByteSliceSize`")
-		return nil
-	}
-	// MaxByteSliceSize defaults to MaxInt, so the cap above usually catches
-	// oversize lengths. The standalone check defends configurations that
-	// disable the cap or set it above the platform int range.
-	if size64 > math.MaxInt {
-		r.ReportError(fnName, op+" length is too big")
 		return nil
 	}
 
@@ -368,6 +368,11 @@ func (r *Reader) readBytes(fnName, op string) []byte {
 		copy(dst, r.buf[r.head:r.head+size])
 		r.head += size
 		return dst
+	}
+
+	if rem := r.remainingInput(); rem >= 0 && size64 > int64(rem) {
+		r.ReportError(fnName, op+" length exceeds remaining input")
+		return nil
 	}
 
 	buf := make([]byte, size)
