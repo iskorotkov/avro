@@ -52,14 +52,14 @@ func ExampleNewDecoder_untrustedInput() {
 	}
 	defer f.Close()
 
-	// Both caps should be set when reading OCF files from an untrusted
-	// source. WithMaxBlockBytes bounds the declared compressed block size;
-	// WithMaxDecompressedBlockBytes bounds the codec output and so closes
-	// the zip-bomb amplification vector.
+	// Both caps default to 64 MiB; tighten them when reading OCF files
+	// from an untrusted source. WithMaxBlockBytes bounds the declared
+	// compressed block size; WithMaxDecompressedBlockBytes bounds the
+	// codec output and so closes the zip-bomb amplification vector.
 	dec, err := ocf.NewDecoder(
 		f,
 		ocf.WithMaxBlockBytes(16<<20),
-		ocf.WithMaxDecompressedBlockBytes(64<<20),
+		ocf.WithMaxDecompressedBlockBytes(32<<20),
 	)
 	if err != nil {
 		log.Fatal(err)

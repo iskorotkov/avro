@@ -46,16 +46,18 @@ func decoderOfMap(d *decoderContext, m *MapSchema, typ reflect2.Type) ValDecoder
 	decoder := decoderOfType(d, m.Values(), mapType.Elem())
 
 	return &mapDecoder{
-		mapType:  mapType,
-		elemType: mapType.Elem(),
-		decoder:  decoder,
+		mapType:      mapType,
+		elemType:     mapType.Elem(),
+		decoder:      decoder,
+		minEntrySize: 1 + minWireSize(m.Values(), 0),
 	}
 }
 
 type mapDecoder struct {
-	mapType  *reflect2.UnsafeMapType
-	elemType reflect2.Type
-	decoder  ValDecoder
+	mapType      *reflect2.UnsafeMapType
+	elemType     reflect2.Type
+	decoder      ValDecoder
+	minEntrySize int
 }
 
 func (d *mapDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
@@ -70,6 +72,10 @@ func (d *mapDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 
 		if l > r.cfg.getMaxMapAllocSize()-size {
 			r.ReportError("decode map", "size is greater than `Config.MaxMapAllocSize`")
+			return
+		}
+		if rem := r.remainingInput(); rem >= 0 && l > rem/d.minEntrySize {
+			r.ReportError("decode map", "block count exceeds remaining input")
 			return
 		}
 		size += l
@@ -111,18 +117,20 @@ func decoderOfMapUnmarshaler(d *decoderContext, m *MapSchema, typ reflect2.Type)
 	decoder := decoderOfType(d, m.Values(), mapType.Elem())
 
 	return &mapDecoderUnmarshaler{
-		mapType:  mapType,
-		keyType:  mapType.Key(),
-		elemType: mapType.Elem(),
-		decoder:  decoder,
+		mapType:      mapType,
+		keyType:      mapType.Key(),
+		elemType:     mapType.Elem(),
+		decoder:      decoder,
+		minEntrySize: 1 + minWireSize(m.Values(), 0),
 	}
 }
 
 type mapDecoderUnmarshaler struct {
-	mapType  *reflect2.UnsafeMapType
-	keyType  reflect2.Type
-	elemType reflect2.Type
-	decoder  ValDecoder
+	mapType      *reflect2.UnsafeMapType
+	keyType      reflect2.Type
+	elemType     reflect2.Type
+	decoder      ValDecoder
+	minEntrySize int
 }
 
 func (d *mapDecoderUnmarshaler) Decode(ptr unsafe.Pointer, r *Reader) {
@@ -137,6 +145,10 @@ func (d *mapDecoderUnmarshaler) Decode(ptr unsafe.Pointer, r *Reader) {
 
 		if l > r.cfg.getMaxMapAllocSize()-size {
 			r.ReportError("decode map", "size is greater than `Config.MaxMapAllocSize`")
+			return
+		}
+		if rem := r.remainingInput(); rem >= 0 && l > rem/d.minEntrySize {
+			r.ReportError("decode map", "block count exceeds remaining input")
 			return
 		}
 		size += l

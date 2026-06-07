@@ -203,6 +203,19 @@ func TestDecoder_MapMultiBlockUnderMaxAlloc(t *testing.T) {
 	}, got)
 }
 
+func TestUnmarshal_MapBlockCountExceedsRemainingInput(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := avro.MustParse(`{"type":"map","values":"string"}`)
+	input := avro.EncodeIntToBytes(1000)
+
+	var out map[string]string
+	err := avro.Unmarshal(schema, input, &out)
+
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "block count exceeds remaining input")
+}
+
 type textUnmarshallerInt int
 
 func (t *textUnmarshallerInt) UnmarshalText(text []byte) error {
