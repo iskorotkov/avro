@@ -189,6 +189,18 @@ func TestDecoder_RejectsNegativeCount(t *testing.T) {
 	assert.Contains(t, dec.Error().Error(), "negative record count")
 }
 
+func TestDecoder_RejectsHostileHeaderMapCount(t *testing.T) {
+	// Forge a header claiming 1<<40 metadata entries: the SECURITY.md mitigation (MaxMapAllocSize via WithDecoderConfig) must reject it before the map is allocated.
+	var hostile bytes.Buffer
+	hostile.WriteString("Obj\x01")
+	writeZigZagLong(&hostile, 1<<40)
+
+	cfg := avro.Config{MaxMapAllocSize: 1 << 20}.Freeze()
+	_, err := ocf.NewDecoder(bytes.NewReader(hostile.Bytes()), ocf.WithDecoderConfig(cfg))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "MaxMapAllocSize")
+}
+
 // Run with -race: pins that a *zstd.Decoder shared via WithZStandardDecoder is safe under concurrent OCF decoders.
 // Regression guard for the old `defer decoder.Reset(nil)`, whose concurrent Reset(nil) calls raced on the shared decoder's state.
 func TestSharedZstdDecoder_Concurrent(t *testing.T) {

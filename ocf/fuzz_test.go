@@ -83,7 +83,7 @@ func FuzzOCFReader(f *testing.F) {
 func buildBombSeeds() [][]byte {
 	var seeds [][]byte
 
-	// Deflate bomb: 1 KiB of compressed → 4 MiB of zeros.
+	// Deflate bomb: ~16 KiB of compressed → 16 MiB of zeros.
 	if seed, ok := bombSeedDeflate(); ok {
 		seeds = append(seeds, seed)
 	}
@@ -108,7 +108,7 @@ func bombSeedDeflate() ([]byte, bool) {
 	if err != nil {
 		return nil, false
 	}
-	if _, err = fw.Write(bytes.Repeat([]byte{0}, 1<<22)); err != nil {
+	if _, err = fw.Write(bytes.Repeat([]byte{0}, 1<<24)); err != nil {
 		return nil, false
 	}
 	if err = fw.Close(); err != nil {
