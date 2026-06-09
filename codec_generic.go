@@ -64,22 +64,8 @@ func genericReceiver(schema Schema) (reflect2.Type, error) {
 			case TimeMicros:
 				var v time.Duration
 				return reflect2.TypeOf(v), nil
-			case TimestampMillis:
-				var v time.Time
-				return reflect2.TypeOf(v), nil
-			case TimestampMicros:
-				var v time.Time
-				return reflect2.TypeOf(v), nil
-			case TimestampNanos:
-				var v time.Time
-				return reflect2.TypeOf(v), nil
-			case LocalTimestampMillis:
-				var v time.Time
-				return reflect2.TypeOf(v), nil
-			case LocalTimestampMicros:
-				var v time.Time
-				return reflect2.TypeOf(v), nil
-			case LocalTimestampNanos:
+			case TimestampMillis, TimestampMicros, TimestampNanos,
+				LocalTimestampMillis, LocalTimestampMicros, LocalTimestampNanos:
 				var v time.Time
 				return reflect2.TypeOf(v), nil
 			}

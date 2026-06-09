@@ -486,6 +486,41 @@ func (c *dateCodec) Encode(ptr unsafe.Pointer, w *Writer) {
 	w.WriteInt(int32(days))
 }
 
+// toLocalWall reinterprets the UTC wall-clock reading of t in the local zone.
+func toLocalWall(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.Local)
+}
+
+// fromLocalWall reinterprets the local wall-clock reading of t as UTC.
+func fromLocalWall(t time.Time) time.Time {
+	t = t.Local()
+	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
+}
+
+// bounds for sec*unit + sub-second part to fit in int64 (math.MinInt64..math.MaxInt64).
+const (
+	minTimestampMillisSec    = -9223372036854776
+	minTimestampMillisMillis = 192
+	maxTimestampMillisSec    = 9223372036854775
+	maxTimestampMillisMillis = 807
+
+	minTimestampMicrosSec    = -9223372036855
+	minTimestampMicrosMicros = 224192
+	maxTimestampMicrosSec    = 9223372036854
+	maxTimestampMicrosMicros = 775807
+
+	minTimestampNanosSec   = -9223372037
+	minTimestampNanosNanos = 145224192
+	maxTimestampNanosSec   = 9223372036
+	maxTimestampNanosNanos = 854775807
+)
+
+// timestampOutOfRange reports whether sec with sub-second part sub overflows int64 in the encoded unit.
+func timestampOutOfRange(sec, sub, minSec, minSub, maxSec, maxSub int64) bool {
+	return sec < minSec || (sec == minSec && sub < minSub) ||
+		sec > maxSec || (sec == maxSec && sub > maxSub)
+}
+
 type timestampMillisCodec struct {
 	local   bool
 	convert func(*Reader) int64
@@ -504,7 +539,7 @@ func (c *timestampMillisCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 	t := time.Unix(sec, nsec).UTC()
 
 	if c.local {
-		*((*time.Time)(ptr)) = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.Local)
+		*((*time.Time)(ptr)) = toLocalWall(t)
 		return
 	}
 	*((*time.Time)(ptr)) = t
@@ -513,10 +548,20 @@ func (c *timestampMillisCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 func (c *timestampMillisCodec) Encode(ptr unsafe.Pointer, w *Writer) {
 	t := *((*time.Time)(ptr))
 	if c.local {
-		t = t.Local()
-		t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
+		t = fromLocalWall(t)
 	}
-	w.WriteLong(t.Unix()*1e3 + int64(t.Nanosecond()/1e6))
+
+	sec := t.Unix()
+	msec := int64(t.Nanosecond() / 1e6)
+	if timestampOutOfRange(sec, msec, minTimestampMillisSec, minTimestampMillisMillis, maxTimestampMillisSec, maxTimestampMillisMillis) {
+		if w.Error == nil {
+			w.Error = fmt.Errorf("avro: time %s out of range for millisecond-precision logical type", t.Format(time.RFC3339Nano))
+		}
+
+		return
+	}
+
+	w.WriteLong(sec*1e3 + msec)
 }
 
 type timestampMicrosCodec struct {
@@ -537,7 +582,7 @@ func (c *timestampMicrosCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 	t := time.Unix(sec, nsec).UTC()
 
 	if c.local {
-		*((*time.Time)(ptr)) = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.Local)
+		*((*time.Time)(ptr)) = toLocalWall(t)
 		return
 	}
 	*((*time.Time)(ptr)) = t
@@ -546,10 +591,20 @@ func (c *timestampMicrosCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 func (c *timestampMicrosCodec) Encode(ptr unsafe.Pointer, w *Writer) {
 	t := *((*time.Time)(ptr))
 	if c.local {
-		t = t.Local()
-		t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
+		t = fromLocalWall(t)
 	}
-	w.WriteLong(t.Unix()*1e6 + int64(t.Nanosecond()/1e3))
+
+	sec := t.Unix()
+	usec := int64(t.Nanosecond() / 1e3)
+	if timestampOutOfRange(sec, usec, minTimestampMicrosSec, minTimestampMicrosMicros, maxTimestampMicrosSec, maxTimestampMicrosMicros) {
+		if w.Error == nil {
+			w.Error = fmt.Errorf("avro: time %s out of range for microsecond-precision logical type", t.Format(time.RFC3339Nano))
+		}
+
+		return
+	}
+
+	w.WriteLong(sec*1e6 + usec)
 }
 
 type timestampNanosCodec struct {
@@ -570,7 +625,7 @@ func (c *timestampNanosCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 	t := time.Unix(sec, nsec).UTC()
 
 	if c.local {
-		*((*time.Time)(ptr)) = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.Local)
+		*((*time.Time)(ptr)) = toLocalWall(t)
 		return
 	}
 	*((*time.Time)(ptr)) = t
@@ -579,16 +634,12 @@ func (c *timestampNanosCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 func (c *timestampNanosCodec) Encode(ptr unsafe.Pointer, w *Writer) {
 	t := *((*time.Time)(ptr))
 	if c.local {
-		t = t.Local()
-		t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
+		t = fromLocalWall(t)
 	}
 
 	sec := t.Unix()
 	nsec := int64(t.Nanosecond())
-	if sec < minTimestampNanosSec ||
-		(sec == minTimestampNanosSec && nsec < minTimestampNanosNanos) ||
-		sec > maxTimestampNanosSec ||
-		(sec == maxTimestampNanosSec && nsec > maxTimestampNanosNanos) {
+	if timestampOutOfRange(sec, nsec, minTimestampNanosSec, minTimestampNanosNanos, maxTimestampNanosSec, maxTimestampNanosNanos) {
 		if w.Error == nil {
 			w.Error = fmt.Errorf("avro: time %s out of range for nanosecond-precision logical type (representable: 1677-09-21T00:12:43.145224192Z..2262-04-11T23:47:16.854775807Z)", t.Format(time.RFC3339Nano))
 		}
@@ -598,14 +649,6 @@ func (c *timestampNanosCodec) Encode(ptr unsafe.Pointer, w *Writer) {
 
 	w.WriteLong(sec*1e9 + nsec)
 }
-
-// bounds for sec*1e9 + nsec to fit in int64 (math.MinInt64..math.MaxInt64).
-const (
-	minTimestampNanosSec   = -9223372037
-	minTimestampNanosNanos = 145224192
-	maxTimestampNanosSec   = 9223372036
-	maxTimestampNanosNanos = 854775807
-)
 
 func isTimestampLogicalType(lt LogicalType) bool {
 	switch lt {

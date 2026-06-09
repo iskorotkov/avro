@@ -58,22 +58,19 @@ func (r *Reader) ReadNext(schema Schema) any {
 				i := r.ReadLong()
 				sec := i / 1e3
 				nsec := (i - sec*1e3) * 1e6
-				t := time.Unix(sec, nsec).UTC()
-				return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.Local)
+				return toLocalWall(time.Unix(sec, nsec).UTC())
 
 			case LocalTimestampMicros:
 				i := r.ReadLong()
 				sec := i / 1e6
 				nsec := (i - sec*1e6) * 1e3
-				t := time.Unix(sec, nsec).UTC()
-				return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.Local)
+				return toLocalWall(time.Unix(sec, nsec).UTC())
 
 			case LocalTimestampNanos:
 				i := r.ReadLong()
 				sec := i / 1e9
 				nsec := i - sec*1e9
-				t := time.Unix(sec, nsec).UTC()
-				return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.Local)
+				return toLocalWall(time.Unix(sec, nsec).UTC())
 			}
 		}
 		return r.ReadLong()

@@ -813,6 +813,199 @@ func TestEncoder_Time_LocalTimestampNanosBelowMinBoundary(t *testing.T) {
 	assert.Contains(t, err.Error(), "out of range")
 }
 
+func TestEncoder_Time_TimestampNanosAboveMaxBoundary(t *testing.T) {
+	defer ConfigTeardown()
+
+	// One nanosecond past math.MaxInt64.
+	tooLate := time.Unix(9223372036, 854775808).UTC()
+	schema := `{"type":"long","logicalType":"timestamp-nanos"}`
+	buf := bytes.NewBuffer(nil)
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	err = enc.Encode(tooLate)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "out of range")
+}
+
+func TestEncoder_Time_LocalTimestampNanosAboveMaxBoundary(t *testing.T) {
+	defer ConfigTeardown()
+
+	prev := time.Local
+	time.Local = time.FixedZone("test", 5*60*60+30*60)
+	defer func() { time.Local = prev }()
+
+	tooLate := time.Date(2262, 4, 11, 23, 47, 16, 854775808, time.Local)
+	schema := `{"type":"long","logicalType":"local-timestamp-nanos"}`
+	buf := bytes.NewBuffer(nil)
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	err = enc.Encode(tooLate)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "out of range")
+}
+
+func TestEncoder_Time_TimestampMillisOverflow(t *testing.T) {
+	defer ConfigTeardown()
+
+	// int64 milliseconds since epoch can only represent up to ~292278994 AD.
+	cases := []time.Time{
+		time.Date(300000000, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(-300000000, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+	schema := `{"type":"long","logicalType":"timestamp-millis"}`
+
+	for _, ts := range cases {
+		t.Run(ts.Format(time.RFC3339), func(t *testing.T) {
+			buf := bytes.NewBuffer(nil)
+			enc, err := avro.NewEncoder(schema, buf)
+			require.NoError(t, err)
+
+			err = enc.Encode(ts)
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "out of range")
+		})
+	}
+}
+
+func TestEncoder_Time_TimestampMillisBoundary(t *testing.T) {
+	defer ConfigTeardown()
+
+	cases := map[string]time.Time{
+		// math.MaxInt64 ms since epoch.
+		"max": time.Unix(9223372036854775, 807*1e6).UTC(),
+		// math.MinInt64 ms since epoch.
+		"min": time.Unix(-9223372036854776, 192*1e6).UTC(),
+	}
+	schema := `{"type":"long","logicalType":"timestamp-millis"}`
+
+	for name, want := range cases {
+		t.Run(name, func(t *testing.T) {
+			buf := bytes.NewBuffer(nil)
+			enc, err := avro.NewEncoder(schema, buf)
+			require.NoError(t, err)
+
+			require.NoError(t, enc.Encode(want))
+
+			dec, err := avro.NewDecoder(schema, bytes.NewReader(buf.Bytes()))
+			require.NoError(t, err)
+			var got time.Time
+			err = dec.Decode(&got)
+
+			require.NoError(t, err)
+			assert.Equal(t, want, got)
+		})
+	}
+}
+
+func TestEncoder_Time_TimestampMillisOutOfRangeBoundary(t *testing.T) {
+	defer ConfigTeardown()
+
+	cases := map[string]time.Time{
+		// One millisecond past math.MinInt64.
+		"below min": time.Unix(-9223372036854776, 191*1e6).UTC(),
+		// One millisecond past math.MaxInt64.
+		"above max": time.Unix(9223372036854775, 808*1e6).UTC(),
+	}
+	schema := `{"type":"long","logicalType":"timestamp-millis"}`
+
+	for name, ts := range cases {
+		t.Run(name, func(t *testing.T) {
+			buf := bytes.NewBuffer(nil)
+			enc, err := avro.NewEncoder(schema, buf)
+			require.NoError(t, err)
+
+			err = enc.Encode(ts)
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "out of range")
+		})
+	}
+}
+
+func TestEncoder_Time_TimestampMicrosOverflow(t *testing.T) {
+	defer ConfigTeardown()
+
+	// int64 microseconds since epoch can only represent up to ~294247 AD.
+	cases := []time.Time{
+		time.Date(300000, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(-300000, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+	schema := `{"type":"long","logicalType":"timestamp-micros"}`
+
+	for _, ts := range cases {
+		t.Run(ts.Format(time.RFC3339), func(t *testing.T) {
+			buf := bytes.NewBuffer(nil)
+			enc, err := avro.NewEncoder(schema, buf)
+			require.NoError(t, err)
+
+			err = enc.Encode(ts)
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "out of range")
+		})
+	}
+}
+
+func TestEncoder_Time_TimestampMicrosBoundary(t *testing.T) {
+	defer ConfigTeardown()
+
+	cases := map[string]time.Time{
+		// math.MaxInt64 us since epoch.
+		"max": time.Unix(9223372036854, 775807*1e3).UTC(),
+		// math.MinInt64 us since epoch.
+		"min": time.Unix(-9223372036855, 224192*1e3).UTC(),
+	}
+	schema := `{"type":"long","logicalType":"timestamp-micros"}`
+
+	for name, want := range cases {
+		t.Run(name, func(t *testing.T) {
+			buf := bytes.NewBuffer(nil)
+			enc, err := avro.NewEncoder(schema, buf)
+			require.NoError(t, err)
+
+			require.NoError(t, enc.Encode(want))
+
+			dec, err := avro.NewDecoder(schema, bytes.NewReader(buf.Bytes()))
+			require.NoError(t, err)
+			var got time.Time
+			err = dec.Decode(&got)
+
+			require.NoError(t, err)
+			assert.Equal(t, want, got)
+		})
+	}
+}
+
+func TestEncoder_Time_TimestampMicrosOutOfRangeBoundary(t *testing.T) {
+	defer ConfigTeardown()
+
+	cases := map[string]time.Time{
+		// One microsecond past math.MinInt64.
+		"below min": time.Unix(-9223372036855, 224191*1e3).UTC(),
+		// One microsecond past math.MaxInt64.
+		"above max": time.Unix(9223372036854, 775808*1e3).UTC(),
+	}
+	schema := `{"type":"long","logicalType":"timestamp-micros"}`
+
+	for name, ts := range cases {
+		t.Run(name, func(t *testing.T) {
+			buf := bytes.NewBuffer(nil)
+			enc, err := avro.NewEncoder(schema, buf)
+			require.NoError(t, err)
+
+			err = enc.Encode(ts)
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "out of range")
+		})
+	}
+}
+
 func TestEncoder_TimeInvalidSchema(t *testing.T) {
 	defer ConfigTeardown()
 
@@ -865,6 +1058,30 @@ func TestEncoder_Duration_InvalidLogicalType(t *testing.T) {
 	err = enc.Encode(123456789123 * time.Microsecond)
 
 	assert.Error(t, err)
+}
+
+func TestEncoder_Duration_InvalidTimestampLogicalTypes(t *testing.T) {
+	defer ConfigTeardown()
+
+	// time.Duration is rejected for every timestamp logical type instead of being encoded as a raw long.
+	schemas := []string{
+		`{"type":"long","logicalType":"timestamp-nanos"}`,
+		`{"type":"long","logicalType":"local-timestamp-millis"}`,
+		`{"type":"long","logicalType":"local-timestamp-micros"}`,
+		`{"type":"long","logicalType":"local-timestamp-nanos"}`,
+	}
+
+	for _, schema := range schemas {
+		t.Run(schema, func(t *testing.T) {
+			buf := bytes.NewBuffer(nil)
+			enc, err := avro.NewEncoder(schema, buf)
+			require.NoError(t, err)
+
+			err = enc.Encode(123456789123 * time.Microsecond)
+
+			assert.Error(t, err)
+		})
+	}
 }
 
 func TestEncoder_DurationInvalidSchema(t *testing.T) {
