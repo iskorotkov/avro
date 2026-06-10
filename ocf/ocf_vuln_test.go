@@ -190,10 +190,11 @@ func TestDecoder_RejectsNegativeCount(t *testing.T) {
 }
 
 func TestDecoder_RejectsHostileHeaderMapCount(t *testing.T) {
-	// Forge a header claiming 1<<40 metadata entries: the SECURITY.md mitigation (MaxMapAllocSize via WithDecoderConfig) must reject it before the map is allocated.
+	// Forge a header claiming 1<<30 metadata entries: the SECURITY.md mitigation (MaxMapAllocSize via WithDecoderConfig) must reject it before the map is allocated.
+	// 1<<30 fits in int on GOARCH=386 — anything above math.MaxInt32 trips the ReadBlockHeader length check there instead of the mitigation under test.
 	var hostile bytes.Buffer
 	hostile.WriteString("Obj\x01")
-	writeZigZagLong(&hostile, 1<<40)
+	writeZigZagLong(&hostile, 1<<30)
 
 	cfg := avro.Config{MaxMapAllocSize: 1 << 20}.Freeze()
 	_, err := ocf.NewDecoder(bytes.NewReader(hostile.Bytes()), ocf.WithDecoderConfig(cfg))
