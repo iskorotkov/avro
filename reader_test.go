@@ -6,6 +6,7 @@ import (
 	"io"
 	"strconv"
 	"testing"
+	"testing/iotest"
 
 	"github.com/iskorotkov/avro/v2"
 	"github.com/stretchr/testify/assert"
@@ -519,41 +520,49 @@ func TestReader_ReadLongShortReadAcrossBuffer(t *testing.T) {
 
 func TestReader_ReadFloat(t *testing.T) {
 	tests := []struct {
+		name    string
 		data    []byte
 		want    float32
 		wantErr require.ErrorAssertionFunc
 	}{
 		{
+			name:    "zero",
 			data:    []byte{0x00, 0x00, 0x00, 0x00},
 			want:    0.0,
 			wantErr: require.NoError,
 		},
 		{
+			name:    "one",
 			data:    []byte{0x00, 0x00, 0x80, 0x3F},
 			want:    1.0,
 			wantErr: require.NoError,
 		},
 		{
+			name:    "fraction",
 			data:    []byte{0x33, 0x33, 0x93, 0x3F},
 			want:    1.15,
 			wantErr: require.NoError,
 		},
 		{
+			name:    "negative",
 			data:    []byte{0x23, 0xDB, 0x57, 0xC2},
 			want:    -53.964,
 			wantErr: require.NoError,
 		},
 		{
+			name:    "negative large",
 			data:    []byte{0xA3, 0x79, 0xEB, 0xCC},
 			want:    -123456789.123,
 			wantErr: require.NoError,
 		},
 		{
+			name:    "large",
 			data:    []byte{0x62, 0x20, 0x71, 0x49},
 			want:    987654.111115,
 			wantErr: require.NoError,
 		},
 		{
+			name:    "eof",
 			data:    []byte(nil), // io.EOF
 			want:    0,
 			wantErr: require.Error,
@@ -561,72 +570,95 @@ func TestReader_ReadFloat(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		r := avro.NewReader(bytes.NewReader(test.data), 2)
+		t.Run(test.name, func(t *testing.T) {
+			// Fast path: the whole value is already in the buffer.
+			r := (&avro.Reader{}).Reset(test.data)
 
-		got := r.ReadFloat()
+			got := r.ReadFloat()
 
-		test.wantErr(t, r.Error)
-		assert.Equal(t, test.want, got)
+			test.wantErr(t, r.Error)
+			assert.Equal(t, test.want, got)
+
+			// Slow path: bytes arrive one at a time across buffer reloads.
+			r = avro.NewReader(iotest.OneByteReader(bytes.NewReader(test.data)), 10)
+
+			got = r.ReadFloat()
+
+			test.wantErr(t, r.Error)
+			assert.Equal(t, test.want, got)
+		})
 	}
 }
 
 func TestReader_ReadDouble(t *testing.T) {
 	tests := []struct {
+		name    string
 		data    []byte
 		want    float64
 		wantErr require.ErrorAssertionFunc
 	}{
 		{
+			name:    "zero",
 			data:    []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 			want:    0.0,
 			wantErr: require.NoError,
 		},
 		{
+			name:    "one",
 			data:    []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0x3F},
 			want:    1.0,
 			wantErr: require.NoError,
 		},
 		{
+			name:    "fraction",
 			data:    []byte{0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0xF2, 0x3F},
 			want:    1.15,
 			wantErr: require.NoError,
 		},
 		{
+			name:    "negative",
 			data:    []byte{0x08, 0xAC, 0x1C, 0x5A, 0x64, 0xFB, 0x4A, 0xC0},
 			want:    -53.964,
 			wantErr: require.NoError,
 		},
 		{
+			name:    "negative large",
 			data:    []byte{0xB6, 0xF3, 0x7D, 0x54, 0x34, 0x6F, 0x9D, 0xC1},
 			want:    -123456789.123,
 			wantErr: require.NoError,
 		},
 		{
+			name:    "large",
 			data:    []byte{0xB6, 0x10, 0xE4, 0x38, 0x0C, 0x24, 0x2E, 0x41},
 			want:    987654.111115,
 			wantErr: require.NoError,
 		},
 		{
+			name:    "high precision",
 			data:    []byte{0x75, 0x6B, 0x7E, 0x54, 0x34, 0x6F, 0x9D, 0x41},
 			want:    123456789.123456789,
 			wantErr: require.NoError,
 		},
 		{
+			name:    "repeating fraction",
 			data:    []byte{0x00, 0x00, 0x00, 0x00, 0xD0, 0x12, 0x63, 0x41},
 			want:    9999999.99999999999999999999999,
 			wantErr: require.NoError,
 		},
 		{
+			name:    "very large",
 			data:    []byte{0x18, 0xFC, 0x1A, 0xDD, 0x1F, 0x0E, 0x0A, 0x43},
 			want:    916734926348163.01973408746523,
 			wantErr: require.NoError,
 		},
 		{
+			name:    "negative very large",
 			data:    []byte{0x0A, 0x8F, 0xA6, 0x40, 0xAC, 0xAD, 0x8D, 0xC3},
 			want:    -267319348967891263.1928357138913857,
 			wantErr: require.NoError,
 		},
 		{
+			name:    "eof",
 			data:    []byte(nil), // io.EOF
 			want:    0,
 			wantErr: require.Error,
@@ -634,12 +666,23 @@ func TestReader_ReadDouble(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		r := avro.NewReader(bytes.NewReader(test.data), 4)
+		t.Run(test.name, func(t *testing.T) {
+			// Fast path: the whole value is already in the buffer.
+			r := (&avro.Reader{}).Reset(test.data)
 
-		got := r.ReadDouble()
+			got := r.ReadDouble()
 
-		test.wantErr(t, r.Error)
-		assert.Equal(t, test.want, got)
+			test.wantErr(t, r.Error)
+			assert.Equal(t, test.want, got)
+
+			// Slow path: bytes arrive one at a time across buffer reloads.
+			r = avro.NewReader(iotest.OneByteReader(bytes.NewReader(test.data)), 10)
+
+			got = r.ReadDouble()
+
+			test.wantErr(t, r.Error)
+			assert.Equal(t, test.want, got)
+		})
 	}
 }
 
