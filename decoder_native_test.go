@@ -667,6 +667,321 @@ func TestDecoder_Time_LocalTimestampMillisOneMicros(t *testing.T) {
 	assert.Equal(t, time.Date(1970, 1, 1, 0, 0, 0, 1e3, time.Local), got)
 }
 
+func TestDecoder_Time_TimestampNanos(t *testing.T) {
+	defer ConfigTeardown()
+
+	data := []byte{0x80, 0xc8, 0xb1, 0x82, 0xbd, 0xb5, 0xf9, 0xe5, 0x2b}
+	schema := `{"type":"long","logicalType":"timestamp-nanos"}`
+	dec, err := avro.NewDecoder(schema, bytes.NewReader(data))
+	require.NoError(t, err)
+
+	var got time.Time
+	err = dec.Decode(&got)
+
+	require.NoError(t, err)
+	assert.Equal(t, time.Date(2020, 1, 2, 3, 4, 5, 0, time.UTC), got)
+}
+
+func TestDecoder_Time_TimestampNanosEpoch(t *testing.T) {
+	defer ConfigTeardown()
+
+	data := []byte{0x00}
+	schema := `{"type":"long","logicalType":"timestamp-nanos"}`
+	dec, err := avro.NewDecoder(schema, bytes.NewReader(data))
+	require.NoError(t, err)
+
+	var got time.Time
+	err = dec.Decode(&got)
+
+	require.NoError(t, err)
+	assert.Equal(t, time.Unix(0, 0).UTC(), got)
+}
+
+func TestDecoder_Time_TimestampNanosOneNano(t *testing.T) {
+	defer ConfigTeardown()
+
+	data := []byte{0x02}
+	schema := `{"type":"long","logicalType":"timestamp-nanos"}`
+	dec, err := avro.NewDecoder(schema, bytes.NewReader(data))
+	require.NoError(t, err)
+
+	var got time.Time
+	err = dec.Decode(&got)
+
+	require.NoError(t, err)
+	assert.Equal(t, time.Date(1970, 1, 1, 0, 0, 0, 1, time.UTC), got)
+}
+
+func TestDecoder_Time_LocalTimestampNanos(t *testing.T) {
+	defer ConfigTeardown()
+
+	data := []byte{0x80, 0xc8, 0xb1, 0x82, 0xbd, 0xb5, 0xf9, 0xe5, 0x2b}
+	schema := `{"type":"long","logicalType":"local-timestamp-nanos"}`
+	dec, err := avro.NewDecoder(schema, bytes.NewReader(data))
+	require.NoError(t, err)
+
+	var got time.Time
+	err = dec.Decode(&got)
+
+	require.NoError(t, err)
+	assert.Equal(t, time.Date(2020, 1, 2, 3, 4, 5, 0, time.Local), got)
+}
+
+func TestDecoder_Time_LocalTimestampNanosEpoch(t *testing.T) {
+	defer ConfigTeardown()
+
+	data := []byte{0x00}
+	schema := `{"type":"long","logicalType":"local-timestamp-nanos"}`
+	dec, err := avro.NewDecoder(schema, bytes.NewReader(data))
+	require.NoError(t, err)
+
+	var got time.Time
+	err = dec.Decode(&got)
+
+	require.NoError(t, err)
+	assert.Equal(t, time.Date(1970, 1, 1, 0, 0, 0, 0, time.Local), got)
+}
+
+func TestDecoder_Time_LocalTimestampNanosOneNano(t *testing.T) {
+	defer ConfigTeardown()
+
+	data := []byte{0x02}
+	schema := `{"type":"long","logicalType":"local-timestamp-nanos"}`
+	dec, err := avro.NewDecoder(schema, bytes.NewReader(data))
+	require.NoError(t, err)
+
+	var got time.Time
+	err = dec.Decode(&got)
+
+	require.NoError(t, err)
+	assert.Equal(t, time.Date(1970, 1, 1, 0, 0, 0, 1, time.Local), got)
+}
+
+func TestDecoder_Time_TimestampNanosNegative(t *testing.T) {
+	defer ConfigTeardown()
+
+	ts := time.Date(1960, 6, 15, 12, 30, 0, 500, time.UTC)
+	schema := `{"type":"long","logicalType":"timestamp-nanos"}`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+	err = enc.Encode(ts)
+	require.NoError(t, err)
+
+	dec, err := avro.NewDecoder(schema, bytes.NewReader(buf.Bytes()))
+	require.NoError(t, err)
+
+	var got time.Time
+	err = dec.Decode(&got)
+
+	require.NoError(t, err)
+	assert.Equal(t, ts.UnixNano(), got.UnixNano())
+	assert.Equal(t, ts, got)
+}
+
+func TestDecoder_Time_TimestampNanosRoundTrip(t *testing.T) {
+	defer ConfigTeardown()
+
+	times := []time.Time{
+		time.Date(2020, 1, 2, 3, 4, 5, 123456789, time.UTC),
+		time.Date(1969, 12, 31, 23, 59, 59, 999999999, time.UTC),
+		time.Date(2000, 6, 15, 12, 0, 0, 1, time.UTC),
+	}
+
+	schema := `{"type":"long","logicalType":"timestamp-nanos"}`
+	for _, want := range times {
+		buf := bytes.NewBuffer([]byte{})
+		enc, err := avro.NewEncoder(schema, buf)
+		require.NoError(t, err)
+		err = enc.Encode(want)
+		require.NoError(t, err)
+
+		dec, err := avro.NewDecoder(schema, bytes.NewReader(buf.Bytes()))
+		require.NoError(t, err)
+
+		var got time.Time
+		err = dec.Decode(&got)
+
+		require.NoError(t, err)
+		assert.Equal(t, want, got)
+	}
+}
+
+func TestDecoder_Time_LocalTimestampNanosRoundTrip(t *testing.T) {
+	defer ConfigTeardown()
+
+	times := []time.Time{
+		time.Date(2020, 1, 2, 3, 4, 5, 123456789, time.Local),
+		time.Date(1969, 12, 31, 23, 59, 59, 999999999, time.Local),
+		time.Date(2000, 6, 15, 12, 0, 0, 1, time.Local),
+	}
+
+	schema := `{"type":"long","logicalType":"local-timestamp-nanos"}`
+	for _, want := range times {
+		buf := bytes.NewBuffer([]byte{})
+		enc, err := avro.NewEncoder(schema, buf)
+		require.NoError(t, err)
+		err = enc.Encode(want)
+		require.NoError(t, err)
+
+		dec, err := avro.NewDecoder(schema, bytes.NewReader(buf.Bytes()))
+		require.NoError(t, err)
+
+		var got time.Time
+		err = dec.Decode(&got)
+
+		require.NoError(t, err)
+		assert.Equal(t, want, got)
+	}
+}
+
+func TestDecoder_Time_LocalTimestampDSTRoundTrip(t *testing.T) {
+	defer ConfigTeardown()
+
+	// Wall clocks straddling a DST transition catch decoders that read the zone offset at the wrong instant.
+	tz, err := time.LoadLocation("America/Los_Angeles")
+	require.NoError(t, err)
+
+	cases := []struct {
+		name string
+		t    time.Time
+	}{
+		{"before spring forward", time.Date(2024, 3, 10, 1, 30, 0, 0, tz)},
+		{"after spring forward", time.Date(2024, 3, 10, 3, 30, 0, 0, tz)},
+		{"before fall back", time.Date(2024, 11, 3, 0, 30, 0, 0, tz)},
+		{"after fall back", time.Date(2024, 11, 3, 3, 30, 0, 0, tz)},
+	}
+	schemas := []string{
+		`{"type":"long","logicalType":"local-timestamp-millis"}`,
+		`{"type":"long","logicalType":"local-timestamp-micros"}`,
+		`{"type":"long","logicalType":"local-timestamp-nanos"}`,
+	}
+
+	prev := time.Local
+	time.Local = tz
+	defer func() { time.Local = prev }()
+
+	for _, schema := range schemas {
+		for _, c := range cases {
+			t.Run(schema+"/"+c.name, func(t *testing.T) {
+				want := c.t.In(time.Local)
+				buf := bytes.NewBuffer(nil)
+				enc, err := avro.NewEncoder(schema, buf)
+				require.NoError(t, err)
+				require.NoError(t, enc.Encode(want))
+
+				dec, err := avro.NewDecoder(schema, bytes.NewReader(buf.Bytes()))
+				require.NoError(t, err)
+
+				var got time.Time
+				err = dec.Decode(&got)
+
+				require.NoError(t, err)
+				assert.Equal(t, want.Year(), got.Year())
+				assert.Equal(t, want.Month(), got.Month())
+				assert.Equal(t, want.Day(), got.Day())
+				assert.Equal(t, want.Hour(), got.Hour())
+				assert.Equal(t, want.Minute(), got.Minute())
+				assert.Equal(t, want.Second(), got.Second())
+				assert.Equal(t, want.Nanosecond(), got.Nanosecond())
+				assert.Equal(t, time.Local, got.Location())
+			})
+		}
+	}
+}
+
+func TestDecoder_Time_TimestampNanosSchemaResolution(t *testing.T) {
+	defer ConfigTeardown()
+
+	writer := avro.MustParse(`{"type":"int"}`)
+	reader := avro.MustParse(`{"type":"long","logicalType":"timestamp-nanos"}`)
+
+	data, err := avro.Marshal(writer, int32(5))
+	require.NoError(t, err)
+
+	resolved, err := avro.NewSchemaCompatibility().Resolve(reader, writer)
+	require.NoError(t, err)
+
+	dec := avro.NewDecoderForSchema(resolved, bytes.NewReader(data))
+
+	var got time.Time
+	err = dec.Decode(&got)
+
+	require.NoError(t, err)
+	assert.Equal(t, time.Unix(0, 5).UTC(), got)
+}
+
+func TestDecoder_Time_LocalTimestampNanosSchemaResolution(t *testing.T) {
+	defer ConfigTeardown()
+
+	writer := avro.MustParse(`{"type":"int"}`)
+	reader := avro.MustParse(`{"type":"long","logicalType":"local-timestamp-nanos"}`)
+
+	data, err := avro.Marshal(writer, int32(5))
+	require.NoError(t, err)
+
+	resolved, err := avro.NewSchemaCompatibility().Resolve(reader, writer)
+	require.NoError(t, err)
+
+	dec := avro.NewDecoderForSchema(resolved, bytes.NewReader(data))
+
+	var got time.Time
+	err = dec.Decode(&got)
+
+	require.NoError(t, err)
+	assert.Equal(t, time.Date(1970, 1, 1, 0, 0, 0, 5, time.Local), got)
+}
+
+func TestDecoder_Time_LocalTimestampAmbiguousWallClock(t *testing.T) {
+	defer ConfigTeardown()
+
+	// 01:30 on 2024-11-03 in Los Angeles occurs twice; both instants must encode to the same wall clock.
+	tz, err := time.LoadLocation("America/Los_Angeles")
+	require.NoError(t, err)
+
+	prev := time.Local
+	time.Local = tz
+	defer func() { time.Local = prev }()
+
+	first := time.Date(2024, 11, 3, 8, 30, 0, 0, time.UTC).In(tz)
+	second := time.Date(2024, 11, 3, 9, 30, 0, 0, time.UTC).In(tz)
+	require.Equal(t, 1, first.Hour())
+	require.Equal(t, 1, second.Hour())
+	require.NotEqual(t, first.Unix(), second.Unix())
+
+	schemas := []string{
+		`{"type":"long","logicalType":"local-timestamp-millis"}`,
+		`{"type":"long","logicalType":"local-timestamp-micros"}`,
+		`{"type":"long","logicalType":"local-timestamp-nanos"}`,
+	}
+
+	for _, schema := range schemas {
+		t.Run(schema, func(t *testing.T) {
+			encode := func(ts time.Time) []byte {
+				buf := bytes.NewBuffer(nil)
+				enc, err := avro.NewEncoder(schema, buf)
+				require.NoError(t, err)
+				require.NoError(t, enc.Encode(ts))
+				return buf.Bytes()
+			}
+
+			data := encode(first)
+			assert.Equal(t, data, encode(second))
+
+			dec, err := avro.NewDecoder(schema, bytes.NewReader(data))
+			require.NoError(t, err)
+
+			var got time.Time
+			err = dec.Decode(&got)
+
+			require.NoError(t, err)
+			assert.Equal(t, 1, got.Hour())
+			assert.Equal(t, 30, got.Minute())
+			assert.Equal(t, time.Local, got.Location())
+		})
+	}
+}
+
 func TestDecoder_TimeInvalidSchema(t *testing.T) {
 	defer ConfigTeardown()
 
@@ -723,6 +1038,31 @@ func TestDecoder_Duration_InvalidLogicalType(t *testing.T) {
 	err = dec.Decode(&got)
 
 	assert.Error(t, err)
+}
+
+func TestDecoder_Duration_InvalidTimestampLogicalTypes(t *testing.T) {
+	defer ConfigTeardown()
+
+	// time.Duration is rejected for every timestamp logical type instead of decoding the raw long.
+	schemas := []string{
+		`{"type":"long","logicalType":"timestamp-nanos"}`,
+		`{"type":"long","logicalType":"local-timestamp-millis"}`,
+		`{"type":"long","logicalType":"local-timestamp-micros"}`,
+		`{"type":"long","logicalType":"local-timestamp-nanos"}`,
+	}
+	data := []byte{0x86, 0xEA, 0xC8, 0xE9, 0x97, 0x07}
+
+	for _, schema := range schemas {
+		t.Run(schema, func(t *testing.T) {
+			dec, err := avro.NewDecoder(schema, bytes.NewReader(data))
+			require.NoError(t, err)
+
+			var got time.Duration
+			err = dec.Decode(&got)
+
+			assert.Error(t, err)
+		})
+	}
 }
 
 func TestDecoder_DurationInvalidSchema(t *testing.T) {

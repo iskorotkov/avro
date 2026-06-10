@@ -84,8 +84,7 @@ func createDecoderOfNative(schema *PrimitiveSchema, typ reflect2.Type) ValDecode
 			}
 
 		case st == Long:
-			isTimestamp := (lt == TimestampMillis || lt == TimestampMicros)
-			if isTimestamp && typ.Type1() == timeDurationType {
+			if isTimestampLogicalType(lt) && typ.Type1() == timeDurationType {
 				return &errorDecoder{err: fmt.Errorf("avro: %s is unsupported for Avro %s and logicalType %s",
 					typ.Type1().String(), schema.Type(), lt)}
 			}
@@ -144,6 +143,10 @@ func createDecoderOfNative(schema *PrimitiveSchema, typ reflect2.Type) ValDecode
 			return &timestampMicrosCodec{
 				convert: createLongConverter(schema.encodedType),
 			}
+		case isTime && st == Long && lt == TimestampNanos:
+			return &timestampNanosCodec{
+				convert: createLongConverter(schema.encodedType),
+			}
 		case isTime && st == Long && lt == LocalTimestampMillis:
 			return &timestampMillisCodec{
 				local:   true,
@@ -151,6 +154,11 @@ func createDecoderOfNative(schema *PrimitiveSchema, typ reflect2.Type) ValDecode
 			}
 		case isTime && st == Long && lt == LocalTimestampMicros:
 			return &timestampMicrosCodec{
+				local:   true,
+				convert: createLongConverter(schema.encodedType),
+			}
+		case isTime && st == Long && lt == LocalTimestampNanos:
+			return &timestampNanosCodec{
 				local:   true,
 				convert: createLongConverter(schema.encodedType),
 			}
@@ -247,8 +255,7 @@ func createEncoderOfNative(schema *PrimitiveSchema, typ reflect2.Type) ValEncode
 			return &timeMicrosCodec{}
 
 		case st == Long:
-			isTimestamp := (lt == TimestampMillis || lt == TimestampMicros)
-			if isTimestamp && typ.Type1() == timeDurationType {
+			if isTimestampLogicalType(lt) && typ.Type1() == timeDurationType {
 				return &errorEncoder{err: fmt.Errorf("avro: %s is unsupported for Avro %s and logicalType %s",
 					typ.Type1().String(), schema.Type(), lt)}
 			}
@@ -295,10 +302,14 @@ func createEncoderOfNative(schema *PrimitiveSchema, typ reflect2.Type) ValEncode
 			return &timestampMillisCodec{}
 		case isTime && st == Long && lt == TimestampMicros:
 			return &timestampMicrosCodec{}
+		case isTime && st == Long && lt == TimestampNanos:
+			return &timestampNanosCodec{}
 		case isTime && st == Long && lt == LocalTimestampMillis:
 			return &timestampMillisCodec{local: true}
 		case isTime && st == Long && lt == LocalTimestampMicros:
 			return &timestampMicrosCodec{local: true}
+		case isTime && st == Long && lt == LocalTimestampNanos:
+			return &timestampNanosCodec{local: true}
 		case typ.Type1().ConvertibleTo(ratType) && st != Bytes || lt == Decimal:
 			ls := getLogicalSchema(schema)
 			dec := ls.(*DecimalLogicalSchema)
@@ -475,6 +486,41 @@ func (c *dateCodec) Encode(ptr unsafe.Pointer, w *Writer) {
 	w.WriteInt(int32(days))
 }
 
+// toLocalWall reinterprets the UTC wall-clock reading of t in the local zone.
+func toLocalWall(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.Local)
+}
+
+// fromLocalWall reinterprets the local wall-clock reading of t as UTC.
+func fromLocalWall(t time.Time) time.Time {
+	t = t.Local()
+	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
+}
+
+// bounds for sec*unit + sub-second part to fit in int64 (math.MinInt64..math.MaxInt64).
+const (
+	minTimestampMillisSec    = -9223372036854776
+	minTimestampMillisMillis = 192
+	maxTimestampMillisSec    = 9223372036854775
+	maxTimestampMillisMillis = 807
+
+	minTimestampMicrosSec    = -9223372036855
+	minTimestampMicrosMicros = 224192
+	maxTimestampMicrosSec    = 9223372036854
+	maxTimestampMicrosMicros = 775807
+
+	minTimestampNanosSec   = -9223372037
+	minTimestampNanosNanos = 145224192
+	maxTimestampNanosSec   = 9223372036
+	maxTimestampNanosNanos = 854775807
+)
+
+// timestampOutOfRange reports whether sec with sub-second part sub overflows int64 in the encoded unit.
+func timestampOutOfRange(sec, sub, minSec, minSub, maxSec, maxSub int64) bool {
+	return sec < minSec || (sec == minSec && sub < minSub) ||
+		sec > maxSec || (sec == maxSec && sub > maxSub)
+}
+
 type timestampMillisCodec struct {
 	local   bool
 	convert func(*Reader) int64
@@ -487,29 +533,35 @@ func (c *timestampMillisCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 	} else {
 		i = r.ReadLong()
 	}
+
 	sec := i / 1e3
 	nsec := (i - sec*1e3) * 1e6
-	t := time.Unix(sec, nsec)
+	t := time.Unix(sec, nsec).UTC()
 
 	if c.local {
-		// When doing unix time, Go will convert the time from UTC to Local,
-		// changing the time by the number of seconds in the zone offset.
-		// Remove those added seconds.
-		_, offset := t.Zone()
-		t = t.Add(time.Duration(-1*offset) * time.Second)
-		*((*time.Time)(ptr)) = t
+		*((*time.Time)(ptr)) = toLocalWall(t)
 		return
 	}
-	*((*time.Time)(ptr)) = t.UTC()
+	*((*time.Time)(ptr)) = t
 }
 
 func (c *timestampMillisCodec) Encode(ptr unsafe.Pointer, w *Writer) {
 	t := *((*time.Time)(ptr))
 	if c.local {
-		t = t.Local()
-		t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
+		t = fromLocalWall(t)
 	}
-	w.WriteLong(t.Unix()*1e3 + int64(t.Nanosecond()/1e6))
+
+	sec := t.Unix()
+	msec := int64(t.Nanosecond() / 1e6)
+	if timestampOutOfRange(sec, msec, minTimestampMillisSec, minTimestampMillisMillis, maxTimestampMillisSec, maxTimestampMillisMillis) {
+		if w.Error == nil {
+			w.Error = fmt.Errorf("avro: time %s out of range for millisecond-precision logical type", t.Format(time.RFC3339Nano))
+		}
+
+		return
+	}
+
+	w.WriteLong(sec*1e3 + msec)
 }
 
 type timestampMicrosCodec struct {
@@ -524,29 +576,88 @@ func (c *timestampMicrosCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 	} else {
 		i = r.ReadLong()
 	}
+
 	sec := i / 1e6
 	nsec := (i - sec*1e6) * 1e3
-	t := time.Unix(sec, nsec)
+	t := time.Unix(sec, nsec).UTC()
 
 	if c.local {
-		// When doing unix time, Go will convert the time from UTC to Local,
-		// changing the time by the number of seconds in the zone offset.
-		// Remove those added seconds.
-		_, offset := t.Zone()
-		t = t.Add(time.Duration(-1*offset) * time.Second)
-		*((*time.Time)(ptr)) = t
+		*((*time.Time)(ptr)) = toLocalWall(t)
 		return
 	}
-	*((*time.Time)(ptr)) = t.UTC()
+	*((*time.Time)(ptr)) = t
 }
 
 func (c *timestampMicrosCodec) Encode(ptr unsafe.Pointer, w *Writer) {
 	t := *((*time.Time)(ptr))
 	if c.local {
-		t = t.Local()
-		t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
+		t = fromLocalWall(t)
 	}
-	w.WriteLong(t.Unix()*1e6 + int64(t.Nanosecond()/1e3))
+
+	sec := t.Unix()
+	usec := int64(t.Nanosecond() / 1e3)
+	if timestampOutOfRange(sec, usec, minTimestampMicrosSec, minTimestampMicrosMicros, maxTimestampMicrosSec, maxTimestampMicrosMicros) {
+		if w.Error == nil {
+			w.Error = fmt.Errorf("avro: time %s out of range for microsecond-precision logical type", t.Format(time.RFC3339Nano))
+		}
+
+		return
+	}
+
+	w.WriteLong(sec*1e6 + usec)
+}
+
+type timestampNanosCodec struct {
+	local   bool
+	convert func(*Reader) int64
+}
+
+func (c *timestampNanosCodec) Decode(ptr unsafe.Pointer, r *Reader) {
+	var i int64
+	if c.convert != nil {
+		i = c.convert(r)
+	} else {
+		i = r.ReadLong()
+	}
+
+	sec := i / 1e9
+	nsec := i - sec*1e9
+	t := time.Unix(sec, nsec).UTC()
+
+	if c.local {
+		*((*time.Time)(ptr)) = toLocalWall(t)
+		return
+	}
+	*((*time.Time)(ptr)) = t
+}
+
+func (c *timestampNanosCodec) Encode(ptr unsafe.Pointer, w *Writer) {
+	t := *((*time.Time)(ptr))
+	if c.local {
+		t = fromLocalWall(t)
+	}
+
+	sec := t.Unix()
+	nsec := int64(t.Nanosecond())
+	if timestampOutOfRange(sec, nsec, minTimestampNanosSec, minTimestampNanosNanos, maxTimestampNanosSec, maxTimestampNanosNanos) {
+		if w.Error == nil {
+			w.Error = fmt.Errorf("avro: time %s out of range for nanosecond-precision logical type (representable: 1677-09-21T00:12:43.145224192Z..2262-04-11T23:47:16.854775807Z)", t.Format(time.RFC3339Nano))
+		}
+
+		return
+	}
+
+	w.WriteLong(sec*1e9 + nsec)
+}
+
+func isTimestampLogicalType(lt LogicalType) bool {
+	switch lt {
+	case TimestampMillis, TimestampMicros, TimestampNanos,
+		LocalTimestampMillis, LocalTimestampMicros, LocalTimestampNanos:
+		return true
+	}
+
+	return false
 }
 
 type timeMillisCodec struct{}

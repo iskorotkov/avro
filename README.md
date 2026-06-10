@@ -23,6 +23,10 @@ Unresolved issues from hamba/avro are tracked in [ISSUES.md](./ISSUES.md).
 
 ## Changes since fork
 
+- **Feature:** added Avro 1.12 nanosecond-precision timestamp logical types (`timestamp-nanos`, `local-timestamp-nanos`)
+- **Bug fix:** timestamp encoders return an error when the value does not fit the `long` range of the schema precision instead of silently wrapping
+- **Bug fix:** corrected `local-timestamp-*` decoding to reinterpret wall-clock components in the local zone instead of subtracting the zone offset, fixing values around DST transitions
+- **Bug fix:** `time.Duration` values are now rejected for `local-timestamp-*` schemas instead of being silently encoded as raw nanoseconds
 - **Bug fix:** registered missing logical types for local timestamps (`local-timestamp-millis`, `local-timestamp-micros`), which caused decoding errors
 - **Bug fix:** fixed enum type duplication in Go code generation (`avrogen`)
 - **Go 1.24+ modernization:** updated codebase to use latest Go idioms
@@ -113,8 +117,10 @@ More examples in the [godoc](https://pkg.go.dev/github.com/iskorotkov/avro/v2).
 | `long.time-micros`            | `time.Duration`                                            | `time.Duration`          |
 | `long.timestamp-millis`       | `time.Time`                                                | `time.Time`              |
 | `long.timestamp-micros`       | `time.Time`                                                | `time.Time`              |
+| `long.timestamp-nanos`        | `time.Time`                                                | `time.Time`              |
 | `long.local-timestamp-millis` | `time.Time`                                                | `time.Time`              |
 | `long.local-timestamp-micros` | `time.Time`                                                | `time.Time`              |
+| `long.local-timestamp-nanos`  | `time.Time`                                                | `time.Time`              |
 | `bytes.decimal`               | `*big.Rat`                                                 | `*big.Rat`               |
 | `fixed.decimal`               | `*big.Rat`                                                 | `*big.Rat`               |
 | `string.uuid`                 | `string`                                                   | `string`                 |

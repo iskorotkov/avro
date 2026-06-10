@@ -1089,6 +1089,20 @@ func TestSchema_LogicalTypes(t *testing.T) {
 			wantLogicalType: avro.LocalTimestampMicros,
 		},
 		{
+			name:            "Timestamp Nanos",
+			schema:          `{"type": "long", "logicalType": "timestamp-nanos"}`,
+			wantType:        avro.Long,
+			wantLogical:     true,
+			wantLogicalType: avro.TimestampNanos,
+		},
+		{
+			name:            "Local Timestamp Nanos",
+			schema:          `{"type": "long", "logicalType": "local-timestamp-nanos"}`,
+			wantType:        avro.Long,
+			wantLogical:     true,
+			wantLogicalType: avro.LocalTimestampNanos,
+		},
+		{
 			name:            "UUID",
 			schema:          `{"type": "string", "logicalType": "uuid"}`,
 			wantType:        avro.String,

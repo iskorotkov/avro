@@ -74,6 +74,26 @@ func TestSchema_Canonical(t *testing.T) {
 			canonical: `{"type":"long","logicalType":"timestamp-millis"}`,
 		},
 		{
+			input:     `{"type":"long","logicalType":"timestamp-micros"}`,
+			canonical: `{"type":"long","logicalType":"timestamp-micros"}`,
+		},
+		{
+			input:     `{"type":"long","logicalType":"timestamp-nanos"}`,
+			canonical: `{"type":"long","logicalType":"timestamp-nanos"}`,
+		},
+		{
+			input:     `{"type":"long","logicalType":"local-timestamp-millis"}`,
+			canonical: `{"type":"long","logicalType":"local-timestamp-millis"}`,
+		},
+		{
+			input:     `{"type":"long","logicalType":"local-timestamp-micros"}`,
+			canonical: `{"type":"long","logicalType":"local-timestamp-micros"}`,
+		},
+		{
+			input:     `{"type":"long","logicalType":"local-timestamp-nanos"}`,
+			canonical: `{"type":"long","logicalType":"local-timestamp-nanos"}`,
+		},
+		{
 			input:     `"float"`,
 			canonical: `"float"`,
 		},

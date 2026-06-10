@@ -165,6 +165,34 @@ func TestDecoder_UnionMapWithLocalTimestampMicros(t *testing.T) {
 	assert.Equal(t, time.Date(2020, 1, 2, 3, 4, 5, 0, time.Local), got["long.local-timestamp-micros"])
 }
 
+func TestDecoder_UnionMapWithTimestampNanos(t *testing.T) {
+	defer ConfigTeardown()
+
+	data := []byte{0x02, 0x80, 0xc8, 0xb1, 0x82, 0xbd, 0xb5, 0xf9, 0xe5, 0x2b}
+	schema := `["null", {"type": "long", "logicalType": "timestamp-nanos"}]`
+	dec, _ := avro.NewDecoder(schema, bytes.NewReader(data))
+
+	var got map[string]any
+	err := dec.Decode(&got)
+
+	require.NoError(t, err)
+	assert.Equal(t, time.Date(2020, 1, 2, 3, 4, 5, 0, time.UTC), got["long.timestamp-nanos"])
+}
+
+func TestDecoder_UnionMapWithLocalTimestampNanos(t *testing.T) {
+	defer ConfigTeardown()
+
+	data := []byte{0x02, 0x80, 0xc8, 0xb1, 0x82, 0xbd, 0xb5, 0xf9, 0xe5, 0x2b}
+	schema := `["null", {"type": "long", "logicalType": "local-timestamp-nanos"}]`
+	dec, _ := avro.NewDecoder(schema, bytes.NewReader(data))
+
+	var got map[string]any
+	err := dec.Decode(&got)
+
+	require.NoError(t, err)
+	assert.Equal(t, time.Date(2020, 1, 2, 3, 4, 5, 0, time.Local), got["long.local-timestamp-nanos"])
+}
+
 func TestDecoder_UnionMapWithDecimal(t *testing.T) {
 	defer ConfigTeardown()
 
@@ -820,6 +848,34 @@ func TestDecoder_UnionInterfaceWithTime(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, time.Date(2020, 1, 2, 3, 4, 5, 0, time.UTC), got)
+}
+
+func TestDecoder_UnionInterfaceWithTimestampNanos(t *testing.T) {
+	defer ConfigTeardown()
+
+	data := []byte{0x02, 0x80, 0xc8, 0xb1, 0x82, 0xbd, 0xb5, 0xf9, 0xe5, 0x2b}
+	schema := `["null", {"type": "long", "logicalType": "timestamp-nanos"}]`
+	dec, _ := avro.NewDecoder(schema, bytes.NewReader(data))
+
+	var got any
+	err := dec.Decode(&got)
+
+	require.NoError(t, err)
+	assert.Equal(t, time.Date(2020, 1, 2, 3, 4, 5, 0, time.UTC), got)
+}
+
+func TestDecoder_UnionInterfaceWithLocalTimestampNanos(t *testing.T) {
+	defer ConfigTeardown()
+
+	data := []byte{0x02, 0x80, 0xc8, 0xb1, 0x82, 0xbd, 0xb5, 0xf9, 0xe5, 0x2b}
+	schema := `["null", {"type": "long", "logicalType": "local-timestamp-nanos"}]`
+	dec, _ := avro.NewDecoder(schema, bytes.NewReader(data))
+
+	var got any
+	err := dec.Decode(&got)
+
+	require.NoError(t, err)
+	assert.Equal(t, time.Date(2020, 1, 2, 3, 4, 5, 0, time.Local), got)
 }
 
 func TestDecoder_UnionInterfaceWithDate(t *testing.T) {
