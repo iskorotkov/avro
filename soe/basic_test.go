@@ -183,3 +183,42 @@ func TestBuildHeader_ResultIsSafeToAppendTo(t *testing.T) {
 	require.Equal(t, first, a)
 	require.NotSame(t, &a[0], &b[0])
 }
+
+func TestCodec_AppendEncode(t *testing.T) {
+	codec := newCodec(t)
+	v := testdata.StringInt{StringVal: "abc", IntVal: 123}
+
+	want, err := codec.Encode(v)
+	require.NoError(t, err)
+
+	t.Run("NilDst", func(t *testing.T) {
+		got, err := codec.AppendEncode(nil, v)
+		require.NoError(t, err)
+		require.Equal(t, want, got)
+	})
+
+	t.Run("AppendsToDst", func(t *testing.T) {
+		got, err := codec.AppendEncode([]byte{0xff}, v)
+		require.NoError(t, err)
+		require.Equal(t, append([]byte{0xff}, want...), got)
+	})
+
+	t.Run("ReusedBufferRoundtrips", func(t *testing.T) {
+		var buf []byte
+		for range 3 {
+			buf, err = codec.AppendEncode(buf[:0], v)
+			require.NoError(t, err)
+
+			var out testdata.StringInt
+			require.NoError(t, codec.Decode(buf, &out))
+			require.Equal(t, v, out)
+		}
+	})
+
+	t.Run("ErrorLeavesDstUnchanged", func(t *testing.T) {
+		dst := []byte{0xff}
+		_, err := codec.AppendEncode(dst, make(chan int))
+		require.Error(t, err)
+		require.Equal(t, []byte{0xff}, dst)
+	})
+}

@@ -52,9 +52,14 @@ func NewTypedCodecWithAPI[T AvroGenerated](api avro.API) (*TypedCodec[T], error)
 	}, nil
 }
 
-// Encode marshals a typed value to SOE-encoded Avro binary.
+// Encode marshals a typed value to SOE-encoded Avro binary, caller-owned.
 func (c *TypedCodec[T]) Encode(v T) ([]byte, error) {
 	return c.codec.Encode(v)
+}
+
+// AppendEncode appends a typed value as SOE-encoded Avro binary to dst.
+func (c *TypedCodec[T]) AppendEncode(dst []byte, v T) ([]byte, error) {
+	return c.codec.AppendEncode(dst, v)
 }
 
 // Decode unmarshals a typed value from SOE-encoded Avro binary, and fails if

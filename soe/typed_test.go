@@ -147,7 +147,6 @@ func TestTypedCodec_HeaderFormat(t *testing.T) {
 	require.Equal(t, expectedHeader, header)
 }
 
-// Covers delegation only: the Generated header has no spare capacity to alias.
 func TestTypedCodec_EncodeDoesNotAliasPreviousResult(t *testing.T) {
 	codec := newTypedCodec(t)
 
@@ -161,4 +160,19 @@ func TestTypedCodec_EncodeDoesNotAliasPreviousResult(t *testing.T) {
 
 	require.Equal(t, first, a)
 	require.NotSame(t, &a[0], &b[0])
+
+	// Guards the checks above, which pass on a clipped header even without a fix.
+	require.Equal(t, len(a), cap(a))
+}
+
+func TestTypedCodec_AppendEncode(t *testing.T) {
+	codec := newTypedCodec(t)
+	v := &testdata.Generated{Name: "bob", Age: 14}
+
+	want, err := codec.Encode(v)
+	require.NoError(t, err)
+
+	got, err := codec.AppendEncode([]byte{0xff}, v)
+	require.NoError(t, err)
+	require.Equal(t, append([]byte{0xff}, want...), got)
 }
