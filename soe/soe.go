@@ -42,5 +42,9 @@ func BuildHeaderForFingerprint(fingerprint []byte) ([]byte, error) {
 	if len(fingerprint) != 8 {
 		return nil, fmt.Errorf("bad fingerprint length: %d", len(fingerprint))
 	}
-	return append(Magic, fingerprint...), nil
+	// Clip the capacity, so that a caller appending a payload to the header
+	// always allocates instead of writing into spare capacity shared with
+	// another result.
+	header := append(Magic, fingerprint...)
+	return header[:len(header):len(header)], nil
 }

@@ -170,3 +170,19 @@ func TestCodec_EncodeDoesNotAliasPreviousResult(t *testing.T) {
 	// codec header happens to have no spare capacity.
 	require.Equal(t, len(a), cap(a))
 }
+
+func TestBuildHeader_ResultIsSafeToAppendTo(t *testing.T) {
+	header, err := soe.BuildHeader(testdata.StringIntSchema)
+	require.NoError(t, err)
+
+	// A caller framing two payloads from one header must get two independent
+	// results, so the header must not carry spare capacity.
+	require.Equal(t, len(header), cap(header))
+
+	a := append(header, 1, 2, 3)
+	first := slices.Clone(a)
+	b := append(header, 4, 5, 6)
+
+	require.Equal(t, first, a)
+	require.NotSame(t, &a[0], &b[0])
+}
