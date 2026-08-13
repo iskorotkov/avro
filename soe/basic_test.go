@@ -1,8 +1,10 @@
 package soe_test
 
 import (
+	"slices"
 	"testing"
 
+	"github.com/iskorotkov/avro/v2"
 	"github.com/iskorotkov/avro/v2/soe"
 	"github.com/iskorotkov/avro/v2/soe/internal/testdata"
 	"github.com/stretchr/testify/require"
@@ -144,4 +146,27 @@ func TestCodec_HeaderFormat(t *testing.T) {
 
 	// Compare to the actual header
 	require.Equal(t, expectedHeader, header)
+}
+
+func TestCodec_EncodeDoesNotAliasPreviousResult(t *testing.T) {
+	schema := avro.MustParse(`"int"`)
+
+	codec, err := soe.NewCodec(schema)
+	require.NoError(t, err)
+
+	a, err := codec.Encode(3)
+	require.NoError(t, err)
+
+	first := slices.Clone(a)
+
+	b, err := codec.Encode(5)
+	require.NoError(t, err)
+
+	require.Equal(t, first, a)
+	require.NotSame(t, &a[0], &b[0])
+
+	// Encode must own the buffer it returns, rather than extend a buffer held
+	// by the codec. Without this, the checks above stay green only while the
+	// codec header happens to have no spare capacity.
+	require.Equal(t, len(a), cap(a))
 }
