@@ -1,6 +1,7 @@
 package soe_test
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/iskorotkov/avro/v2/soe"
@@ -144,4 +145,20 @@ func TestTypedCodec_HeaderFormat(t *testing.T) {
 
 	// Compare to the actual header
 	require.Equal(t, expectedHeader, header)
+}
+
+// Covers delegation only: the Generated header has no spare capacity to alias.
+func TestTypedCodec_EncodeDoesNotAliasPreviousResult(t *testing.T) {
+	codec := newTypedCodec(t)
+
+	a, err := codec.Encode(&testdata.Generated{Name: "a", Age: 1})
+	require.NoError(t, err)
+
+	first := slices.Clone(a)
+
+	b, err := codec.Encode(&testdata.Generated{Name: "b", Age: 2})
+	require.NoError(t, err)
+
+	require.Equal(t, first, a)
+	require.NotSame(t, &a[0], &b[0])
 }

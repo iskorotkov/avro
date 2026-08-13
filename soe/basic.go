@@ -40,8 +40,7 @@ func (c *Codec) Encode(v any) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Appending to c.header would return a slice backed by the codec's own
-	// array, which the next call then overwrites.
+	// Appending to c.header would alias the codec's array across calls.
 	buf := make([]byte, 0, len(c.header)+len(data))
 	buf = append(buf, c.header...)
 	return append(buf, data...), nil

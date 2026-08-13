@@ -165,9 +165,7 @@ func TestCodec_EncodeDoesNotAliasPreviousResult(t *testing.T) {
 	require.Equal(t, first, a)
 	require.NotSame(t, &a[0], &b[0])
 
-	// Encode must own the buffer it returns, rather than extend a buffer held
-	// by the codec. Without this, the checks above stay green only while the
-	// codec header happens to have no spare capacity.
+	// Guards the checks above, which pass on a clipped header even without a fix.
 	require.Equal(t, len(a), cap(a))
 }
 
@@ -175,8 +173,7 @@ func TestBuildHeader_ResultIsSafeToAppendTo(t *testing.T) {
 	header, err := soe.BuildHeader(testdata.StringIntSchema)
 	require.NoError(t, err)
 
-	// A caller framing two payloads from one header must get two independent
-	// results, so the header must not carry spare capacity.
+	// Spare capacity would let two payloads framed from one header collide.
 	require.Equal(t, len(header), cap(header))
 
 	a := append(header, 1, 2, 3)
