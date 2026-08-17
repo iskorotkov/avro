@@ -176,9 +176,9 @@ func TestBuildHeader_ResultIsSafeToAppendTo(t *testing.T) {
 	// Spare capacity would let two payloads framed from one header collide.
 	require.Equal(t, len(header), cap(header))
 
-	a := append(header, 1, 2, 3)
+	a := slices.Concat(header, []byte{1, 2, 3})
 	first := slices.Clone(a)
-	b := append(header, 4, 5, 6)
+	b := slices.Concat(header, []byte{4, 5, 6})
 
 	require.Equal(t, first, a)
 	require.NotSame(t, &a[0], &b[0])

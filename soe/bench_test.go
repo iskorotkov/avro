@@ -14,7 +14,7 @@ func BenchmarkEncodeSmall(b *testing.B) {
 	require.NoError(b, err)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, _ = c.Encode(3)
 	}
 }
@@ -25,7 +25,7 @@ func BenchmarkEncodeRecord(b *testing.B) {
 	v := testdata.StringInt{StringVal: "abc", IntVal: 123}
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, _ = c.Encode(v)
 	}
 }
@@ -36,7 +36,7 @@ func BenchmarkAppendEncodeSmall(b *testing.B) {
 	var buf []byte
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		buf, _ = c.AppendEncode(buf[:0], 3)
 	}
 }
@@ -48,7 +48,7 @@ func BenchmarkAppendEncodeRecord(b *testing.B) {
 	var buf []byte
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		buf, _ = c.AppendEncode(buf[:0], v)
 	}
 }
