@@ -34,13 +34,26 @@ func NewCodecWithAPI(schema avro.Schema, api avro.API) (*Codec, error) {
 	}, nil
 }
 
-// Encode marshals a value to SOE-encoded Avro binary.
+// Encode marshals a value to SOE-encoded Avro binary, in a caller-owned slice.
 func (c *Codec) Encode(v any) ([]byte, error) {
 	data, err := c.api.Marshal(c.schema, v)
 	if err != nil {
 		return nil, err
 	}
-	return append(c.header, data...), nil
+	// Appending to c.header would alias the codec's array across calls.
+	buf := make([]byte, 0, len(c.header)+len(data))
+	buf = append(buf, c.header...)
+	return append(buf, data...), nil
+}
+
+// AppendEncode appends SOE-encoded Avro binary to dst, reusing its capacity.
+func (c *Codec) AppendEncode(dst []byte, v any) ([]byte, error) {
+	data, err := c.api.Marshal(c.schema, v)
+	if err != nil {
+		return nil, err
+	}
+	dst = append(dst, c.header...)
+	return append(dst, data...), nil
 }
 
 // Decode unmarshals a value from SOE-encoded Avro binary, and fails if

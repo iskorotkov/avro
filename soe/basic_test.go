@@ -1,8 +1,10 @@
 package soe_test
 
 import (
+	"slices"
 	"testing"
 
+	"github.com/iskorotkov/avro/v2"
 	"github.com/iskorotkov/avro/v2/soe"
 	"github.com/iskorotkov/avro/v2/soe/internal/testdata"
 	"github.com/stretchr/testify/require"
@@ -144,4 +146,79 @@ func TestCodec_HeaderFormat(t *testing.T) {
 
 	// Compare to the actual header
 	require.Equal(t, expectedHeader, header)
+}
+
+func TestCodec_EncodeDoesNotAliasPreviousResult(t *testing.T) {
+	schema := avro.MustParse(`"int"`)
+
+	codec, err := soe.NewCodec(schema)
+	require.NoError(t, err)
+
+	a, err := codec.Encode(3)
+	require.NoError(t, err)
+
+	first := slices.Clone(a)
+
+	b, err := codec.Encode(5)
+	require.NoError(t, err)
+
+	require.Equal(t, first, a)
+	require.NotSame(t, &a[0], &b[0])
+
+	// Guards the checks above, which pass on a clipped header even without a fix.
+	require.Equal(t, len(a), cap(a))
+}
+
+func TestBuildHeader_ResultIsSafeToAppendTo(t *testing.T) {
+	header, err := soe.BuildHeader(testdata.StringIntSchema)
+	require.NoError(t, err)
+
+	// Spare capacity would let two payloads framed from one header collide.
+	require.Equal(t, len(header), cap(header))
+
+	a := slices.Concat(header, []byte{1, 2, 3})
+	first := slices.Clone(a)
+	b := slices.Concat(header, []byte{4, 5, 6})
+
+	require.Equal(t, first, a)
+	require.NotSame(t, &a[0], &b[0])
+}
+
+func TestCodec_AppendEncode(t *testing.T) {
+	codec := newCodec(t)
+	v := testdata.StringInt{StringVal: "abc", IntVal: 123}
+
+	want, err := codec.Encode(v)
+	require.NoError(t, err)
+
+	t.Run("NilDst", func(t *testing.T) {
+		got, err := codec.AppendEncode(nil, v)
+		require.NoError(t, err)
+		require.Equal(t, want, got)
+	})
+
+	t.Run("AppendsToDst", func(t *testing.T) {
+		got, err := codec.AppendEncode([]byte{0xff}, v)
+		require.NoError(t, err)
+		require.Equal(t, append([]byte{0xff}, want...), got)
+	})
+
+	t.Run("ReusedBufferRoundtrips", func(t *testing.T) {
+		var buf []byte
+		for range 3 {
+			buf, err = codec.AppendEncode(buf[:0], v)
+			require.NoError(t, err)
+
+			var out testdata.StringInt
+			require.NoError(t, codec.Decode(buf, &out))
+			require.Equal(t, v, out)
+		}
+	})
+
+	t.Run("ErrorLeavesDstUnchanged", func(t *testing.T) {
+		dst := []byte{0xff}
+		_, err := codec.AppendEncode(dst, make(chan int))
+		require.Error(t, err)
+		require.Equal(t, []byte{0xff}, dst)
+	})
 }
