@@ -1,6 +1,7 @@
 package avro
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -10,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/go-viper/mapstructure/v2"
-	jsoniter "github.com/json-iterator/go"
 )
 
 // DefaultSchemaCache is the default cache for schemas.
@@ -70,16 +70,16 @@ func ParseBytes(schema []byte) (Schema, error) {
 
 // ParseBytesWithCache parses a schema byte slice using the given namespace and schema cache.
 func ParseBytesWithCache(schema []byte, namespace string, cache *SchemaCache) (Schema, error) {
-	var json any
-	if err := jsoniter.Unmarshal(schema, &json); err != nil {
-		json = string(schema)
+	var parsed any
+	if err := json.Unmarshal(schema, &parsed); err != nil {
+		parsed = string(schema)
 	}
 
 	internalCache := &SchemaCache{}
 	internalCache.AddAll(cache)
 
 	seen := seenCache{}
-	s, err := parseType(namespace, json, seen, internalCache)
+	s, err := parseType(namespace, parsed, seen, internalCache)
 	if err != nil {
 		return nil, err
 	}

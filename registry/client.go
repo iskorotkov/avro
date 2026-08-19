@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -20,7 +21,6 @@ import (
 	"time"
 
 	"github.com/iskorotkov/avro/v2"
-	jsoniter "github.com/json-iterator/go"
 )
 
 const contentType = "application/vnd.schemaregistry.v1+json"
@@ -420,7 +420,7 @@ func (c *Client) GetCompatibilityLevel(ctx context.Context, subject string) (str
 func (c *Client) request(ctx context.Context, method, path string, in, out any) error {
 	var body io.Reader
 	if in != nil {
-		b, _ := jsoniter.Marshal(in)
+		b, _ := json.Marshal(in)
 		body = bytes.NewReader(b)
 	}
 
@@ -444,12 +444,12 @@ func (c *Client) request(ctx context.Context, method, path string, in, out any) 
 
 	if resp.StatusCode >= http.StatusBadRequest {
 		err := Error{StatusCode: resp.StatusCode}
-		_ = jsoniter.NewDecoder(resp.Body).Decode(&err)
+		_ = json.NewDecoder(resp.Body).Decode(&err)
 		return err
 	}
 
 	if out != nil {
-		return jsoniter.NewDecoder(resp.Body).Decode(out)
+		return json.NewDecoder(resp.Body).Decode(out)
 	}
 	return nil
 }

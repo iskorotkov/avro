@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/md5" //nolint:gosec
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -14,13 +15,7 @@ import (
 	"sync/atomic"
 
 	"github.com/iskorotkov/avro/v2/pkg/crc64"
-	jsoniter "github.com/json-iterator/go"
 )
-
-var jsoniterAPI = jsoniter.Config{
-	EscapeHTML:  true,
-	SortMapKeys: true,
-}.Froze()
 
 type nullDefaultType struct{}
 
@@ -409,11 +404,11 @@ func (p properties) marshalPropertiesToJSON(buf *bytes.Buffer) error {
 	}
 	sort.Strings(sortedPropertyKeys)
 	for _, k := range sortedPropertyKeys {
-		vv, err := jsoniterAPI.Marshal(p.props[k])
+		vv, err := json.Marshal(p.props[k])
 		if err != nil {
 			return err
 		}
-		kk, err := jsoniterAPI.Marshal(k)
+		kk, err := json.Marshal(k)
 		if err != nil {
 			return err
 		}
@@ -544,7 +539,7 @@ func (s *PrimitiveSchema) String() string {
 // MarshalJSON marshals the schema to json.
 func (s *PrimitiveSchema) MarshalJSON() ([]byte, error) {
 	if s.logical == nil && len(s.props) == 0 {
-		return jsoniterAPI.Marshal(s.typ)
+		return json.Marshal(s.typ)
 	}
 
 	buf := new(bytes.Buffer)
@@ -668,7 +663,7 @@ func (s *RecordSchema) MarshalJSON() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	buf.WriteString(`{"name":"` + s.full + `"`)
 	if len(s.aliases) > 0 {
-		aliasesJSON, err := jsoniterAPI.Marshal(s.aliases)
+		aliasesJSON, err := json.Marshal(s.aliases)
 		if err != nil {
 			return nil, err
 		}
@@ -676,7 +671,7 @@ func (s *RecordSchema) MarshalJSON() ([]byte, error) {
 		buf.Write(aliasesJSON)
 	}
 	if s.doc != "" {
-		docJSON, err := jsoniterAPI.Marshal(s.doc)
+		docJSON, err := json.Marshal(s.doc)
 		if err != nil {
 			return nil, err
 		}
@@ -688,7 +683,7 @@ func (s *RecordSchema) MarshalJSON() ([]byte, error) {
 	} else {
 		buf.WriteString(`,"type":"record"`)
 	}
-	fieldsJSON, err := jsoniterAPI.Marshal(s.fields)
+	fieldsJSON, err := json.Marshal(s.fields)
 	if err != nil {
 		return nil, err
 	}
@@ -721,7 +716,7 @@ func (s *RecordSchema) CacheFingerprint() [32]byte {
 			}
 			defs = append(defs, field.Default())
 		}
-		b, _ := jsoniterAPI.Marshal(defs)
+		b, _ := json.Marshal(defs)
 		return b
 	})
 }
@@ -865,7 +860,7 @@ func (f *Field) MarshalJSON() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	buf.WriteString(`{"name":"` + f.name + `"`)
 	if len(f.aliases) > 0 {
-		aliasesJSON, err := jsoniterAPI.Marshal(f.aliases)
+		aliasesJSON, err := json.Marshal(f.aliases)
 		if err != nil {
 			return nil, err
 		}
@@ -873,21 +868,21 @@ func (f *Field) MarshalJSON() ([]byte, error) {
 		buf.Write(aliasesJSON)
 	}
 	if f.doc != "" {
-		docJSON, err := jsoniterAPI.Marshal(f.doc)
+		docJSON, err := json.Marshal(f.doc)
 		if err != nil {
 			return nil, err
 		}
 		buf.WriteString(`,"doc":`)
 		buf.Write(docJSON)
 	}
-	typeJSON, err := jsoniterAPI.Marshal(f.typ)
+	typeJSON, err := json.Marshal(f.typ)
 	if err != nil {
 		return nil, err
 	}
 	buf.WriteString(`,"type":`)
 	buf.Write(typeJSON)
 	if f.hasDef {
-		defaultValueJSON, err := jsoniterAPI.Marshal(f.Default())
+		defaultValueJSON, err := json.Marshal(f.Default())
 		if err != nil {
 			return nil, err
 		}
@@ -1037,7 +1032,7 @@ func (s *EnumSchema) MarshalJSON() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	buf.WriteString(`{"name":"` + s.full + `"`)
 	if len(s.aliases) > 0 {
-		aliasesJSON, err := jsoniterAPI.Marshal(s.aliases)
+		aliasesJSON, err := json.Marshal(s.aliases)
 		if err != nil {
 			return nil, err
 		}
@@ -1045,7 +1040,7 @@ func (s *EnumSchema) MarshalJSON() ([]byte, error) {
 		buf.Write(aliasesJSON)
 	}
 	if s.doc != "" {
-		docJSON, err := jsoniterAPI.Marshal(s.doc)
+		docJSON, err := json.Marshal(s.doc)
 		if err != nil {
 			return nil, err
 		}
@@ -1053,7 +1048,7 @@ func (s *EnumSchema) MarshalJSON() ([]byte, error) {
 		buf.Write(docJSON)
 	}
 	buf.WriteString(`,"type":"enum"`)
-	symbolsJSON, err := jsoniterAPI.Marshal(s.symbols)
+	symbolsJSON, err := json.Marshal(s.symbols)
 	if err != nil {
 		return nil, err
 	}
@@ -1131,7 +1126,7 @@ func (s *ArraySchema) String() string {
 func (s *ArraySchema) MarshalJSON() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	buf.WriteString(`{"type":"array"`)
-	itemsJSON, err := jsoniterAPI.Marshal(s.items)
+	itemsJSON, err := json.Marshal(s.items)
 	if err != nil {
 		return nil, err
 	}
@@ -1201,7 +1196,7 @@ func (s *MapSchema) String() string {
 func (s *MapSchema) MarshalJSON() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	buf.WriteString(`{"type":"map"`)
-	valuesJSON, err := jsoniterAPI.Marshal(s.values)
+	valuesJSON, err := json.Marshal(s.values)
 	if err != nil {
 		return nil, err
 	}
@@ -1321,7 +1316,7 @@ func (s *UnionSchema) String() string {
 
 // MarshalJSON marshals the schema to json.
 func (s *UnionSchema) MarshalJSON() ([]byte, error) {
-	return jsoniterAPI.Marshal(s.types)
+	return json.Marshal(s.types)
 }
 
 // Fingerprint returns the SHA256 fingerprint of the schema.
@@ -1420,7 +1415,7 @@ func (s *FixedSchema) MarshalJSON() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	buf.WriteString(`{"name":"` + s.full + `"`)
 	if len(s.aliases) > 0 {
-		aliasesJSON, err := jsoniterAPI.Marshal(s.aliases)
+		aliasesJSON, err := json.Marshal(s.aliases)
 		if err != nil {
 			return nil, err
 		}
