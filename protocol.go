@@ -3,13 +3,13 @@ package avro
 import (
 	"crypto/md5" //nolint:gosec
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"slices"
 
 	"github.com/go-viper/mapstructure/v2"
-	jsoniter "github.com/json-iterator/go"
 )
 
 var (
@@ -227,7 +227,7 @@ func ParseProtocol(protocol string) (*Protocol, error) {
 	cache := &SchemaCache{}
 
 	var m map[string]any
-	if err := jsoniter.Unmarshal([]byte(protocol), &m); err != nil {
+	if err := json.Unmarshal([]byte(protocol), &m); err != nil {
 		return nil, err
 	}
 

@@ -6,7 +6,6 @@ require (
 	github.com/ettle/strcase v0.2.0
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/golang/snappy v1.0.0
-	github.com/json-iterator/go v1.1.12
 	github.com/klauspost/compress v1.19.2
 	github.com/modern-go/reflect2 v1.0.2
 	github.com/stretchr/testify v1.12.0
@@ -144,7 +143,6 @@ require (
 	github.com/mgechev/revive v1.13.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
-	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/moricho/tparallel v0.3.2 // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
 	github.com/nakabonne/nestif v0.3.1 // indirect
