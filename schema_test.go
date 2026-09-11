@@ -1123,6 +1123,19 @@ func TestSchema_LogicalTypes(t *testing.T) {
 			wantLogical: false,
 		},
 		{
+			name:            "Bytes JSON",
+			schema:          `{"type": "bytes", "logicalType": "json"}`,
+			wantType:        avro.Bytes,
+			wantLogical:     true,
+			wantLogicalType: avro.JSON,
+		},
+		{
+			name:        "Invalid JSON On String",
+			schema:      `{"type": "string", "logicalType": "json"}`,
+			wantType:    avro.String,
+			wantLogical: false,
+		},
+		{
 			name:            "Bytes Decimal",
 			schema:          `{"type": "bytes", "logicalType": "decimal", "precision": 4, "scale": 2}`,
 			wantType:        avro.Bytes,

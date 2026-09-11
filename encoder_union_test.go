@@ -2,6 +2,7 @@ package avro_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"math/big"
 	"testing"
 	"time"
@@ -800,6 +801,50 @@ func TestEncoder_UnionInterfaceWithLocalTimestampMicros(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, []byte{0x02, 0x80, 0xCD, 0xB7, 0xA2, 0xEE, 0xC7, 0xCD, 0x05}, buf.Bytes())
+}
+
+func TestEncoder_UnionMapWithJSON(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `["null", {"type": "bytes", "logicalType": "json"}]`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	err = enc.Encode(map[string]any{"bytes.json": json.RawMessage(`{"a":1}`)})
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x02, 0x0E, 0x7B, 0x22, 0x61, 0x22, 0x3A, 0x31, 0x7D}, buf.Bytes())
+}
+
+func TestEncoder_UnionInterfaceWithJSON(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `["null", {"type": "bytes", "logicalType": "json"}]`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	var val any = json.RawMessage(`{"a":1}`)
+	err = enc.Encode(val)
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x02, 0x0E, 0x7B, 0x22, 0x61, 0x22, 0x3A, 0x31, 0x7D}, buf.Bytes())
+}
+
+func TestEncoder_UnionPtrWithJSON(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `["null", {"type": "bytes", "logicalType": "json"}]`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	raw := json.RawMessage(`{"a":1}`)
+	err = enc.Encode(&raw)
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x02, 0x0E, 0x7B, 0x22, 0x61, 0x22, 0x3A, 0x31, 0x7D}, buf.Bytes())
 }
 
 func TestEncoder_UnionInterfaceWithDecimal(t *testing.T) {

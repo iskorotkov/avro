@@ -2,6 +2,7 @@ package avro
 
 import (
 	"bytes"
+	"encoding/json"
 	"math"
 	"math/big"
 	"testing"
@@ -150,6 +151,13 @@ func TestGenericDecode(t *testing.T) {
 			data:    []byte{0x6, 0x00, 0x87, 0x78},
 			schema:  `{"type":"bytes","logicalType":"decimal","precision":4,"scale":2}`,
 			want:    big.NewRat(1734, 5),
+			wantErr: require.NoError,
+		},
+		{
+			name:    "Bytes JSON",
+			data:    []byte{0x0E, 0x7B, 0x22, 0x61, 0x22, 0x3A, 0x31, 0x7D},
+			schema:  `{"type":"bytes","logicalType":"json"}`,
+			want:    json.RawMessage(`{"a":1}`),
 			wantErr: require.NoError,
 		},
 		{

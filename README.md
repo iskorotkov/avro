@@ -24,6 +24,7 @@ Unresolved issues from hamba/avro are tracked in [ISSUES.md](./ISSUES.md).
 ## Changes since fork
 
 - **Feature:** added Avro 1.12 nanosecond-precision timestamp logical types (`timestamp-nanos`, `local-timestamp-nanos`)
+- **Feature:** added the `json` logical type on `bytes`, mapping to `json.RawMessage` in both the codec and `avrogen`
 - **Bug fix:** timestamp encoders return an error when the value does not fit the `long` range of the schema precision instead of silently wrapping
 - **Bug fix:** corrected `local-timestamp-*` decoding to reinterpret wall-clock components in the local zone instead of subtracting the zone offset, fixing values around DST transitions
 - **Bug fix:** `time.Duration` values are now rejected for `local-timestamp-*` schemas instead of being silently encoded as raw nanoseconds
@@ -121,6 +122,7 @@ More examples in the [godoc](https://pkg.go.dev/github.com/iskorotkov/avro/v2).
 | `long.local-timestamp-millis` | `time.Time`                                                | `time.Time`              |
 | `long.local-timestamp-micros` | `time.Time`                                                | `time.Time`              |
 | `long.local-timestamp-nanos`  | `time.Time`                                                | `time.Time`              |
+| `bytes.json`                  | `json.RawMessage`                                          | `json.RawMessage`        |
 | `bytes.decimal`               | `*big.Rat`                                                 | `*big.Rat`               |
 | `fixed.decimal`               | `*big.Rat`                                                 | `*big.Rat`               |
 | `string.uuid`                 | `string`                                                   | `string`                 |
@@ -218,6 +220,23 @@ encoding and decoding.
 
 Enums may also implement `TextMarshaler` and `TextUnmarshaler`, and must resolve to valid symbols in the given enum schema.
 
+#### JSON Payloads
+
+Avro has no native JSON type, so JSON documents are usually carried in a `bytes` field. Annotating such a field with
+the `json` logical type maps it to `json.RawMessage` instead of `[]byte`:
+
+```json
+{ "name": "payload", "type": { "type": "bytes", "logicalType": "json" } }
+```
+
+The bytes are written and read verbatim &mdash; the codec does **not** parse or validate the JSON, so it costs exactly
+the same as a plain `bytes` field. Validate with `json.Valid` yourself if you need it. A plain `[]byte` is still
+accepted for a `json`-annotated schema, and a `json.RawMessage` is still accepted for a plain `bytes` schema; the
+annotation only changes which type is produced when decoding into `any` or generating Go structs.
+
+This logical type is an extension, not part of the Avro specification. Readers that do not know it fall back to
+plain `bytes`, so the encoding stays wire-compatible with any other Avro implementation.
+
 #### Identical Underlying Types
 
 One type can be [ConvertibleTo](https://go.dev/ref/spec#Conversions) another type if they have identical underlying types.
@@ -310,6 +329,13 @@ avrogen -pkg avro -o bla.go -logical-type date,int32 in.avsc
 ```
 
 If you intend to use multiple custom logical type mappings, you can specify the `-logicaltype` flag multiple times.
+
+Custom mappings take precedence over the built-in ones, so they can also be used to opt out of a default. For
+example, to keep a `bytes` field annotated with the [`json` logical type](#json-payloads) as a plain `[]byte`:
+
+```shell
+avrogen -pkg avro -o bla.go -logicaltype json,[]byte in.avsc
+```
 
 ## Avro schema validation
 

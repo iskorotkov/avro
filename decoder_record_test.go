@@ -2,6 +2,7 @@ package avro_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"testing"
 
 	"github.com/iskorotkov/avro/v2"
@@ -29,6 +30,36 @@ func TestDecoder_RecordStruct(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, TestRecord{A: 27, B: "foo"}, got)
+}
+
+// Round trips the shape avrogen emits for a bytes field annotated with the json logical type.
+func TestDecoder_RecordStructJSONRawMessage(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `{
+	"type": "record",
+	"name": "test",
+	"fields" : [
+		{"name": "payload", "type": {"type": "bytes", "logicalType": "json"}},
+	    {"name": "optional", "type": ["null", {"type": "bytes", "logicalType": "json"}]}
+	]
+}`
+	type record struct {
+		Payload  json.RawMessage  `avro:"payload"`
+		Optional *json.RawMessage `avro:"optional"`
+	}
+
+	optional := json.RawMessage(`[1,2,3]`)
+	want := record{Payload: json.RawMessage(`{"a":1}`), Optional: &optional}
+
+	data, err := avro.Marshal(avro.MustParse(schema), want)
+	require.NoError(t, err)
+
+	var got record
+	err = avro.Unmarshal(avro.MustParse(schema), data, &got)
+
+	require.NoError(t, err)
+	assert.Equal(t, want, got)
 }
 
 func TestDecoder_RecordStructPtr(t *testing.T) {

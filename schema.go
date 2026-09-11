@@ -93,6 +93,9 @@ const (
 	LocalTimestampMicros LogicalType = "local-timestamp-micros"
 	LocalTimestampNanos  LogicalType = "local-timestamp-nanos"
 	Duration             LogicalType = "duration"
+	// JSON annotates a bytes schema as carrying a JSON document. It is not part of the
+	// Avro specification; readers that do not know it fall back to plain bytes.
+	JSON LogicalType = "json"
 )
 
 // Action is a field action used during decoding process.

@@ -2,6 +2,7 @@ package avro_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"math/big"
 	"testing"
 	"time"
@@ -468,6 +469,67 @@ func TestDecoder_BytesInvalidSchema(t *testing.T) {
 
 	var b []byte
 	err = dec.Decode(&b)
+
+	assert.Error(t, err)
+}
+
+func TestDecoder_BytesJSON(t *testing.T) {
+	defer ConfigTeardown()
+
+	data := []byte{0x0E, 0x7B, 0x22, 0x61, 0x22, 0x3A, 0x31, 0x7D}
+	schema := `{"type":"bytes","logicalType":"json"}`
+	dec, err := avro.NewDecoder(schema, bytes.NewReader(data))
+	require.NoError(t, err)
+
+	var got json.RawMessage
+	err = dec.Decode(&got)
+
+	require.NoError(t, err)
+	assert.Equal(t, json.RawMessage(`{"a":1}`), got)
+}
+
+// The json logical type is an annotation only, so a plain []byte receiver is still valid.
+func TestDecoder_BytesJSONIntoByteSlice(t *testing.T) {
+	defer ConfigTeardown()
+
+	data := []byte{0x0E, 0x7B, 0x22, 0x61, 0x22, 0x3A, 0x31, 0x7D}
+	schema := `{"type":"bytes","logicalType":"json"}`
+	dec, err := avro.NewDecoder(schema, bytes.NewReader(data))
+	require.NoError(t, err)
+
+	var got []byte
+	err = dec.Decode(&got)
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte(`{"a":1}`), got)
+}
+
+// Bytes are passed through verbatim; the decoder does not validate the JSON.
+func TestDecoder_BytesJSONInvalidJSONPassesThrough(t *testing.T) {
+	defer ConfigTeardown()
+
+	data := []byte{0x06, 0x7B, 0x7B, 0x7B}
+	schema := `{"type":"bytes","logicalType":"json"}`
+	dec, err := avro.NewDecoder(schema, bytes.NewReader(data))
+	require.NoError(t, err)
+
+	var got json.RawMessage
+	err = dec.Decode(&got)
+
+	require.NoError(t, err)
+	assert.Equal(t, json.RawMessage(`{{{`), got)
+}
+
+func TestDecoder_BytesJSONInvalidSchema(t *testing.T) {
+	defer ConfigTeardown()
+
+	data := []byte{0x0E, 0x7B, 0x22, 0x61, 0x22, 0x3A, 0x31, 0x7D}
+	schema := `{"type":"string","logicalType":"json"}`
+	dec, err := avro.NewDecoder(schema, bytes.NewReader(data))
+	require.NoError(t, err)
+
+	var got json.RawMessage
+	err = dec.Decode(&got)
 
 	assert.Error(t, err)
 }

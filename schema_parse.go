@@ -206,7 +206,8 @@ func parsePrimitiveLogicalType(typ Type, lt string, props map[string]any) Logica
 	ltyp := LogicalType(lt)
 	if (typ == String && ltyp == UUID) ||
 		(typ == Int && (ltyp == Date || ltyp == TimeMillis)) ||
-		(typ == Long && (ltyp == TimeMicros || isTimestampLogicalType(ltyp))) {
+		(typ == Long && (ltyp == TimeMicros || isTimestampLogicalType(ltyp))) ||
+		(typ == Bytes && ltyp == JSON) {
 		return NewPrimitiveLogicalSchema(ltyp)
 	}
 

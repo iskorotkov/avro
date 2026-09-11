@@ -2,6 +2,7 @@ package avro_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"math/big"
 	"testing"
 	"time"
@@ -219,6 +220,49 @@ func TestDecoder_UnionMapWithDecimal(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, big.NewRat(1734, 5), got["bytes.decimal"])
 	})
+}
+
+func TestDecoder_UnionMapWithJSON(t *testing.T) {
+	defer ConfigTeardown()
+
+	data := []byte{0x02, 0x0E, 0x7B, 0x22, 0x61, 0x22, 0x3A, 0x31, 0x7D}
+	schema := `["null", {"type": "bytes", "logicalType": "json"}]`
+	dec, _ := avro.NewDecoder(schema, bytes.NewReader(data))
+
+	var got map[string]any
+	err := dec.Decode(&got)
+
+	require.NoError(t, err)
+	assert.Equal(t, json.RawMessage(`{"a":1}`), got["bytes.json"])
+}
+
+func TestDecoder_UnionInterfaceWithJSON(t *testing.T) {
+	defer ConfigTeardown()
+
+	data := []byte{0x02, 0x0E, 0x7B, 0x22, 0x61, 0x22, 0x3A, 0x31, 0x7D}
+	schema := `["null", {"type": "bytes", "logicalType": "json"}]`
+	dec, _ := avro.NewDecoder(schema, bytes.NewReader(data))
+
+	var got any
+	err := dec.Decode(&got)
+
+	require.NoError(t, err)
+	assert.Equal(t, json.RawMessage(`{"a":1}`), got)
+}
+
+func TestDecoder_UnionPtrWithJSON(t *testing.T) {
+	defer ConfigTeardown()
+
+	data := []byte{0x02, 0x0E, 0x7B, 0x22, 0x61, 0x22, 0x3A, 0x31, 0x7D}
+	schema := `["null", {"type": "bytes", "logicalType": "json"}]`
+	dec, _ := avro.NewDecoder(schema, bytes.NewReader(data))
+
+	var got *json.RawMessage
+	err := dec.Decode(&got)
+
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, json.RawMessage(`{"a":1}`), *got)
 }
 
 func TestDecoder_UnionMapInvalidSchema(t *testing.T) {

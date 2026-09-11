@@ -2,6 +2,7 @@ package avro_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"math/big"
 	"testing"
 	"time"
@@ -399,6 +400,63 @@ func TestEncoder_BytesInvalidSchema(t *testing.T) {
 	require.NoError(t, err)
 
 	err = enc.Encode([]byte{0xEC, 0xAB, 0x44, 0x00})
+
+	assert.Error(t, err)
+}
+
+func TestEncoder_BytesJSON(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `{"type":"bytes","logicalType":"json"}`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	err = enc.Encode(json.RawMessage(`{"a":1}`))
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x0E, 0x7B, 0x22, 0x61, 0x22, 0x3A, 0x31, 0x7D}, buf.Bytes())
+}
+
+// The json logical type is an annotation only, so a plain []byte is still valid.
+func TestEncoder_BytesJSONFromByteSlice(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `{"type":"bytes","logicalType":"json"}`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	err = enc.Encode([]byte(`{"a":1}`))
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x0E, 0x7B, 0x22, 0x61, 0x22, 0x3A, 0x31, 0x7D}, buf.Bytes())
+}
+
+// Bytes are passed through verbatim; the encoder does not validate the JSON.
+func TestEncoder_BytesJSONInvalidJSONPassesThrough(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `{"type":"bytes","logicalType":"json"}`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	err = enc.Encode(json.RawMessage(`{{{`))
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x06, 0x7B, 0x7B, 0x7B}, buf.Bytes())
+}
+
+func TestEncoder_BytesJSONInvalidSchema(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `{"type":"string","logicalType":"json"}`
+	buf := bytes.NewBuffer([]byte{})
+	enc, err := avro.NewEncoder(schema, buf)
+	require.NoError(t, err)
+
+	err = enc.Encode(json.RawMessage(`{"a":1}`))
 
 	assert.Error(t, err)
 }

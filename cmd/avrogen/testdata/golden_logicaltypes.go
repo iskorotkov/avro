@@ -11,8 +11,10 @@ import (
 type Test struct {
 	// SomeString is a uuid.
 	SomeString uuid.UUID `avro:"someString"`
-	// SomeBytes is actually a json raw message.
+	// SomeBytes is a decimal remapped to a stdlib type.
 	SomeBytes json.RawMessage `avro:"someBytes"`
+	// SomeJSON uses the built-in json logical type, no flag needed.
+	SomeJSON json.RawMessage `avro:"someJSON"`
 	// SomeInt is actually just an int32.
 	SomeInt int32 `avro:"someInt"`
 }
