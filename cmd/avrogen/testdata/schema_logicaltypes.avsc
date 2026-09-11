@@ -9,7 +9,10 @@
       "doc": "SomeString is a uuid" },
     { "name": "someBytes",
       "type": { "type": "bytes", "logicalType": "decimal", "precision": 10, "scale": 2 },
-      "doc": "SomeBytes is actually a json raw message" },
+      "doc": "SomeBytes is a decimal remapped to a stdlib type" },
+    { "name": "someJSON",
+      "type": { "type": "bytes", "logicalType": "json" },
+      "doc": "SomeJSON uses the built-in json logical type, no flag needed" },
     { "name": "someInt",
       "type": { "type": "int", "logicalType": "date" },
       "doc": "SomeInt is actually just an int32" }

@@ -1,6 +1,7 @@
 package avro
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"time"
@@ -81,9 +82,15 @@ func (r *Reader) ReadNext(schema Schema) any {
 	case String:
 		return r.ReadString()
 	case Bytes:
-		if ls != nil && ls.Type() == Decimal {
-			dec := ls.(*DecimalLogicalSchema)
-			return ratFromBytes(r.ReadBytes(), dec.Scale())
+		if ls != nil {
+			switch ls.Type() {
+			case Decimal:
+				dec := ls.(*DecimalLogicalSchema)
+				return ratFromBytes(r.ReadBytes(), dec.Scale())
+
+			case JSON:
+				return json.RawMessage(r.ReadBytes())
+			}
 		}
 		return r.ReadBytes()
 	case Record:

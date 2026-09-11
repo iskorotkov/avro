@@ -1,6 +1,7 @@
 package avro
 
 import (
+	"encoding/json"
 	"errors"
 	"math/big"
 	"time"
@@ -82,9 +83,16 @@ func genericReceiver(schema Schema) (reflect2.Type, error) {
 		var v string
 		return reflect2.TypeOf(v), nil
 	case Bytes:
-		if ls != nil && ls.Type() == Decimal {
-			var v *big.Rat
-			return reflect2.TypeOf(v), nil
+		if ls != nil {
+			switch ls.Type() {
+			case Decimal:
+				var v *big.Rat
+				return reflect2.TypeOf(v), nil
+
+			case JSON:
+				var v json.RawMessage
+				return reflect2.TypeOf(v), nil
+			}
 		}
 		var v []byte
 		return reflect2.TypeOf(v), nil

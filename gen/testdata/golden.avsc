@@ -190,6 +190,13 @@
       }
     },
     {
+      "name": "aBytesJSON",
+      "type": {
+        "type": "bytes",
+        "logicalType": "json"
+      }
+    },
+    {
       "name": "aBytesDecimal",
       "type": {
         "type": "bytes",

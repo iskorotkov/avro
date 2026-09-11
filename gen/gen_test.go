@@ -234,6 +234,49 @@ func TestStruct_ConfigurableLogicalTypes(t *testing.T) {
 	}
 }
 
+func TestStruct_JSONLogicalType(t *testing.T) {
+	schema := `{
+  "type": "record",
+  "name": "test",
+  "fields": [
+    { "name": "payload", "type": {"type": "bytes", "logicalType": "json"} }
+  ]
+}`
+
+	gc := gen.Config{PackageName: "Something"}
+	_, lines := generate(t, schema, gc)
+
+	for _, expected := range []string{
+		"package something",
+		"import (",
+		"\"encoding/json\"",
+		"type Test struct {",
+		"Payload json.RawMessage `avro:\"payload\"`",
+		"}",
+	} {
+		assert.Contains(t, lines, expected)
+	}
+}
+
+func TestStruct_JSONLogicalTypeCanBeOverridden(t *testing.T) {
+	schema := `{
+  "type": "record",
+  "name": "test",
+  "fields": [
+    { "name": "payload", "type": {"type": "bytes", "logicalType": "json"} }
+  ]
+}`
+
+	gc := gen.Config{
+		PackageName:  "Something",
+		LogicalTypes: []gen.LogicalType{{Name: "json", Typ: "[]byte"}},
+	}
+	_, lines := generate(t, schema, gc)
+
+	assert.Contains(t, lines, "Payload []byte `avro:\"payload\"`")
+	assert.NotContains(t, lines, "\"encoding/json\"")
+}
+
 func TestStruct_GenFromRecordSchema(t *testing.T) {
 	fileName := "testdata/golden.go"
 	gc := gen.Config{PackageName: "Something"}

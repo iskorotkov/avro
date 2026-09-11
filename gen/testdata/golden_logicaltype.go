@@ -2,6 +2,7 @@
 package something
 
 import (
+	"encoding/json"
 	"math/big"
 	"time"
 
@@ -78,6 +79,7 @@ type Test struct {
 	ALongLocalTimestampMillis       time.Time              `avro:"aLongLocalTimestampMillis"`
 	ALongLocalTimestampMicros       time.Time              `avro:"aLongLocalTimestampMicros"`
 	ALongLocalTimestampNanos        time.Time              `avro:"aLongLocalTimestampNanos"`
+	ABytesJSON                      json.RawMessage        `avro:"aBytesJSON"`
 	ABytesDecimal                   *big.Rat               `avro:"aBytesDecimal"`
 	ARecordArray                    []RecordInArray        `avro:"aRecordArray"`
 	NullableRecordUnion             *RecordInNullableUnion `avro:"nullableRecordUnion"`

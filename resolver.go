@@ -1,6 +1,7 @@
 package avro
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"sync"
@@ -45,6 +46,7 @@ func NewTypeResolver() *TypeResolver {
 	r.Register(string(Long)+"."+string(LocalTimestampMicros), time.Time{})
 	r.Register(string(Long)+"."+string(LocalTimestampNanos), time.Time{})
 	r.Register(string(Bytes)+"."+string(Decimal), big.NewRat(1, 1))
+	r.Register(string(Bytes)+"."+string(JSON), json.RawMessage{})
 	r.Register(string(String)+"."+string(UUID), "")
 
 	return r

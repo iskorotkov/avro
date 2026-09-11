@@ -1,6 +1,7 @@
 package avro_test
 
 import (
+	"encoding/json"
 	"math/big"
 	"strconv"
 	"testing"
@@ -517,6 +518,27 @@ func TestSchemaCompatibility_Resolve(t *testing.T) {
 			writer: `{"type":"record", "name":"test", "namespace": "org.hamba.avro", "fields":[{"name": "a", "type": "int"}]}`,
 			value:  map[string]any{"a": 10},
 			want:   map[string]any{"a": 10},
+		},
+		{
+			name:   "Bytes Annotated JSON",
+			reader: `{"type":"bytes","logicalType":"json"}`,
+			writer: `"bytes"`,
+			value:  []byte(`{"a":1}`),
+			want:   json.RawMessage(`{"a":1}`),
+		},
+		{
+			name:   "Bytes JSON Annotation Dropped",
+			reader: `"bytes"`,
+			writer: `{"type":"bytes","logicalType":"json"}`,
+			value:  json.RawMessage(`{"a":1}`),
+			want:   []byte(`{"a":1}`),
+		},
+		{
+			name:   "Record Writer Field Missing With JSON Default",
+			reader: `{"type":"record", "name":"test", "namespace": "org.hamba.avro", "fields":[{"name": "a", "type": "int"}, {"name": "b", "type": {"type": "bytes", "logicalType": "json"}, "default":"{}"}]}`,
+			writer: `{"type":"record", "name":"test", "namespace": "org.hamba.avro", "fields":[{"name": "a", "type": "int"}]}`,
+			value:  map[string]any{"a": 10},
+			want:   map[string]any{"a": 10, "b": json.RawMessage(`{}`)},
 		},
 		{
 			name:   "Record Reader Field Missing",

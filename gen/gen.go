@@ -435,12 +435,17 @@ func (g *Generator) resolveLogicalSchema(logicalType avro.LogicalType) string {
 		typ = "avro.LogicalDuration"
 	case "uuid":
 		typ = "string"
+	case "json":
+		typ = "json.RawMessage"
 	}
 	if strings.Contains(typ, "time") {
 		g.addImport("time")
 	}
 	if strings.Contains(typ, "big") {
 		g.addImport("math/big")
+	}
+	if strings.Contains(typ, "json") {
+		g.addImport("encoding/json")
 	}
 	if strings.Contains(typ, "avro") {
 		g.addThirdPartyImport("github.com/iskorotkov/avro/v2")
