@@ -2269,7 +2269,8 @@ func TestNewSchema_IgnoresInvalidProperties(t *testing.T) {
 				"logicalType": "baz",
 				"precision":   "abc",
 				"scale":       "def",
-			}))
+			}),
+		)
 		assert.Equal(t, map[string]any{
 			"name":        123,
 			"namespace":   "abc",
@@ -2287,12 +2288,10 @@ func TestConcurrentParse(t *testing.T) {
 	var wg sync.WaitGroup
 
 	for range 10000 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			_, err := avro.ParseFiles("testdata/concurrent-schema.avsc")
 			require.NoError(t, err)
-		}()
+		})
 	}
 
 	wg.Wait()

@@ -184,12 +184,13 @@ func parseLogicalType(raw string) (gen.LogicalType, error) {
 		if importPath == "" {
 			return out, errors.New(
 				"logicaltype import path cannot be empty if used " +
-					"(if unused because you are mapping to a core Go type, omit the trailing comma)")
+					"(if unused because you are mapping to a core Go type, omit the trailing comma)",
+			)
 		}
 		importPath = strings.Trim(importPath, `"`)
 
 		// If it contains a dot in the first segment, it’s not stdlib
-		first := strings.SplitN(importPath, "/", 2)[0]
+		first, _, _ := strings.Cut(importPath, "/")
 		if strings.Contains(first, ".") {
 			out.ThirdPartyImport = importPath
 		} else {

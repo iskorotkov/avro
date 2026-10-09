@@ -815,7 +815,8 @@ func TestEncoder_EncodeCompressesDeflate(t *testing.T) {
 	err = enc.Close()
 
 	require.NoError(t, err)
-	assert.Equal(t, 926, buf.Len())
+	// Bound by the uncompressed size (957): Go 1.27 rewrote compress/flate, shrinking output from 926 to 923 bytes.
+	assert.Less(t, buf.Len(), 957)
 }
 
 func TestEncoder_EncodeCompressesDeflateWithLevel(t *testing.T) {
@@ -853,7 +854,8 @@ func TestEncoder_EncodeCompressesDeflateWithLevel(t *testing.T) {
 	err = enc.Close()
 
 	require.NoError(t, err)
-	assert.Equal(t, 926, buf.Len())
+	// Bound by the uncompressed size (957): Go 1.27 rewrote compress/flate, shrinking output from 926 to 923 bytes.
+	assert.Less(t, buf.Len(), 957)
 }
 
 func TestEncoder_EncodeCompressesSnappy(t *testing.T) {

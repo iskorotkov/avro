@@ -92,7 +92,7 @@ func (d *digest) Reset() {
 // Write accumulatively adds the given data to the checksum.
 func (d *digest) Write(p []byte) (n int, err error) {
 	for i := range p {
-		d.crc = (d.crc >> 8) ^ d.tab[(int)(byte(d.crc)^p[i])&0xff]
+		d.crc = (d.crc >> 8) ^ d.tab[int(byte(d.crc)^p[i])&0xff]
 	}
 
 	return len(p), nil
