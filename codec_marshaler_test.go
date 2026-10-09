@@ -120,7 +120,7 @@ func TestEncoder_TextMarshalerError(t *testing.T) {
 type TestTimestamp time.Time
 
 func (t TestTimestamp) MarshalText() ([]byte, error) {
-	return (time.Time)(t).MarshalText()
+	return time.Time(t).MarshalText()
 }
 
 type TestTimestampPtr time.Time
@@ -146,11 +146,11 @@ func (t *TestTimestampError) MarshalText() ([]byte, error) {
 type TestTimestampAppender time.Time
 
 func (t TestTimestampAppender) AppendText(b []byte) ([]byte, error) {
-	return (time.Time)(t).AppendText(b)
+	return time.Time(t).AppendText(b)
 }
 
 func (t TestTimestampAppender) MarshalText() ([]byte, error) {
-	return (time.Time)(t).MarshalText()
+	return time.Time(t).MarshalText()
 }
 
 type TestTimestampAppenderPtr time.Time

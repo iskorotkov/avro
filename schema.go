@@ -7,8 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -398,11 +398,7 @@ func (p properties) Props() map[string]any {
 }
 
 func (p properties) marshalPropertiesToJSON(buf *bytes.Buffer) error {
-	sortedPropertyKeys := make([]string, 0, len(p.props))
-	for k := range p.props {
-		sortedPropertyKeys = append(sortedPropertyKeys, k)
-	}
-	sort.Strings(sortedPropertyKeys)
+	sortedPropertyKeys := slices.Sorted(maps.Keys(p.props))
 	for _, k := range sortedPropertyKeys {
 		vv, err := json.Marshal(p.props[k])
 		if err != nil {
@@ -1669,14 +1665,7 @@ func isValidDefault(schema Schema, def any) (any, bool) {
 			return def, false
 		}
 
-		var found bool
-		for _, sym := range schema.(*EnumSchema).symbols {
-			if def == sym {
-				found = true
-				break
-			}
-		}
-		return def, found
+		return def, slices.Contains(schema.(*EnumSchema).symbols, v)
 	case String:
 		if _, ok := def.(string); ok {
 			return def, true

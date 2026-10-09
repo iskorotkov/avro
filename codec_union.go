@@ -148,7 +148,7 @@ type mapUnionEncoder struct {
 }
 
 func (e *mapUnionEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
-	m := *((*map[string]any)(ptr))
+	m := *(*map[string]any)(ptr)
 
 	if len(m) > 1 {
 		w.Error = errors.New("avro: cannot encode union map with multiple entries")
@@ -236,7 +236,7 @@ func (d *unionNullableDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 	}
 
 	if schema.Type() == Null {
-		*((*unsafe.Pointer)(ptr)) = nil
+		*(*unsafe.Pointer)(ptr) = nil
 		return
 	}
 
@@ -258,7 +258,7 @@ func (d *unionNullableDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 				d.typ.UnsafeSet(ptr, reflect2.PtrOf(obj))
 				return
 			}
-			obj := d.typ.UnsafeIndirect(*((*unsafe.Pointer)(ptr)))
+			obj := d.typ.UnsafeIndirect(*(*unsafe.Pointer)(ptr))
 			obj, err := r.cfg.typeConverters.DecodeTypeConvert(obj, d.schema)
 			if errors.Is(err, errNoTypeConverter) {
 				return
@@ -266,7 +266,7 @@ func (d *unionNullableDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 			if err != nil {
 				r.Error = err
 			}
-			*((*unsafe.Pointer)(ptr)) = reflect2.PtrOf(obj)
+			*(*unsafe.Pointer)(ptr) = reflect2.PtrOf(obj)
 		}()
 	}
 
@@ -285,16 +285,16 @@ func (d *unionNullableDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 		return
 	}
 
-	if *((*unsafe.Pointer)(ptr)) == nil {
+	if *(*unsafe.Pointer)(ptr) == nil {
 		// Create new instance.
 		newPtr := d.typ.UnsafeNew()
 		d.decoder.Decode(newPtr, r)
-		*((*unsafe.Pointer)(ptr)) = newPtr
+		*(*unsafe.Pointer)(ptr) = newPtr
 		return
 	}
 
 	// Reuse existing instance.
-	d.decoder.Decode(*((*unsafe.Pointer)(ptr)), r)
+	d.decoder.Decode(*(*unsafe.Pointer)(ptr), r)
 }
 
 func encoderOfUnionConverterCodec(_ *encoderContext, schema Schema, typ reflect2.Type) ValEncoder {
@@ -302,11 +302,9 @@ func encoderOfUnionConverterCodec(_ *encoderContext, schema Schema, typ reflect2
 	var nullIdx int32
 	var nullable bool
 
-	for i, unionSchema := range union.Types() {
-		if unionSchema.Type() == Null {
-			nullIdx = int32(i)
-			nullable = true
-		}
+	if i := slices.IndexFunc(union.Types(), func(s Schema) bool { return s.Type() == Null }); i >= 0 {
+		nullIdx = int32(i)
+		nullable = true
 	}
 
 	return &unionConverterToAnyCodec{
@@ -325,7 +323,7 @@ type unionConverterToAnyCodec struct {
 }
 
 func (e *unionConverterToAnyCodec) Encode(ptr unsafe.Pointer, w *Writer) {
-	if *((*unsafe.Pointer)(ptr)) == nil {
+	if *(*unsafe.Pointer)(ptr) == nil {
 		if !e.nullable {
 			w.Error = errors.New("avro: unionConverterToAnyCodec: encoding nil value for non nillable union")
 			return
@@ -388,7 +386,7 @@ type unionNullableEncoder struct {
 }
 
 func (e *unionNullableEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
-	if *((*unsafe.Pointer)(ptr)) == nil {
+	if *(*unsafe.Pointer)(ptr) == nil {
 		w.WriteInt(e.nullIdx)
 		return
 	}
@@ -396,7 +394,7 @@ func (e *unionNullableEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 	w.WriteInt(e.typeIdx)
 	newPtr := ptr
 	if e.isPtr {
-		newPtr = *((*unsafe.Pointer)(ptr))
+		newPtr = *(*unsafe.Pointer)(ptr)
 	}
 	e.encoder.Encode(newPtr, w)
 }
@@ -549,7 +547,7 @@ func (d *unionConverterFromAnyCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 	if d.typ.Kind() == reflect.Pointer {
 		ptrType := d.typ.(*reflect2.UnsafePtrType).Elem()
 		elemPtr := ptrType.UnsafeNew()
-		*((*unsafe.Pointer)(ptr)) = elemPtr
+		*(*unsafe.Pointer)(ptr) = elemPtr
 	}
 	target := d.typ.UnsafeIndirect(ptr)
 

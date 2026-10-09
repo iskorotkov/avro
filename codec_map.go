@@ -152,7 +152,7 @@ func (d *mapDecoderUnmarshaler) Decode(ptr unsafe.Pointer, r *Reader) {
 			if reflect2.IsNil(keyObj) {
 				ptrType := d.keyType.(*reflect2.UnsafePtrType)
 				newPtr := ptrType.Elem().UnsafeNew()
-				*((*unsafe.Pointer)(keyPtr)) = newPtr
+				*(*unsafe.Pointer)(keyPtr) = newPtr
 				keyObj = d.keyType.UnsafeIndirect(keyPtr)
 			}
 			unmarshaler := keyObj.(encoding.TextUnmarshaler)
@@ -204,7 +204,7 @@ func (e *mapEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 			var i int
 			for i = 0; iter.HasNext() && i < blockLength; i++ {
 				keyPtr, elemPtr := iter.UnsafeNext()
-				w.WriteString(*((*string)(keyPtr)))
+				w.WriteString(*(*string)(keyPtr))
 				e.encoder.Encode(elemPtr, w)
 			}
 
@@ -256,7 +256,7 @@ func (e *mapEncoderMarshaller) Encode(ptr unsafe.Pointer, w *Writer) {
 					w.Error = errors.New("avro: mapEncoderMarshaller: encoding nil TextMarshaller")
 					return int64(0)
 				}
-				marshaler := (obj).(encoding.TextMarshaler)
+				marshaler := obj.(encoding.TextMarshaler)
 				b, err := marshaler.MarshalText()
 				if err != nil {
 					w.Error = err
@@ -316,7 +316,7 @@ func (e *mapEncoderAppender) Encode(ptr unsafe.Pointer, w *Writer) {
 					return int64(0)
 				}
 				// AppendText must derive its result from the passed-in buffer, not alias internal state, or w.scratch reuse will corrupt later keys.
-				appender := (obj).(encoding.TextAppender)
+				appender := obj.(encoding.TextAppender)
 				b, err := appender.AppendText(w.scratch[:0])
 				if err != nil {
 					w.Error = err

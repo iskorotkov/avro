@@ -29,8 +29,8 @@ Unresolved issues from hamba/avro are tracked in [ISSUES.md](./ISSUES.md).
 - **Bug fix:** `time.Duration` values are now rejected for `local-timestamp-*` schemas instead of being silently encoded as raw nanoseconds
 - **Bug fix:** registered missing logical types for local timestamps (`local-timestamp-millis`, `local-timestamp-micros`), which caused decoding errors
 - **Bug fix:** fixed enum type duplication in Go code generation (`avrogen`)
-- **Go 1.24+ modernization:** updated codebase to use latest Go idioms
-- **CI updated:** Go 1.26; tools (golangci-lint, gotestsum) pinned via `go.mod` `tool` directive
+- **Go 1.26+ required:** minimum Go version raised to 1.26; codebase updated to use latest Go idioms
+- **CI updated:** tested on Go 1.26 and 1.27; tools (golangci-lint, gotestsum) pinned via `go.mod` `tool` directive
 - **19.5% decode speedup on internally used benchmark:** optimized inlining and bounds checks in number parsing; iskorotkov/avro now decodes at 118.6 ns/op vs hamba/avro's 147.3 ns/op (Apple M4 Pro, zero allocations)
 
 ## How to migrate from hamba/avro?

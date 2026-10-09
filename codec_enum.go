@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"unsafe"
 
 	"github.com/modern-go/reflect2"
@@ -53,16 +54,12 @@ func (c *enumCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 		return
 	}
 
-	*((*string)(ptr)) = symbol
+	*(*string)(ptr) = symbol
 }
 
 func (c *enumCodec) Encode(ptr unsafe.Pointer, w *Writer) {
-	str := *((*string)(ptr))
-	for i, sym := range c.enum.symbols {
-		if str != sym {
-			continue
-		}
-
+	str := *(*string)(ptr)
+	if i := slices.Index(c.enum.symbols, str); i >= 0 {
 		w.WriteInt(int32(i))
 		return
 	}
@@ -94,10 +91,10 @@ func (c *enumTextMarshalerCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 	if reflect2.IsNil(obj) {
 		ptrType := c.typ.(*reflect2.UnsafePtrType)
 		newPtr := ptrType.Elem().UnsafeNew()
-		*((*unsafe.Pointer)(ptr)) = newPtr
+		*(*unsafe.Pointer)(ptr) = newPtr
 		obj = c.typ.UnsafeIndirect(ptr)
 	}
-	unmarshaler := (obj).(encoding.TextUnmarshaler)
+	unmarshaler := obj.(encoding.TextUnmarshaler)
 	if err := unmarshaler.UnmarshalText([]byte(symbol)); err != nil {
 		r.ReportError("decode enum text unmarshaler", err.Error())
 	}
@@ -114,7 +111,7 @@ func (c *enumTextMarshalerCodec) Encode(ptr unsafe.Pointer, w *Writer) {
 		w.Error = errors.New("encoding nil enum text marshaler")
 		return
 	}
-	marshaler := (obj).(encoding.TextMarshaler)
+	marshaler := obj.(encoding.TextMarshaler)
 	b, err := marshaler.MarshalText()
 	if err != nil {
 		w.Error = err
@@ -151,7 +148,7 @@ func (c *enumTextAppenderCodec) Encode(ptr unsafe.Pointer, w *Writer) {
 		return
 	}
 	// AppendText must derive its result from the passed-in buffer, not alias internal state, or w.scratch reuse will corrupt later calls.
-	appender := (obj).(encoding.TextAppender)
+	appender := obj.(encoding.TextAppender)
 	b, err := appender.AppendText(w.scratch[:0])
 	if err != nil {
 		w.Error = err

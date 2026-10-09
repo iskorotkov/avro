@@ -147,12 +147,12 @@ func (d *structDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 			}
 
 			if step.isPointer {
-				if *((*unsafe.Pointer)(fieldPtr)) == nil {
+				if *(*unsafe.Pointer)(fieldPtr) == nil {
 					newPtr := step.field.Type().(*reflect2.UnsafePtrType).Elem().UnsafeNew()
-					*((*unsafe.Pointer)(fieldPtr)) = newPtr
+					*(*unsafe.Pointer)(fieldPtr) = newPtr
 				}
 
-				fieldPtr = *((*unsafe.Pointer)(fieldPtr))
+				fieldPtr = *(*unsafe.Pointer)(fieldPtr)
 			}
 		}
 		field.decoder.Decode(fieldPtr, r)
@@ -244,12 +244,12 @@ func (e *structEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 			}
 
 			if step.isPointer {
-				if *((*unsafe.Pointer)(fieldPtr)) == nil {
+				if *(*unsafe.Pointer)(fieldPtr) == nil {
 					w.Error = fmt.Errorf("embedded field %q is nil", step.field.Name())
 					return
 				}
 
-				fieldPtr = *((*unsafe.Pointer)(fieldPtr))
+				fieldPtr = *(*unsafe.Pointer)(fieldPtr)
 			}
 		}
 		field.encoder.Encode(fieldPtr, w)

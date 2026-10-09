@@ -364,11 +364,11 @@ func (*nullCodec) Encode(unsafe.Pointer, *Writer) {}
 type boolCodec struct{}
 
 func (*boolCodec) Decode(ptr unsafe.Pointer, r *Reader) {
-	*((*bool)(ptr)) = r.ReadBool()
+	*(*bool)(ptr) = r.ReadBool()
 }
 
 func (*boolCodec) Encode(ptr unsafe.Pointer, w *Writer) {
-	w.WriteBool(*((*bool)(ptr)))
+	w.WriteBool(*(*bool)(ptr))
 }
 
 type smallInt interface {
@@ -378,11 +378,11 @@ type smallInt interface {
 type intCodec[T smallInt] struct{}
 
 func (*intCodec[T]) Decode(ptr unsafe.Pointer, r *Reader) {
-	*((*T)(ptr)) = T(r.ReadInt())
+	*(*T)(ptr) = T(r.ReadInt())
 }
 
 func (*intCodec[T]) Encode(ptr unsafe.Pointer, w *Writer) {
-	w.WriteInt(int32(*((*T)(ptr))))
+	w.WriteInt(int32(*(*T)(ptr)))
 }
 
 type largeInt interface {
@@ -392,11 +392,11 @@ type largeInt interface {
 type longCodec[T largeInt] struct{}
 
 func (c *longCodec[T]) Decode(ptr unsafe.Pointer, r *Reader) {
-	*((*T)(ptr)) = T(r.ReadLong())
+	*(*T)(ptr) = T(r.ReadLong())
 }
 
 func (*longCodec[T]) Encode(ptr unsafe.Pointer, w *Writer) {
-	w.WriteLong(int64(*((*T)(ptr))))
+	w.WriteLong(int64(*(*T)(ptr)))
 }
 
 type longConvCodec[T largeInt] struct {
@@ -404,17 +404,17 @@ type longConvCodec[T largeInt] struct {
 }
 
 func (c *longConvCodec[T]) Decode(ptr unsafe.Pointer, r *Reader) {
-	*((*T)(ptr)) = T(c.convert(r))
+	*(*T)(ptr) = T(c.convert(r))
 }
 
 type float32Codec struct{}
 
 func (c *float32Codec) Decode(ptr unsafe.Pointer, r *Reader) {
-	*((*float32)(ptr)) = r.ReadFloat()
+	*(*float32)(ptr) = r.ReadFloat()
 }
 
 func (*float32Codec) Encode(ptr unsafe.Pointer, w *Writer) {
-	w.WriteFloat(*((*float32)(ptr)))
+	w.WriteFloat(*(*float32)(ptr))
 }
 
 type float32ConvCodec struct {
@@ -422,23 +422,23 @@ type float32ConvCodec struct {
 }
 
 func (c *float32ConvCodec) Decode(ptr unsafe.Pointer, r *Reader) {
-	*((*float32)(ptr)) = c.convert(r)
+	*(*float32)(ptr) = c.convert(r)
 }
 
 type float32DoubleCodec struct{}
 
 func (*float32DoubleCodec) Encode(ptr unsafe.Pointer, w *Writer) {
-	w.WriteDouble(float64(*((*float32)(ptr))))
+	w.WriteDouble(float64(*(*float32)(ptr)))
 }
 
 type float64Codec struct{}
 
 func (c *float64Codec) Decode(ptr unsafe.Pointer, r *Reader) {
-	*((*float64)(ptr)) = r.ReadDouble()
+	*(*float64)(ptr) = r.ReadDouble()
 }
 
 func (*float64Codec) Encode(ptr unsafe.Pointer, w *Writer) {
-	w.WriteDouble(*((*float64)(ptr)))
+	w.WriteDouble(*(*float64)(ptr))
 }
 
 type float64ConvCodec struct {
@@ -446,17 +446,17 @@ type float64ConvCodec struct {
 }
 
 func (c *float64ConvCodec) Decode(ptr unsafe.Pointer, r *Reader) {
-	*((*float64)(ptr)) = c.convert(r)
+	*(*float64)(ptr) = c.convert(r)
 }
 
 type stringCodec struct{}
 
 func (c *stringCodec) Decode(ptr unsafe.Pointer, r *Reader) {
-	*((*string)(ptr)) = r.ReadString()
+	*(*string)(ptr) = r.ReadString()
 }
 
 func (*stringCodec) Encode(ptr unsafe.Pointer, w *Writer) {
-	w.WriteString(*((*string)(ptr)))
+	w.WriteString(*(*string)(ptr))
 }
 
 type bytesCodec struct {
@@ -469,7 +469,7 @@ func (c *bytesCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 }
 
 func (c *bytesCodec) Encode(ptr unsafe.Pointer, w *Writer) {
-	w.WriteBytes(*((*[]byte)(ptr)))
+	w.WriteBytes(*(*[]byte)(ptr))
 }
 
 type dateCodec struct{}
@@ -477,11 +477,11 @@ type dateCodec struct{}
 func (c *dateCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 	i := r.ReadInt()
 	sec := int64(i) * int64(24*time.Hour/time.Second)
-	*((*time.Time)(ptr)) = time.Unix(sec, 0).UTC()
+	*(*time.Time)(ptr) = time.Unix(sec, 0).UTC()
 }
 
 func (c *dateCodec) Encode(ptr unsafe.Pointer, w *Writer) {
-	t := *((*time.Time)(ptr))
+	t := *(*time.Time)(ptr)
 	days := t.Unix() / int64(24*time.Hour/time.Second)
 	w.WriteInt(int32(days))
 }
@@ -539,14 +539,14 @@ func (c *timestampMillisCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 	t := time.Unix(sec, nsec).UTC()
 
 	if c.local {
-		*((*time.Time)(ptr)) = toLocalWall(t)
+		*(*time.Time)(ptr) = toLocalWall(t)
 		return
 	}
-	*((*time.Time)(ptr)) = t
+	*(*time.Time)(ptr) = t
 }
 
 func (c *timestampMillisCodec) Encode(ptr unsafe.Pointer, w *Writer) {
-	t := *((*time.Time)(ptr))
+	t := *(*time.Time)(ptr)
 	if c.local {
 		t = fromLocalWall(t)
 	}
@@ -582,14 +582,14 @@ func (c *timestampMicrosCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 	t := time.Unix(sec, nsec).UTC()
 
 	if c.local {
-		*((*time.Time)(ptr)) = toLocalWall(t)
+		*(*time.Time)(ptr) = toLocalWall(t)
 		return
 	}
-	*((*time.Time)(ptr)) = t
+	*(*time.Time)(ptr) = t
 }
 
 func (c *timestampMicrosCodec) Encode(ptr unsafe.Pointer, w *Writer) {
-	t := *((*time.Time)(ptr))
+	t := *(*time.Time)(ptr)
 	if c.local {
 		t = fromLocalWall(t)
 	}
@@ -625,14 +625,14 @@ func (c *timestampNanosCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 	t := time.Unix(sec, nsec).UTC()
 
 	if c.local {
-		*((*time.Time)(ptr)) = toLocalWall(t)
+		*(*time.Time)(ptr) = toLocalWall(t)
 		return
 	}
-	*((*time.Time)(ptr)) = t
+	*(*time.Time)(ptr) = t
 }
 
 func (c *timestampNanosCodec) Encode(ptr unsafe.Pointer, w *Writer) {
-	t := *((*time.Time)(ptr))
+	t := *(*time.Time)(ptr)
 	if c.local {
 		t = fromLocalWall(t)
 	}
@@ -664,11 +664,11 @@ type timeMillisCodec struct{}
 
 func (c *timeMillisCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 	i := r.ReadInt()
-	*((*time.Duration)(ptr)) = time.Duration(i) * time.Millisecond
+	*(*time.Duration)(ptr) = time.Duration(i) * time.Millisecond
 }
 
 func (c *timeMillisCodec) Encode(ptr unsafe.Pointer, w *Writer) {
-	d := *((*time.Duration)(ptr))
+	d := *(*time.Duration)(ptr)
 	w.WriteInt(int32(d.Nanoseconds() / int64(time.Millisecond)))
 }
 
@@ -683,11 +683,11 @@ func (c *timeMicrosCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 	} else {
 		i = r.ReadLong()
 	}
-	*((*time.Duration)(ptr)) = time.Duration(i) * time.Microsecond
+	*(*time.Duration)(ptr) = time.Duration(i) * time.Microsecond
 }
 
 func (c *timeMicrosCodec) Encode(ptr unsafe.Pointer, w *Writer) {
-	d := *((*time.Duration)(ptr))
+	d := *(*time.Duration)(ptr)
 	w.WriteLong(d.Nanoseconds() / int64(time.Microsecond))
 }
 
@@ -703,7 +703,7 @@ func (c *bytesDecimalCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 	if i := (&big.Int{}).SetBytes(b); len(b) > 0 && b[0]&0x80 > 0 {
 		i.Sub(i, new(big.Int).Lsh(one, uint(len(b))*8))
 	}
-	*((**big.Rat)(ptr)) = ratFromBytes(b, c.scale)
+	*(**big.Rat)(ptr) = ratFromBytes(b, c.scale)
 }
 
 func ratFromBytes(b []byte, scale int) *big.Rat {
@@ -759,11 +759,11 @@ func (c *bytesDecimalPtrCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 	if i := (&big.Int{}).SetBytes(b); len(b) > 0 && b[0]&0x80 > 0 {
 		i.Sub(i, new(big.Int).Lsh(one, uint(len(b))*8))
 	}
-	*((**big.Rat)(ptr)) = ratFromBytes(b, c.scale)
+	*(**big.Rat)(ptr) = ratFromBytes(b, c.scale)
 }
 
 func (c *bytesDecimalPtrCodec) Encode(ptr unsafe.Pointer, w *Writer) {
-	r := *((**big.Rat)(ptr))
+	r := *(**big.Rat)(ptr)
 	scale := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(c.scale)), nil)
 	i := (&big.Int{}).Mul(r.Num(), scale)
 	i = i.Div(i, r.Denom())
