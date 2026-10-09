@@ -311,6 +311,19 @@ avrogen -pkg avro -o bla.go -logical-type date,int32 in.avsc
 
 If you intend to use multiple custom logical type mappings, you can specify the `-logicaltype` flag multiple times.
 
+### Field type overrides
+
+You can override the generated Go type of a specific field, identified by its record's full name and field
+name, without editing the schema. The format is `record.field,goType[,importPath]`, and you can specify
+`-fieldtype` multiple times, omitting the import path for built-in Go types:
+
+```shell
+avrogen -pkg avro -o bla.go -fieldtype a.b.test.someBytes,json.RawMessage,encoding/json in.avsc
+```
+
+A union field receives the override type verbatim, so a nullable field needs an explicit `*` in the Go type
+(e.g. `*json.RawMessage`).
+
 ## Avro schema validation
 
 ### avrosv
