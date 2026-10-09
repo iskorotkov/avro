@@ -28,6 +28,7 @@ type Config struct {
 	StrictTypes  bool
 	Initialisms  []string
 	LogicalTypes []LogicalType
+	FieldTypes   []FieldType
 	Metadata     any
 }
 
@@ -92,8 +93,15 @@ func StructFromSchema(schema avro.Schema, w io.Writer, cfg Config) error {
 	for _, opt := range cfg.LogicalTypes {
 		opts = append(opts, WithLogicalType(opt))
 	}
+	for _, opt := range cfg.FieldTypes {
+		opts = append(opts, WithFieldType(opt))
+	}
 	g := NewGenerator(strcase.ToSnake(cfg.PackageName), cfg.Tags, opts...)
 	g.Parse(rec)
+
+	if err := g.ValidateFieldTypes(); err != nil {
+		return err
+	}
 
 	buf := &bytes.Buffer{}
 	if err := g.Write(buf); err != nil {
@@ -208,6 +216,39 @@ func WithLogicalType(logicalType LogicalType) OptsFunc {
 	}
 }
 
+// FieldType overrides the generated Go type of one record field.
+type FieldType struct {
+	// Record is the full name of the record schema.
+	Record string
+	// Field is the Avro field name.
+	Field string
+	// Typ returned, has to be a valid Go type.
+	Typ string
+	// Import added as import (if not empty).
+	Import string
+	// ThirdPartyImport added as import (if not empty).
+	ThirdPartyImport string
+}
+
+// WithFieldType registers a FieldType override for the matching record field.
+func WithFieldType(fieldType FieldType) OptsFunc {
+	return func(g *Generator) {
+		if g.fieldTypes == nil {
+			g.fieldTypes = map[string]FieldType{}
+			g.usedFieldTypes = map[string]bool{}
+		}
+		key := fieldTypeKey(fieldType.Record, fieldType.Field)
+		if _, ok := g.fieldTypes[key]; ok && !slices.Contains(g.duplicateFieldTypes, key) {
+			g.duplicateFieldTypes = append(g.duplicateFieldTypes, key)
+		}
+		g.fieldTypes[key] = fieldType
+	}
+}
+
+func fieldTypeKey(record, field string) string {
+	return record + "." + field
+}
+
 func ensureTrailingPeriod(text string) string {
 	if text == "" {
 		return text
@@ -220,18 +261,22 @@ func ensureTrailingPeriod(text string) string {
 
 // Generator generates Go structs from schemas.
 type Generator struct {
-	template     string
-	pkg          string
-	pkgdoc       string
-	tags         map[string]TagStyle
-	fullName     bool
-	encoders     bool
-	fullSchema   bool
-	strictTypes  bool
-	genEnums     bool
-	initialisms  []string
-	logicalTypes map[avro.LogicalType]LogicalType
-	metadata     any
+	template       string
+	pkg            string
+	pkgdoc         string
+	tags           map[string]TagStyle
+	fullName       bool
+	encoders       bool
+	fullSchema     bool
+	strictTypes    bool
+	genEnums       bool
+	initialisms    []string
+	logicalTypes   map[avro.LogicalType]LogicalType
+	fieldTypes     map[string]FieldType
+	usedFieldTypes map[string]bool
+	// duplicateFieldTypes holds keys registered more than once, reported by ValidateFieldTypes.
+	duplicateFieldTypes []string
+	metadata            any
 
 	imports           []string
 	thirdPartyImports []string
@@ -274,6 +319,7 @@ func (g *Generator) Reset() {
 	g.imports = g.imports[:0]
 	g.thirdPartyImports = g.thirdPartyImports[:0]
 	g.typedefs = g.typedefs[:0]
+	clear(g.usedFieldTypes)
 }
 
 // Parse parses an avro schema into Go types.
@@ -353,6 +399,12 @@ func (g *Generator) resolveRecordSchema(schema *avro.RecordSchema, metadata any)
 	fields := make([]field, len(schema.Fields()))
 	for i, f := range schema.Fields() {
 		typ := g.generate(f.Type(), metadata)
+		key := fieldTypeKey(schema.FullName(), f.Name())
+		if ft, ok := g.fieldTypes[key]; ok {
+			g.usedFieldTypes[key] = true
+			typ = ft.Typ
+			g.addImports(ft.Import, ft.ThirdPartyImport)
+		}
 		fields[i] = g.newField(g.nameCaser.ToPascal(f.Name()), typ, f.Doc(), f.Name(), f.Props())
 	}
 
@@ -364,6 +416,31 @@ func (g *Generator) resolveRecordSchema(schema *avro.RecordSchema, metadata any)
 		)
 	}
 	return typeName
+}
+
+// UnusedFieldTypes returns the sorted record.field keys of overrides that matched no field.
+func (g *Generator) UnusedFieldTypes() []string {
+	var unused []string
+	for key := range g.fieldTypes {
+		if !g.usedFieldTypes[key] {
+			unused = append(unused, key)
+		}
+	}
+	slices.Sort(unused)
+	return unused
+}
+
+// ValidateFieldTypes reports field type overrides that were registered more than once or matched no field.
+func (g *Generator) ValidateFieldTypes() error {
+	var errs []error
+	if len(g.duplicateFieldTypes) > 0 {
+		errs = append(errs, fmt.Errorf("duplicate field type overrides: %s",
+			strings.Join(slices.Sorted(slices.Values(g.duplicateFieldTypes)), ", ")))
+	}
+	if unused := g.UnusedFieldTypes(); len(unused) > 0 {
+		errs = append(errs, fmt.Errorf("field type overrides matched no field: %s", strings.Join(unused, ", ")))
+	}
+	return errors.Join(errs...)
 }
 
 func (g *Generator) rawSchema(schema *avro.RecordSchema) string {
@@ -411,12 +488,7 @@ func (g *Generator) resolveUnionTypes(s *avro.UnionSchema, metadata any) string 
 func (g *Generator) resolveLogicalSchema(logicalType avro.LogicalType) string {
 	if g.logicalTypes != nil {
 		if typ, ok := g.logicalTypes[logicalType]; ok {
-			if val := typ.Import; val != "" {
-				g.addImport(val)
-			}
-			if val := typ.ThirdPartyImport; val != "" {
-				g.addThirdPartyImport(val)
-			}
+			g.addImports(typ.Import, typ.ThirdPartyImport)
 
 			return typ.Typ
 		}
@@ -471,6 +543,15 @@ func (g *Generator) addThirdPartyImport(pkg string) {
 		return
 	}
 	g.thirdPartyImports = append(g.thirdPartyImports, pkg)
+}
+
+func (g *Generator) addImports(stdImport, thirdPartyImport string) {
+	if stdImport != "" {
+		g.addImport(stdImport)
+	}
+	if thirdPartyImport != "" {
+		g.addThirdPartyImport(thirdPartyImport)
+	}
 }
 
 // Write writes Go code from the parsed schemas.

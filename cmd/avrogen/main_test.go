@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/iskorotkov/avro/v2/gen"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -194,6 +195,202 @@ func TestAvroGen_GeneratesSchemaWithCustomLogicalTypes(t *testing.T) {
 	want, err := os.ReadFile("testdata/golden_logicaltypes.go")
 	require.NoError(t, err)
 	assert.Equal(t, want, got)
+}
+
+func TestAvroGen_GeneratesSchemaWithFieldTypes(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "test.go")
+	args := []string{
+		"avrogen", "-pkg", "testpkg", "-o", file,
+		// test mapping to a stdlib package type
+		"-fieldtype", "a.b.test.someBytes,json.RawMessage,encoding/json",
+		"testdata/schema_fieldtypes.avsc",
+	}
+	gotCode := realMain(args, io.Discard, io.Discard)
+	require.Equal(t, 0, gotCode)
+
+	got, err := os.ReadFile(file)
+	require.NoError(t, err)
+
+	if *update {
+		err = os.WriteFile("testdata/golden_fieldtypes.go", got, 0o600)
+		require.NoError(t, err)
+	}
+
+	want, err := os.ReadFile("testdata/golden_fieldtypes.go")
+	require.NoError(t, err)
+	assert.Equal(t, want, got)
+}
+
+func TestAvroGen_UnmatchedFieldTypeSelectorFails(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "test.go")
+	var stderr bytes.Buffer
+	args := []string{
+		"avrogen", "-pkg", "testpkg", "-o", file,
+		"-fieldtype", "a.b.test.doesNotExist,json.RawMessage,encoding/json",
+		"testdata/schema_fieldtypes.avsc",
+	}
+	gotCode := realMain(args, io.Discard, &stderr)
+
+	require.Equal(t, 5, gotCode)
+	assert.Contains(t, stderr.String(),
+		"field type overrides matched no field: a.b.test.doesNotExist")
+}
+
+func TestParseLogicalType(t *testing.T) {
+	tests := []struct {
+		name    string
+		raw     string
+		want    gen.LogicalType
+		errFunc assert.ErrorAssertionFunc
+	}{
+		{
+			name:    "built-in type with no import",
+			raw:     "date,int32",
+			want:    gen.LogicalType{Name: "date", Typ: "int32"},
+			errFunc: assert.NoError,
+		},
+		{
+			name: "stdlib import",
+			raw:  "decimal,json.RawMessage,encoding/json",
+			want: gen.LogicalType{
+				Name: "decimal", Typ: "json.RawMessage", Import: "encoding/json",
+			},
+			errFunc: assert.NoError,
+		},
+		{
+			name: "third-party import",
+			raw:  "uuid,uuid.UUID,github.com/google/uuid",
+			want: gen.LogicalType{
+				Name: "uuid", Typ: "uuid.UUID", ThirdPartyImport: "github.com/google/uuid",
+			},
+			errFunc: assert.NoError,
+		},
+		{
+			name:    "missing comma",
+			raw:     "uuid",
+			errFunc: assert.Error,
+		},
+		{
+			name:    "too many parts",
+			raw:     "uuid,uuid.UUID,github.com/google/uuid,extra",
+			errFunc: assert.Error,
+		},
+		{
+			name:    "empty name",
+			raw:     ",uuid.UUID,github.com/google/uuid",
+			errFunc: assert.Error,
+		},
+		{
+			name:    "empty type",
+			raw:     "uuid,,github.com/google/uuid",
+			errFunc: assert.Error,
+		},
+		{
+			name:    "generic type with no import",
+			raw:     "uuid,pkg.Pair[string,int]",
+			want:    gen.LogicalType{Name: "uuid", Typ: "pkg.Pair[string,int]"},
+			errFunc: assert.NoError,
+		},
+		{
+			name: "generic type with import",
+			raw:  "uuid,pkg.Pair[string,int],example.com/pkg",
+			want: gen.LogicalType{
+				Name: "uuid", Typ: "pkg.Pair[string,int]", ThirdPartyImport: "example.com/pkg",
+			},
+			errFunc: assert.NoError,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := parseLogicalType(test.raw)
+
+			test.errFunc(t, err)
+			if err == nil {
+				assert.Equal(t, test.want, got)
+			}
+		})
+	}
+}
+
+func TestParseFieldType(t *testing.T) {
+	tests := []struct {
+		name    string
+		raw     string
+		want    gen.FieldType
+		errFunc assert.ErrorAssertionFunc
+	}{
+		{
+			name:    "built-in type with no import",
+			raw:     "a.b.test.someBytes,[]byte",
+			want:    gen.FieldType{Record: "a.b.test", Field: "someBytes", Typ: "[]byte"},
+			errFunc: assert.NoError,
+		},
+		{
+			name: "stdlib import",
+			raw:  "a.b.test.someBytes,json.RawMessage,encoding/json",
+			want: gen.FieldType{
+				Record: "a.b.test", Field: "someBytes",
+				Typ: "json.RawMessage", Import: "encoding/json",
+			},
+			errFunc: assert.NoError,
+		},
+		{
+			name: "third-party import",
+			raw:  "a.b.test.id,uuid.UUID,github.com/google/uuid",
+			want: gen.FieldType{
+				Record: "a.b.test", Field: "id",
+				Typ: "uuid.UUID", ThirdPartyImport: "github.com/google/uuid",
+			},
+			errFunc: assert.NoError,
+		},
+		{
+			name:    "missing comma",
+			raw:     "a.b.test.someBytes",
+			errFunc: assert.Error,
+		},
+		{
+			name:    "too many parts",
+			raw:     "a.b.test.someBytes,json.RawMessage,encoding/json,extra",
+			errFunc: assert.Error,
+		},
+		{
+			name:    "selector without dot",
+			raw:     "someBytes,json.RawMessage,encoding/json",
+			errFunc: assert.Error,
+		},
+		{
+			name:    "empty type",
+			raw:     "a.b.test.someBytes,,encoding/json",
+			errFunc: assert.Error,
+		},
+		{
+			name:    "generic type with no import",
+			raw:     "a.b.test.someBytes,pkg.Pair[string,int]",
+			want:    gen.FieldType{Record: "a.b.test", Field: "someBytes", Typ: "pkg.Pair[string,int]"},
+			errFunc: assert.NoError,
+		},
+		{
+			name: "generic type with import",
+			raw:  "a.b.test.someBytes,pkg.Pair[string,int],example.com/pkg",
+			want: gen.FieldType{
+				Record: "a.b.test", Field: "someBytes",
+				Typ: "pkg.Pair[string,int]", ThirdPartyImport: "example.com/pkg",
+			},
+			errFunc: assert.NoError,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := parseFieldType(test.raw)
+
+			test.errFunc(t, err)
+			if err == nil {
+				assert.Equal(t, test.want, got)
+			}
+		})
+	}
 }
 
 func TestParseTags(t *testing.T) {

@@ -31,17 +31,18 @@ type config struct {
 	StrictTypes    bool
 	Initialisms    string
 	SchemaRegistry string
-	LogicalTypes   logicalTypes
+	LogicalTypes   repeatedFlag
+	FieldTypes     repeatedFlag
 	EnumsGen       bool
 }
 
-type logicalTypes []string
+type repeatedFlag []string
 
-func (l *logicalTypes) String() string {
+func (l *repeatedFlag) String() string {
 	return strings.Join(*l, ",")
 }
 
-func (l *logicalTypes) Set(value string) error {
+func (l *repeatedFlag) Set(value string) error {
 	*l = append(*l, value)
 	return nil
 }
@@ -66,9 +67,10 @@ func realMain(args []string, stdout, stderr io.Writer) int {
 	flgs.StringVar(&cfg.TemplateFileName, "template-filename", "", "Override output template with one loaded from file.")
 	flgs.StringVar(&cfg.SchemaRegistry, "schemaregistry", "", "The URL to schema registry, e.g.: http://localhost:8081.")
 	flgs.BoolVar(&cfg.EnumsGen, "enums", false, "Generate Go enums for Avro enums.")
-	var lt logicalTypes
-	flgs.Var(&lt, "logicaltype",
+	flgs.Var(&cfg.LogicalTypes, "logicaltype",
 		"A logical type mapping of the form logicalType,goType[,import]. Can be specified multiple times.")
+	flgs.Var(&cfg.FieldTypes, "fieldtype",
+		"A field type override of the form record.field,goType[,import]. Can be specified multiple times.")
 
 	flgs.Usage = func() {
 		_, _ = fmt.Fprintln(stderr, "Usage: avrogen [options] schemas")
@@ -113,13 +115,22 @@ func realMain(args []string, stdout, stderr io.Writer) int {
 		gen.WithEnums(cfg.EnumsGen),
 	}
 
-	for _, entry := range lt {
+	for _, entry := range cfg.LogicalTypes {
 		logicalType, err := parseLogicalType(entry)
 		if err != nil {
 			_, _ = fmt.Fprintln(stderr, "Error: "+err.Error())
 			return 1
 		}
 		opts = append(opts, gen.WithLogicalType(logicalType))
+	}
+
+	for _, entry := range cfg.FieldTypes {
+		fieldType, err := parseFieldType(entry)
+		if err != nil {
+			_, _ = fmt.Fprintln(stderr, "Error: "+err.Error())
+			return 1
+		}
+		opts = append(opts, gen.WithFieldType(fieldType))
 	}
 
 	g := gen.NewGenerator(cfg.Pkg, tags, opts...)
@@ -144,6 +155,11 @@ func realMain(args []string, stdout, stderr io.Writer) int {
 		g.Parse(schema)
 	}
 
+	if err = g.ValidateFieldTypes(); err != nil {
+		_, _ = fmt.Fprintf(stderr, "Error: %v\n", err)
+		return 5
+	}
+
 	var buf bytes.Buffer
 	if err = g.Write(&buf); err != nil {
 		_, _ = fmt.Fprintf(stderr, "Error: could not generate code: %v\n", err)
@@ -166,36 +182,97 @@ func realMain(args []string, stdout, stderr io.Writer) int {
 
 func parseLogicalType(raw string) (gen.LogicalType, error) {
 	out := gen.LogicalType{}
-	parts := strings.Split(raw, ",")
-
-	if len(parts) < 2 || len(parts) > 3 {
+	name, rest, ok := strings.Cut(raw, ",")
+	if !ok {
 		return out, errors.New("logical type must be of format logicalType,goType[,import]")
 	}
-	out.Name = parts[0]
-	out.Typ = parts[1]
+	out.Name = name
 	if out.Name == "" {
 		return out, errors.New("logical type name is required")
 	}
+
+	typ, stdImport, thirdPartyImport, err := parseGoType(rest)
+	switch {
+	case errors.Is(err, errExtraComma):
+		return out, errors.New("logical type must be of format logicalType,goType[,import]")
+	case errors.Is(err, errEmptyImport):
+		return out, errors.New(
+			"logicaltype import path cannot be empty if used " +
+				"(if unused because you are mapping to a core Go type, omit the trailing comma)",
+		)
+	}
+	out.Typ = typ
 	if out.Typ == "" {
 		return out, errors.New("logical type underlying type is required")
 	}
-	if len(parts) == 3 {
-		importPath := parts[2]
-		if importPath == "" {
-			return out, errors.New(
-				"logicaltype import path cannot be empty if used " +
-					"(if unused because you are mapping to a core Go type, omit the trailing comma)")
-		}
-		importPath = strings.Trim(importPath, `"`)
+	out.Import, out.ThirdPartyImport = stdImport, thirdPartyImport
 
-		// If it contains a dot in the first segment, it’s not stdlib
-		first := strings.SplitN(importPath, "/", 2)[0]
-		if strings.Contains(first, ".") {
-			out.ThirdPartyImport = importPath
-		} else {
-			out.Import = importPath
-		}
+	return out, nil
+}
+
+var (
+	errExtraComma  = errors.New("unexpected extra comma")
+	errEmptyImport = errors.New("import path cannot be empty")
+)
+
+// parseGoType parses the "goType[,import]" tail of a logical/field type mapping. The import is
+// the segment after the last comma, unless that segment contains '[' or ']', in which case rest is the whole type.
+func parseGoType(rest string) (typ, stdImport, thirdPartyImport string, err error) {
+	idx := strings.LastIndex(rest, ",")
+	if idx < 0 {
+		return rest, "", "", nil
 	}
+	candidate := rest[idx+1:]
+	head := rest[:idx]
+	if strings.ContainsAny(candidate, "[]") {
+		return rest, "", "", nil
+	}
+	if strings.Contains(head, ",") && !strings.ContainsAny(head, "[]") {
+		return "", "", "", errExtraComma
+	}
+	if candidate == "" {
+		return head, "", "", errEmptyImport
+	}
+
+	importPath := strings.Trim(candidate, `"`)
+
+	// If it contains a dot in the first segment, it’s not stdlib
+	first, _, _ := strings.Cut(importPath, "/")
+	if strings.Contains(first, ".") {
+		return head, "", importPath, nil
+	}
+	return head, importPath, "", nil
+}
+
+func parseFieldType(raw string) (gen.FieldType, error) {
+	out := gen.FieldType{}
+	selector, rest, ok := strings.Cut(raw, ",")
+	if !ok {
+		return out, errors.New("field type must be of format record.field,goType[,import]")
+	}
+
+	idx := strings.LastIndex(selector, ".")
+	if idx <= 0 || idx == len(selector)-1 {
+		return out, errors.New("field type selector must be of format record.field")
+	}
+	out.Record = selector[:idx]
+	out.Field = selector[idx+1:]
+
+	typ, stdImport, thirdPartyImport, err := parseGoType(rest)
+	switch {
+	case errors.Is(err, errExtraComma):
+		return out, errors.New("field type must be of format record.field,goType[,import]")
+	case errors.Is(err, errEmptyImport):
+		return out, errors.New(
+			"field type import path cannot be empty if used " +
+				"(if unused because you are mapping to a core Go type, omit the trailing comma)",
+		)
+	}
+	out.Typ = typ
+	if out.Typ == "" {
+		return out, errors.New("field type Go type is required")
+	}
+	out.Import, out.ThirdPartyImport = stdImport, thirdPartyImport
 
 	return out, nil
 }
