@@ -123,7 +123,7 @@ func (c *fixedCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 func (c *fixedCodec) Encode(ptr unsafe.Pointer, w *Writer) {
 	for i := range c.arrayType.Len() {
 		bytePtr := c.arrayType.UnsafeGetIndex(ptr, i)
-		w.writeByte(*((*byte)(bytePtr)))
+		w.writeByte(*(*byte)(bytePtr))
 	}
 }
 
@@ -136,11 +136,11 @@ type fixedDecimalCodec struct {
 func (c *fixedDecimalCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 	b := make([]byte, c.size)
 	r.Read(b)
-	*((**big.Rat)(ptr)) = ratFromBytes(b, c.scale)
+	*(**big.Rat)(ptr) = ratFromBytes(b, c.scale)
 }
 
 func (c *fixedDecimalCodec) Encode(ptr unsafe.Pointer, w *Writer) {
-	r := *((**big.Rat)(ptr))
+	r := *(**big.Rat)(ptr)
 	scale := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(c.scale)), nil)
 	i := (&big.Int{}).Mul(r.Num(), scale)
 	i = i.Div(i, r.Denom())
@@ -197,7 +197,7 @@ func (*fixedDurationCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 	duration.Months = binary.LittleEndian.Uint32(b[0:4])
 	duration.Days = binary.LittleEndian.Uint32(b[4:8])
 	duration.Milliseconds = binary.LittleEndian.Uint32(b[8:12])
-	*((*LogicalDuration)(ptr)) = duration
+	*(*LogicalDuration)(ptr) = duration
 }
 
 func (*fixedDurationCodec) Encode(ptr unsafe.Pointer, w *Writer) {

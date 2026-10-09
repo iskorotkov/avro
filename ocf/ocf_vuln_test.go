@@ -225,9 +225,7 @@ func TestSharedZstdDecoder_Concurrent(t *testing.T) {
 	var wg sync.WaitGroup
 	errs := make(chan error, goroutines*decodesPerGoroutine)
 	for range goroutines {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for range decodesPerGoroutine {
 				dec, err := ocf.NewDecoder(
 					bytes.NewReader(encoded),
@@ -250,7 +248,7 @@ func TestSharedZstdDecoder_Concurrent(t *testing.T) {
 				}
 				_ = dec.Close()
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	close(errs)
@@ -272,9 +270,7 @@ func TestSharedZstdEncoder_Concurrent(t *testing.T) {
 	var wg sync.WaitGroup
 	errs := make(chan error, goroutines*encodesPerGoroutine)
 	for range goroutines {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for range encodesPerGoroutine {
 				var buf bytes.Buffer
 				enc, err := ocf.NewEncoder(
@@ -295,7 +291,7 @@ func TestSharedZstdEncoder_Concurrent(t *testing.T) {
 					errs <- err
 				}
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	close(errs)

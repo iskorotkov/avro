@@ -22,16 +22,16 @@ type dereferenceDecoder struct {
 }
 
 func (d *dereferenceDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
-	if *((*unsafe.Pointer)(ptr)) == nil {
+	if *(*unsafe.Pointer)(ptr) == nil {
 		// Create new instance
 		newPtr := d.typ.UnsafeNew()
 		d.decoder.Decode(newPtr, r)
-		*((*unsafe.Pointer)(ptr)) = newPtr
+		*(*unsafe.Pointer)(ptr) = newPtr
 		return
 	}
 
 	// Reuse existing instance
-	d.decoder.Decode(*((*unsafe.Pointer)(ptr)), r)
+	d.decoder.Decode(*(*unsafe.Pointer)(ptr), r)
 }
 
 func encoderOfPtr(e *encoderContext, schema Schema, typ reflect2.Type) ValEncoder {
@@ -49,12 +49,12 @@ type dereferenceEncoder struct {
 }
 
 func (d *dereferenceEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
-	if *((*unsafe.Pointer)(ptr)) == nil {
+	if *(*unsafe.Pointer)(ptr) == nil {
 		w.Error = errors.New("avro: cannot encode nil pointer")
 		return
 	}
 
-	d.encoder.Encode(*((*unsafe.Pointer)(ptr)), w)
+	d.encoder.Encode(*(*unsafe.Pointer)(ptr), w)
 }
 
 type referenceDecoder struct {
