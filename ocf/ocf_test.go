@@ -547,8 +547,12 @@ func TestDecoder_WithConfig(t *testing.T) {
 	err = enc.Close()
 	require.NoError(t, err)
 
-	t.Run("Default Fails", func(t *testing.T) {
-		dec, err := ocf.NewDecoder(bytes.NewReader(buf.Bytes()))
+	t.Run("Exceeding Max Byte Slice Size Fails", func(t *testing.T) {
+		cfg := avro.Config{MaxByteSliceSize: defaultMax}.Freeze()
+		dec, err := ocf.NewDecoder(
+			bytes.NewReader(buf.Bytes()),
+			ocf.WithDecoderConfig(cfg),
+		)
 		require.NoError(t, err)
 
 		var got FullRecord

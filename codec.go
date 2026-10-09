@@ -252,3 +252,46 @@ func (e *errorEncoder) Encode(_ unsafe.Pointer, w *Writer) {
 		w.Error = e.err
 	}
 }
+
+func minWireSize(schema Schema, depth int) int {
+	if depth > 64 {
+		return 0
+	}
+
+	switch s := schema.(type) {
+	case *PrimitiveSchema:
+		switch s.Type() {
+		case Float:
+			return 4
+		case Double:
+			return 8
+		default:
+			return 1
+		}
+	case *EnumSchema:
+		return 1
+	case *FixedSchema:
+		return s.Size()
+	case *RecordSchema:
+		total := 0
+		for _, f := range s.Fields() {
+			total += minWireSize(f.Type(), depth+1)
+		}
+		return total
+	case *UnionSchema:
+		minBranch := 0
+		for i, t := range s.Types() {
+			m := minWireSize(t, depth+1)
+			if i == 0 || m < minBranch {
+				minBranch = m
+			}
+		}
+		return 1 + minBranch
+	case *ArraySchema, *MapSchema:
+		return 1
+	case *RefSchema:
+		return minWireSize(s.Schema(), depth+1)
+	default:
+		return 0
+	}
+}

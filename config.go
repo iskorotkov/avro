@@ -9,7 +9,9 @@ import (
 )
 
 const (
-	defaultMaxByteSliceSize = 1_048_576 // 1 MiB
+	defaultMaxByteSliceSize  = 64 * 1024 * 1024 // 64 MiB
+	defaultMaxSliceAllocSize = 64 * 1024 * 1024 // 64 Mi elements
+	defaultMaxMapAllocSize   = 64 * 1024 * 1024 // 64 Mi entries
 
 	defaultSlabSize = 1024
 
@@ -53,17 +55,18 @@ type Config struct {
 	// call to Marshal() and Unmarshal()
 	DisableCaching bool
 
-	// MaxByteSliceSize is the maximum size of `bytes` or `string` types the Reader will create, defaulting to 1MiB.
-	// If this size is exceeded, the Reader returns an error. This can be disabled by setting a negative number.
+	// MaxByteSliceSize is the maximum size in bytes of `bytes` or `string` types the Reader will allocate.
+	// It defaults to 64 MiB when set to zero or a negative value and is capped at the platform allocation limit.
+	// If this size is exceeded, the Reader returns an error.
 	MaxByteSliceSize int
 
-	// MaxSliceAllocSize is the maximum size that the decoder will allocate, set to the max heap
-	// allocation size by default.
+	// MaxSliceAllocSize is the maximum cumulative number of elements the decoder will allocate for a slice.
+	// It defaults to 67,108,864 (64 Mi) elements when set to zero or a negative value and is capped at the platform allocation limit.
 	// If this size is exceeded, the decoder returns an error.
 	MaxSliceAllocSize int
 
-	// MaxMapAllocSize is the maximum size that the decoder will allocate, set to the max heap
-	// allocation size by default.
+	// MaxMapAllocSize is the maximum cumulative number of entries the decoder will allocate for a map.
+	// It defaults to 67,108,864 (64 Mi) entries when set to zero or a negative value and is capped at the platform allocation limit.
 	// If this size is exceeded, the decoder returns an error.
 	MaxMapAllocSize int
 
@@ -311,26 +314,26 @@ func (c *frozenConfig) getBlockLength() int {
 
 func (c *frozenConfig) getMaxByteSliceSize() int {
 	size := c.config.MaxByteSliceSize
-	if size == 0 {
+	if size <= 0 {
 		return defaultMaxByteSliceSize
 	}
-	return size
+	return min(size, maxAllocSize)
 }
 
 func (c *frozenConfig) getMaxSliceAllocSize() int {
 	size := c.config.MaxSliceAllocSize
-	if size > maxAllocSize || size <= 0 {
-		return maxAllocSize
+	if size <= 0 {
+		return defaultMaxSliceAllocSize
 	}
-	return size
+	return min(size, maxAllocSize)
 }
 
 func (c *frozenConfig) getMaxMapAllocSize() int {
 	size := c.config.MaxMapAllocSize
-	if size > maxAllocSize || size <= 0 {
-		return maxAllocSize
+	if size <= 0 {
+		return defaultMaxMapAllocSize
 	}
-	return size
+	return min(size, maxAllocSize)
 }
 
 func (c *frozenConfig) getSlabSize() int {

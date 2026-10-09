@@ -70,6 +70,55 @@ func TestDecoder_RejectsSnappyInflatedHeader(t *testing.T) {
 	assert.Contains(t, dec.Error().Error(), "snappy: claimed decoded size")
 }
 
+func TestDecoder_DefaultCapsApplied(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   func(t *testing.T) []byte
+		wantErr string
+	}{
+		{
+			name: "compressed cap defaults to 64 MiB",
+			input: func(t *testing.T) []byte {
+				// A block header claiming 64 MiB + 1 must be rejected before its payload is read.
+				original := buildOCF(t, ocf.Null, []int64{1, 2, 3})
+				headerEnd := findFirstBlockHeaderOffset(t, original)
+
+				var hostile bytes.Buffer
+				hostile.Write(original[:headerEnd])
+				writeZigZagLong(&hostile, 1)
+				writeZigZagLong(&hostile, (64<<20)+1)
+				return hostile.Bytes()
+			},
+			wantErr: "WithMaxBlockBytes",
+		},
+		{
+			name: "decompressed cap defaults to 64 MiB",
+			input: func(t *testing.T) []byte {
+				// A snappy varint claiming 64 MiB + 1 of decoded data must be rejected before allocation.
+				original := buildOCF(t, ocf.Snappy, []int64{1, 2, 3})
+
+				var hdr [binary.MaxVarintLen64]byte
+				n := binary.PutUvarint(hdr[:], (64<<20)+1)
+				bomb := append(hdr[:n:n], 0x00, 0, 0, 0, 0) // payload byte + CRC trailer
+				return replaceFirstBlockPayload(t, original, bomb)
+			},
+			wantErr: "snappy: claimed decoded size",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dec, err := ocf.NewDecoder(bytes.NewReader(tt.input(t)))
+			require.NoError(t, err)
+			defer dec.Close()
+
+			assert.False(t, dec.HasNext())
+			require.Error(t, dec.Error())
+			assert.Contains(t, dec.Error().Error(), tt.wantErr)
+		})
+	}
+}
+
 func TestDecoder_RejectsZstdBomb(t *testing.T) {
 	original := buildOCF(t, ocf.ZStandard, []int64{1, 2, 3})
 
