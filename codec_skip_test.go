@@ -259,6 +259,75 @@ func TestDecoder_SkipRef(t *testing.T) {
 	assert.Equal(t, TestPartialRecord{B: "foo"}, got)
 }
 
+func TestDecoder_SkipRecursiveRecord(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `{"type":"record","name":"Node","fields":[{"name":"children","type":{"type":"array","items":"Node"}}]}`
+	dec, err := avro.NewDecoder(schema, bytes.NewReader([]byte{0x00}))
+	require.NoError(t, err)
+
+	var got struct {
+		Other string `avro:"other"`
+	}
+	require.NoError(t, decodeWithTimeout(t, dec, &got))
+}
+
+func TestDecoder_SkipRecursiveMap(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `{"type":"record","name":"SchemaData","fields":[{"name":"object","type":{"type":"map","values":"SchemaData"}}]}`
+	dec, err := avro.NewDecoder(schema, bytes.NewReader([]byte{0x00}))
+	require.NoError(t, err)
+
+	var got struct {
+		Other string `avro:"other"`
+	}
+	require.NoError(t, decodeWithTimeout(t, dec, &got))
+}
+
+func TestDecoder_SkipMutualRecursiveRecord(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := `{"type":"record","name":"A","fields":[{"name":"b","type":{"type":"record","name":"B","fields":[{"name":"a","type":{"type":"map","values":"A"}}]}}]}`
+	dec, err := avro.NewDecoder(schema, bytes.NewReader([]byte{0x00}))
+	require.NoError(t, err)
+
+	var got struct {
+		Other string `avro:"other"`
+	}
+	require.NoError(t, decodeWithTimeout(t, dec, &got))
+}
+
+func TestDecoder_SkipRecursiveRecordNestedData(t *testing.T) {
+	defer ConfigTeardown()
+
+	schemaStr := `{"type":"record","name":"Node","fields":[{"name":"value","type":"string"},{"name":"children","type":{"type":"array","items":"Node"}}]}`
+
+	root := map[string]any{
+		"value": "root",
+		"children": []any{
+			map[string]any{"value": "child1", "children": []any{}},
+			map[string]any{
+				"value":    "child2",
+				"children": []any{map[string]any{"value": "grandchild", "children": []any{}}},
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	enc, err := avro.NewEncoder(schemaStr, &buf)
+	require.NoError(t, err)
+	require.NoError(t, enc.Encode(root))
+
+	dec, err := avro.NewDecoder(schemaStr, &buf)
+	require.NoError(t, err)
+	var got struct {
+		Other string `avro:"other"`
+	}
+	require.NoError(t, decodeWithTimeout(t, dec, &got))
+	assert.Empty(t, got.Other)
+}
+
 func TestDecoder_SkipEnum(t *testing.T) {
 	defer ConfigTeardown()
 

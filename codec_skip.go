@@ -6,6 +6,10 @@ import (
 )
 
 func createSkipDecoder(schema Schema) ValDecoder {
+	return createSkipDecoderWithCache(schema, make(map[[32]byte]ValDecoder))
+}
+
+func createSkipDecoderWithCache(schema Schema, cache map[[32]byte]ValDecoder) ValDecoder {
 	switch schema.Type() {
 	case Boolean:
 		return &boolSkipDecoder{}
@@ -29,19 +33,31 @@ func createSkipDecoder(schema Schema) ValDecoder {
 		return &bytesSkipDecoder{}
 
 	case Record:
-		return skipDecoderOfRecord(schema)
+		fingerprint := schema.CacheFingerprint()
+		if decoder, ok := cache[fingerprint]; ok {
+			return decoder
+		}
+
+		deferred := &deferDecoder{}
+		cache[fingerprint] = deferred
+		deferred.decoder = skipDecoderOfRecord(schema, cache)
+		return deferred.decoder
 
 	case Ref:
-		return createSkipDecoder(schema.(*RefSchema).Schema())
+		ref := schema.(*RefSchema).Schema()
+		if decoder, ok := cache[ref.CacheFingerprint()]; ok {
+			return decoder
+		}
+		return createSkipDecoderWithCache(ref, cache)
 
 	case Enum:
 		return &enumSkipDecoder{symbols: schema.(*EnumSchema).Symbols()}
 
 	case Array:
-		return skipDecoderOfArray(schema)
+		return skipDecoderOfArray(schema, cache)
 
 	case Map:
-		return skipDecoderOfMap(schema)
+		return skipDecoderOfMap(schema, cache)
 
 	case Union:
 		return skipDecoderOfUnion(schema)
@@ -96,12 +112,12 @@ func (c *bytesSkipDecoder) Decode(_ unsafe.Pointer, r *Reader) {
 	r.SkipBytes()
 }
 
-func skipDecoderOfRecord(schema Schema) ValDecoder {
+func skipDecoderOfRecord(schema Schema, cache map[[32]byte]ValDecoder) ValDecoder {
 	rec := schema.(*RecordSchema)
 
 	decoders := make([]ValDecoder, len(rec.Fields()))
 	for i, field := range rec.Fields() {
-		decoders[i] = createSkipDecoder(field.Type())
+		decoders[i] = createSkipDecoderWithCache(field.Type(), cache)
 	}
 
 	return &recordSkipDecoder{
@@ -127,9 +143,9 @@ func (c *enumSkipDecoder) Decode(_ unsafe.Pointer, r *Reader) {
 	r.SkipInt()
 }
 
-func skipDecoderOfArray(schema Schema) ValDecoder {
+func skipDecoderOfArray(schema Schema, cache map[[32]byte]ValDecoder) ValDecoder {
 	arr := schema.(*ArraySchema)
-	decoder := createSkipDecoder(arr.Items())
+	decoder := createSkipDecoderWithCache(arr.Items(), cache)
 
 	return &sliceSkipDecoder{
 		decoder: decoder,
@@ -161,9 +177,9 @@ func (d *sliceSkipDecoder) Decode(_ unsafe.Pointer, r *Reader) {
 	}
 }
 
-func skipDecoderOfMap(schema Schema) ValDecoder {
+func skipDecoderOfMap(schema Schema, cache map[[32]byte]ValDecoder) ValDecoder {
 	m := schema.(*MapSchema)
-	decoder := createSkipDecoder(m.Values())
+	decoder := createSkipDecoderWithCache(m.Values(), cache)
 
 	return &mapSkipDecoder{
 		decoder: decoder,
