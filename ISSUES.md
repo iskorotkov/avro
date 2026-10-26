@@ -5,7 +5,7 @@ This is a list of unresolved issues from original [hamba/avro repository](https:
 - <https://github.com/hamba/avro/issues/209> Deserialize avro messages to JSON and preserve field order
 - <https://github.com/hamba/avro/issues/314> Support original name for structs
 - <https://github.com/hamba/avro/issues/400> Serialize schemas feature
-- <https://github.com/hamba/avro/issues/449> Potential Bug - Adding default value of null doesn't change schema encoder hash
+- ~~<https://github.com/hamba/avro/issues/449> Potential Bug - Adding default value of null doesn't change schema encoder hash~~
 - <https://github.com/hamba/avro/issues/461> gen: Avoid pointer to slices for nullable unions
 - <https://github.com/hamba/avro/issues/462> gen: Allow cutom go types via annotations
 - <https://github.com/hamba/avro/issues/474> Schema Parsing does not seem to respect versions referenced in Schema Registry

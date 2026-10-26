@@ -70,3 +70,27 @@ Both caps default to unlimited for backward compatibility. **For untrusted input
 ### Reading OCF metadata (header)
 
 The OCF header itself contains a `map<string, bytes>` of arbitrary metadata, parsed *before* any data block — and therefore before any of the block-level caps above can apply. It is bounded only by `MaxByteSliceSize` and `MaxMapAllocSize` from the value-decoder config. `MaxMapAllocSize` defaults to effectively unbounded (`1<<48` on 64-bit platforms), so a hostile header declaring a huge entry count can OOM the decoder before a single block is read. **For untrusted input you must** pass `WithDecoderConfig` a frozen `avro.Config` that sets `MaxMapAllocSize` (and `MaxByteSliceSize`) to sane values, in addition to the OCF-specific caps above.
+
+## Untrusted schemas
+
+An OCF file carries its own schema, and a schema registry response is only as trustworthy as the registry, so both are attacker-controlled input. The library applies these protections to every parsed or resolved schema:
+
+| Protection | Default | Defends against |
+| --- | --- | --- |
+| `avro.MaxFixedSize` | 1 MiB; set `<= 0` to disable | a `fixed` declaring a huge size, which would allocate that size per value |
+| decimal precision cap | 1000 digits | a `decimal` with a huge precision or scale, whose power of ten is too costly to compute (such a logical type is ignored and the value read as plain `bytes`/`fixed`) |
+| `SchemaCompatibility.Resolve` memoization | always on | recursive schemas overflowing the stack and DAG-shaped schemas taking exponential time |
+
+### Schema caches
+
+`ocf.NewDecoder` and `registry.NewClient` parse into a private `avro.SchemaCache` that reads from `avro.DefaultSchemaCache` but never writes to it, so a hostile file or registry cannot redefine a type such as `com.app.User` for the rest of the process. Pass `ocf.WithDecoderSchemaCache` or `registry.WithSchemaCache` to share a cache explicitly; use `avro.NewSchemaCache(parent)` to build one that only reads from its parent.
+
+Parsing never overwrites a name that the target cache can already resolve. A schema that redefines a cached name still parses with its own definition, but later lookups of that name keep the first definition.
+
+### Codec caches
+
+Encoders and decoders are cached per schema and Go type, and the caches grow with every distinct schema. When schemas come from untrusted sources, bound them with `Config.MaxCodecCacheSize` or turn them off with `Config.DisableCaching`:
+
+```go
+api := avro.Config{MaxCodecCacheSize: 1024}.Freeze()
+```

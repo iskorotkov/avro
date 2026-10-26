@@ -29,6 +29,8 @@ Unresolved issues from hamba/avro are tracked in [ISSUES.md](./ISSUES.md).
 - **Bug fix:** `time.Duration` values are now rejected for `local-timestamp-*` schemas instead of being silently encoded as raw nanoseconds
 - **Bug fix:** registered missing logical types for local timestamps (`local-timestamp-millis`, `local-timestamp-micros`), which caused decoding errors
 - **Bug fix:** fixed enum type duplication in Go code generation (`avrogen`)
+- **Bug fix:** encoder and decoder caches take field defaults into account, so schemas differing only in defaults no longer share codecs ([hamba/avro#449](https://github.com/hamba/avro/issues/449))
+- **Security:** hardened handling of untrusted schemas: `Resolve` handles recursive and DAG schemas, `fixed` size and `decimal` precision are capped, OCF and registry schemas no longer leak into `avro.DefaultSchemaCache`, and codec caches can be bounded (see [SECURITY.md](SECURITY.md))
 - **Go 1.26+ required:** minimum Go version raised to 1.26; codebase updated to use latest Go idioms
 - **CI updated:** tested on Go 1.26 and 1.27; tools (golangci-lint, gotestsum) pinned via `go.mod` `tool` directive
 - **19.5% decode speedup on internally used benchmark:** optimized inlining and bounds checks in number parsing; iskorotkov/avro now decodes at 118.6 ns/op vs hamba/avro's 147.3 ns/op (Apple M4 Pro, zero allocations)
@@ -234,11 +236,15 @@ The type conversion for decoding will receive the decoded value with a data type
 
 #### Untrusted Input
 
-When processing untrusted Avro data, it is important to configure protection against Denial of Service (DoS) attacks. The library provides three configuration options to limit resource allocation:
+When processing untrusted Avro data, it is important to configure protection against Denial of Service (DoS) attacks. The library provides these options to limit resource allocation:
 
 - `Config.MaxByteSliceSize` - Restricts the maximum size of `bytes` and `string` types (default: `1MiB`)
 - `Config.MaxSliceAllocSize` - Limits the maximum size of slice allocations (default: unlimited)
 - `Config.MaxMapAllocSize` - Limits the maximum size of map allocations (default: unlimited)
+- `Config.MaxCodecCacheSize` - Limits the number of cached encoders and decoders, which grow with every distinct schema (default: unlimited)
+- `avro.MaxFixedSize` - Limits the size of `fixed` types accepted by the schema parser (default: `1MiB`)
+
+OCF decoders and registry clients parse schemas into private caches by default, so untrusted schemas cannot redefine types in `avro.DefaultSchemaCache`.
 
 For comprehensive security considerations and configuration requirements, please refer to [SECURITY.md](SECURITY.md).
 
