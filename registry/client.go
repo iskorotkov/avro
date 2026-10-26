@@ -174,21 +174,21 @@ func WithBasicAuth(username, password string) ClientFunc {
 	}
 }
 
-// WithMaxResponseBytes caps the size of a registry response body; n <= 0 disables the cap.
+// WithMaxResponseBytes caps a response body, error bodies included, at n bytes (default 8 MiB; n <= 0 disables).
 func WithMaxResponseBytes(n int64) ClientFunc {
 	return func(c *Client) {
 		c.maxResponseBytes = n
 	}
 }
 
-// WithSchemaCacheSize bounds the number of schemas cached by ID; n <= 0 means unbounded.
+// WithSchemaCacheSize bounds the schemas cached by ID, evicting an arbitrary one past n (default and n <= 0 are unbounded).
 func WithSchemaCacheSize(n int) ClientFunc {
 	return func(c *Client) {
 		c.cacheSize = n
 	}
 }
 
-// WithSchemaMissTTL sets how long a failed schema ID lookup is remembered; d <= 0 disables it.
+// WithSchemaMissTTL sets how long a not-found or unparsable schema ID is remembered (default 5s; d <= 0 disables).
 func WithSchemaMissTTL(d time.Duration) ClientFunc {
 	return func(c *Client) {
 		c.missTTL = d
@@ -378,6 +378,7 @@ func (c *Client) CreateSchema(
 	if err := c.request(ctx, http.MethodPost, p, req, &resp); err != nil {
 		return 0, nil, err
 	}
+	c.misses.Delete(resp.ID)
 
 	sch, err := avro.Parse(schema)
 	return resp.ID, sch, err
@@ -399,6 +400,7 @@ func (c *Client) IsRegisteredWithRefs(
 	if err := c.request(ctx, http.MethodPost, []string{"subjects", subject}, req, &resp); err != nil {
 		return 0, nil, err
 	}
+	c.misses.Delete(resp.ID)
 
 	sch, err := avro.Parse(schema)
 	return resp.ID, sch, err
@@ -531,9 +533,16 @@ func (c *Client) request(ctx context.Context, method string, segments []string, 
 	}
 
 	if out != nil {
-		return json.NewDecoder(respBody).Decode(out)
+		return c.wrapLimitErr(json.NewDecoder(respBody).Decode(out))
 	}
 	return nil
+}
+
+func (c *Client) wrapLimitErr(err error) error {
+	if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+		return fmt.Errorf("registry: response body exceeds %d bytes: %w", c.maxResponseBytes, err)
+	}
+	return err
 }
 
 func (c *Client) limitBody(body io.ReadCloser) io.ReadCloser {
