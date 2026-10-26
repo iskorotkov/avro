@@ -2,6 +2,7 @@ package avro_test
 
 import (
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/iskorotkov/avro/v2"
@@ -73,4 +74,26 @@ func TestDecoder_NativeMapMergesIntoExistingMap(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, map[string]int64{"x": 1, "y": 6}, got)
+}
+
+func TestMap_RoundTripsPointerTextKeys(t *testing.T) {
+	api := avro.Config{BlockLength: 2}.Freeze()
+	schema := avro.MustParse(`{"type":"map","values":"string"}`)
+	in := map[*benchTextKey]string{}
+	for i := range 5 {
+		k := benchTextKey(i)
+		in[&k] = strconv.Itoa(i)
+	}
+
+	b, err := api.Marshal(schema, in)
+	require.NoError(t, err)
+	var out map[*benchTextKey]string
+	err = api.Unmarshal(schema, b, &out)
+
+	require.NoError(t, err)
+	got := map[benchTextKey]string{}
+	for k, v := range out {
+		got[*k] = v
+	}
+	assert.Equal(t, map[benchTextKey]string{0: "0", 1: "1", 2: "2", 3: "3", 4: "4"}, got)
 }

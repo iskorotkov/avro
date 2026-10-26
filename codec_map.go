@@ -31,11 +31,11 @@ func createEncoderOfMap(e *encoderContext, schema *MapSchema, typ reflect.Type) 
 		keyType := typ.Key()
 		switch {
 		case keyType.Kind() == reflect.String:
-			return encoderOfMap(e, schema, typ)
+			return encoderOfMap(e, schema, typ, stringKey{})
 		case keyType.Implements(textAppenderType):
-			return encoderOfMapKeys(e, schema, typ, textAppenderKey{boxer: unsafex.NewBoxer(keyType)})
+			return encoderOfMap(e, schema, typ, textAppenderKey{newTextValue(keyType)})
 		case keyType.Implements(textMarshalerType):
-			return encoderOfMapKeys(e, schema, typ, textMarshalerKey{boxer: unsafex.NewBoxer(keyType)})
+			return encoderOfMap(e, schema, typ, textMarshalerKey{newTextValue(keyType)})
 		}
 	}
 
@@ -289,59 +289,88 @@ func wrapMapEncodeError(w *Writer, typ reflect.Type) {
 	}
 }
 
-func encoderOfMap(e *encoderContext, m *MapSchema, typ reflect.Type) ValEncoder {
-	encoder := encoderOfType(e, m.Values(), typ.Elem())
-	blockLength := e.cfg.getBlockLength()
+func encoderOfMap(e *encoderContext, m *MapSchema, typ reflect.Type, keys mapKeyWriter) ValEncoder {
+	base := mapEncoderBase{
+		typ:         typ,
+		blockLength: e.cfg.getBlockLength(),
+		keys:        keys,
+		encoder:     encoderOfType(e, m.Values(), typ.Elem()),
+	}
 
-	// Maps are iterated as a map[string]V with the same memory layout as their actual type.
-	elemType := typ.Elem()
+	var native ValEncoder
+	switch typ.Key().Kind() {
+	case reflect.String:
+		native = nativeMapEncoderOf[string](base)
+	case reflect.Pointer:
+		native = nativeMapEncoderOf[unsafe.Pointer](base)
+	default:
+	}
+	if native != nil {
+		return native
+	}
+
+	return newReflectMapEncoder(base)
+}
+
+// nativeMapEncoderOf returns an encoder iterating the map as a map[K]V of the same memory layout, or nil if V has no such layout.
+func nativeMapEncoderOf[K comparable](base mapEncoderBase) ValEncoder {
+	elemType := base.typ.Elem()
 	switch elemType.Kind() {
 	case reflect.String:
-		return &nativeMapEncoder[string]{typ: typ, blockLength: blockLength, encoder: encoder}
+		return &nativeMapEncoder[K, string]{base}
 	case reflect.Slice:
-		return &nativeMapEncoder[[]byte]{typ: typ, blockLength: blockLength, encoder: encoder}
+		return &nativeMapEncoder[K, []byte]{base}
 	case reflect.Pointer, reflect.Map, reflect.Chan, reflect.Func, reflect.UnsafePointer:
-		return &nativeMapEncoder[unsafe.Pointer]{typ: typ, blockLength: blockLength, encoder: encoder}
+		return &nativeMapEncoder[K, unsafe.Pointer]{base}
 	case reflect.Interface:
 		if elemType.NumMethod() == 0 {
-			return &nativeMapEncoder[any]{typ: typ, blockLength: blockLength, encoder: encoder}
+			return &nativeMapEncoder[K, any]{base}
 		}
 	case reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
 		reflect.Float32, reflect.Float64:
 		switch elemType.Size() {
 		case 1:
-			return &nativeMapEncoder[uint8]{typ: typ, blockLength: blockLength, encoder: encoder}
+			return &nativeMapEncoder[K, uint8]{base}
 		case 2:
-			return &nativeMapEncoder[uint16]{typ: typ, blockLength: blockLength, encoder: encoder}
+			return &nativeMapEncoder[K, uint16]{base}
 		case 4:
-			return &nativeMapEncoder[uint32]{typ: typ, blockLength: blockLength, encoder: encoder}
+			return &nativeMapEncoder[K, uint32]{base}
 		case 8:
-			return &nativeMapEncoder[uint64]{typ: typ, blockLength: blockLength, encoder: encoder}
+			return &nativeMapEncoder[K, uint64]{base}
 		}
 	default:
 	}
 
-	return encoderOfMapKeys(e, m, typ, stringKey{})
+	return nil
 }
 
-// nativeMapEncoder encodes maps with string-kinded keys whose element layout matches V.
-type nativeMapEncoder[V any] struct {
+// mapEncoderBase holds what every map encoder needs to write a map.
+type mapEncoderBase struct {
 	typ         reflect.Type
 	blockLength int
+	keys        mapKeyWriter
 	encoder     ValEncoder
 }
 
-func (e *nativeMapEncoder[V]) Encode(ptr unsafe.Pointer, w *Writer) {
+// nativeMapEncoder encodes maps whose key and element layouts match K and V.
+type nativeMapEncoder[K comparable, V any] struct {
+	mapEncoderBase
+}
+
+func (e *nativeMapEncoder[K, V]) Encode(ptr unsafe.Pointer, w *Writer) {
 	var block blockStart
 	var n int
 
-	for key, elem := range *(*map[string]V)(ptr) {
+	for key, elem := range *(*map[K]V)(ptr) {
 		if n == 0 {
 			block = w.beginBlock()
 		}
 
-		w.WriteString(key)
+		e.keys.writeKey(noescape(unsafe.Pointer(&key)), w)
+		if w.Error != nil {
+			break
+		}
 		e.encoder.Encode(noescape(unsafe.Pointer(&elem)), w)
 		if w.Error != nil {
 			break
@@ -374,12 +403,12 @@ func (stringKey) writeKey(ptr unsafe.Pointer, w *Writer) {
 }
 
 type textMarshalerKey struct {
-	boxer unsafex.Boxer
+	text textValue
 }
 
 func (k textMarshalerKey) writeKey(ptr unsafe.Pointer, w *Writer) {
-	obj := k.boxer.Box(ptr)
-	if unsafex.IsNil(obj) {
+	obj := k.text.value(ptr)
+	if obj == nil {
 		w.Error = errors.New("avro: mapEncoderMarshaller: encoding nil TextMarshaller")
 		return
 	}
@@ -394,12 +423,12 @@ func (k textMarshalerKey) writeKey(ptr unsafe.Pointer, w *Writer) {
 }
 
 type textAppenderKey struct {
-	boxer unsafex.Boxer
+	text textValue
 }
 
 func (k textAppenderKey) writeKey(ptr unsafe.Pointer, w *Writer) {
-	obj := k.boxer.Box(ptr)
-	if unsafex.IsNil(obj) {
+	obj := k.text.value(ptr)
+	if obj == nil {
 		w.Error = errors.New("avro: mapEncoderAppender: encoding nil TextAppender")
 		return
 	}
@@ -415,17 +444,10 @@ func (k textAppenderKey) writeKey(ptr unsafe.Pointer, w *Writer) {
 	w.WriteBytes(b)
 }
 
-func encoderOfMapKeys(e *encoderContext, m *MapSchema, typ reflect.Type, keys mapKeyWriter) ValEncoder {
-	encoder := encoderOfType(e, m.Values(), typ.Elem())
-
-	enc := &mapEncoder{
-		typ:         typ,
-		blockLength: e.cfg.getBlockLength(),
-		keys:        keys,
-		encoder:     encoder,
-	}
+func newReflectMapEncoder(base mapEncoderBase) ValEncoder {
+	enc := &mapEncoder{mapEncoderBase: base}
 	enc.iters.New = func() any {
-		return newMapIterator(typ)
+		return newMapIterator(base.typ)
 	}
 
 	return enc
@@ -461,11 +483,8 @@ func (it *mapIterator) release() {
 
 // mapEncoder encodes maps of any type through reflection.
 type mapEncoder struct {
-	typ         reflect.Type
-	blockLength int
-	keys        mapKeyWriter
-	encoder     ValEncoder
-	iters       sync.Pool
+	mapEncoderBase
+	iters sync.Pool
 }
 
 func (e *mapEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
