@@ -163,7 +163,7 @@ func (d *structDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 
 		if r.Error != nil && !errors.Is(r.Error, io.EOF) {
 			for _, step := range field.field {
-				r.Error = fmt.Errorf("%s: %w", step.field.Name(), r.Error)
+				r.Error = wrapFieldError(step.field.Name(), r.Error)
 				return
 			}
 		}
@@ -264,7 +264,7 @@ func (e *structEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 
 		if w.Error != nil && !errors.Is(w.Error, io.EOF) {
 			for _, step := range field.field {
-				w.Error = fmt.Errorf("%s: %w", step.field.Name(), w.Error)
+				w.Error = wrapFieldError(step.field.Name(), w.Error)
 				return
 			}
 		}
@@ -415,7 +415,7 @@ func (e *recordMapEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 		field.encoder.Encode(valPtr, w)
 
 		if w.Error != nil && !errors.Is(w.Error, io.EOF) {
-			w.Error = fmt.Errorf("%s: %w", field.name, w.Error)
+			w.Error = wrapFieldError(field.name, w.Error)
 			return
 		}
 	}

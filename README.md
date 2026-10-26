@@ -263,6 +263,25 @@ if errors.Is(err, avro.ErrUnknownField) {
 
 Fields the writer has but the reader schema dropped during schema resolution are still skipped.
 
+#### Errors
+
+Record field errors are returned as `*avro.SemanticError` with a dotted `Field` path, and truncated input passed to `Unmarshal` is reported as `*avro.ShortBufferError`.
+Both wrap the original error, so `errors.Is` keeps working:
+
+```go
+err := avro.Unmarshal(schema, data, &out)
+
+var semErr *avro.SemanticError
+if errors.As(err, &semErr) {
+	fmt.Println("bad field:", semErr.Field) // e.g. "Address.Zip"
+}
+
+var shortErr *avro.ShortBufferError
+if errors.As(err, &shortErr) || errors.Is(err, io.ErrUnexpectedEOF) {
+	// input was truncated
+}
+```
+
 #### Untrusted Input
 
 When processing untrusted Avro data, it is important to configure protection against Denial of Service (DoS) attacks. The library provides three configuration options to limit resource allocation:
