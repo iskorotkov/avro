@@ -1,6 +1,7 @@
 package avro_test
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/iskorotkov/avro/v2"
@@ -42,19 +43,46 @@ type fuzzRecord struct {
 }
 
 func FuzzDecoder(f *testing.F) {
-	avro.DefaultConfig = avro.Config{
+	fuzzDecoder(f, avro.Config{
 		MaxByteSliceSize:  1 << 20,
 		MaxSliceAllocSize: 1 << 22,
 		MaxMapAllocSize:   1 << 20,
-	}.Freeze()
-	defer ConfigTeardown()
+	}.Freeze())
+}
+
+// FuzzDecoderDefaultConfig fuzzes the limits users get without any configuration.
+func FuzzDecoderDefaultConfig(f *testing.F) {
+	fuzzDecoder(f, avro.Config{}.Freeze())
+}
+
+func fuzzDecoder(f *testing.F, api avro.API) {
+	f.Helper()
 
 	schema, err := avro.Parse(fuzzDecoderSchema)
 	if err != nil {
 		f.Fatalf("parse fuzz schema: %v", err)
 	}
 
-	seeds := []fuzzRecord{
+	for _, s := range fuzzSeeds() {
+		data, err := api.Marshal(schema, s)
+		if err != nil {
+			f.Fatalf("marshal seed: %v", err)
+		}
+		f.Add(data)
+	}
+	f.Add([]byte{})
+	f.Add([]byte{0xff})
+
+	f.Fuzz(func(_ *testing.T, data []byte) {
+		if len(data) > 1<<24 {
+			return
+		}
+		decodeAllWays(api, schema, data)
+	})
+}
+
+func fuzzSeeds() []fuzzRecord {
+	return []fuzzRecord{
 		{E: "A"},
 		{
 			I: 1, L: 2, F: 3, D: 4, B: true, S: "hello",
@@ -68,23 +96,24 @@ func FuzzDecoder(f *testing.F) {
 			E: "C", X: [4]byte{},
 		},
 	}
-	for _, s := range seeds {
-		data, err := avro.Marshal(schema, s)
-		if err != nil {
-			f.Fatalf("marshal seed: %v", err)
-		}
-		f.Add(data)
-	}
-	f.Add([]byte{})
-	f.Add([]byte{0xff})
+}
 
-	f.Fuzz(func(_ *testing.T, data []byte) {
-		if len(data) > 1<<24 {
-			return
-		}
-		var out fuzzRecord
-		_ = avro.Unmarshal(schema, data, &out)
-		var generic any
-		_ = avro.Unmarshal(schema, data, &generic)
-	})
+// decodeAllWays decodes data into a struct, a generic value, a skipping struct, a stream and ReadNext.
+func decodeAllWays(api avro.API, schema avro.Schema, data []byte) []error {
+	var (
+		out     fuzzRecord
+		generic any
+		skipped struct{}
+		stream  fuzzRecord
+	)
+	r := avro.NewReader(nil, 0, avro.WithReaderConfig(api)).Reset(data)
+	_ = r.ReadNext(schema)
+
+	return []error{
+		api.Unmarshal(schema, data, &out),
+		api.Unmarshal(schema, data, &generic),
+		api.Unmarshal(schema, data, &skipped),
+		api.NewDecoder(schema, bytes.NewReader(data)).Decode(&stream),
+		r.Error,
+	}
 }
