@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/iskorotkov/avro/v2"
 	"github.com/stretchr/testify/assert"
@@ -96,4 +97,16 @@ func TestMap_RoundTripsPointerTextKeys(t *testing.T) {
 		got[*k] = v
 	}
 	assert.Equal(t, map[benchTextKey]string{0: "0", 1: "1", 2: "2", 3: "3", 4: "4"}, got)
+}
+
+func TestEncoder_MapTimeKeys(t *testing.T) {
+	schema := avro.MustParse(`{"type":"map","values":"long"}`)
+	key := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	got, err := avro.Marshal(schema, map[time.Time]int64{key: 1})
+
+	require.NoError(t, err)
+	want, err := avro.Marshal(schema, map[string]int64{"2020-01-01T00:00:00Z": 1})
+	require.NoError(t, err)
+	assert.Equal(t, want, got)
 }

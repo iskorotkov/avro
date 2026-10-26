@@ -7,6 +7,7 @@ import (
 	"io"
 	"reflect"
 	"sync"
+	"time"
 	"unsafe"
 
 	"github.com/iskorotkov/avro/v2/internal/unsafex"
@@ -303,6 +304,10 @@ func encoderOfMap(e *encoderContext, m *MapSchema, typ reflect.Type, keys mapKey
 		native = nativeMapEncoderOf[string](base)
 	case reflect.Pointer:
 		native = nativeMapEncoderOf[unsafe.Pointer](base)
+	case reflect.Struct:
+		if typ.Key() == timeType {
+			native = nativeMapEncoderOf[time.Time](base)
+		}
 	default:
 	}
 	if native != nil {
