@@ -181,9 +181,8 @@ func (e *mapUnionEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 		val = []struct{}{}
 	}
 
-	val, err := w.cfg.typeConverters.EncodeTypeConvert(val, e.schema)
-	if err != nil && !errors.Is(err, errNoTypeConverter) {
-		w.Error = err
+	val, ok := w.cfg.typeConverters.encodeConverted(val, e.schema, w)
+	if !ok {
 		return
 	}
 
@@ -457,14 +456,11 @@ func (d *unionResolvedDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 		return
 	}
 
-	defer func() {
-		obj, err := r.cfg.typeConverters.DecodeTypeConvert(*pObj, d.schema)
-		if err != nil && !errors.Is(err, errNoTypeConverter) {
-			r.Error = err
-		}
-		*pObj = obj
-	}()
+	d.decodeBranch(i, schema, pObj, r)
+	*pObj = r.cfg.typeConverters.decodeConverted(*pObj, d.schema, r)
+}
 
+func (d *unionResolvedDecoder) decodeBranch(i int, schema Schema, pObj *any, r *Reader) {
 	if i >= len(d.decoders) || d.decoders[i] == nil {
 		if d.cfg.config.UnionResolutionError {
 			r.ReportError("decode union type", "unknown union type")

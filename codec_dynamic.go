@@ -1,7 +1,6 @@
 package avro
 
 import (
-	"errors"
 	"reflect"
 	"unsafe"
 
@@ -27,15 +26,11 @@ func newEfaceDecoder(d *decoderContext, schema Schema) *efaceDecoder {
 
 func (d *efaceDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 	pObj := (*any)(ptr)
+	d.decode(pObj, r)
+	*pObj = r.cfg.typeConverters.decodeConverted(*pObj, d.schema, r)
+}
 
-	defer func() {
-		obj, err := r.cfg.typeConverters.DecodeTypeConvert(*pObj, d.schema)
-		if err != nil && !errors.Is(err, errNoTypeConverter) {
-			r.Error = err
-		}
-		*pObj = obj
-	}()
-
+func (d *efaceDecoder) decode(pObj *any, r *Reader) {
 	if *pObj == nil {
 		*pObj = genericDecode(d.typ, d.dec, r)
 		return
@@ -66,9 +61,8 @@ type interfaceEncoder struct {
 func (e *interfaceEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 	obj := e.typ.UnsafeIndirect(ptr)
 
-	obj, err := w.cfg.typeConverters.EncodeTypeConvert(obj, e.schema)
-	if err != nil && !errors.Is(err, errNoTypeConverter) {
-		w.Error = err
+	obj, ok := w.cfg.typeConverters.encodeConverted(obj, e.schema, w)
+	if !ok {
 		return
 	}
 

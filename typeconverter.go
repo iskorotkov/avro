@@ -76,6 +76,33 @@ func (c *TypeConverters) DecodeTypeConvert(in any, schema Schema) (any, error) {
 	return conv.DecodeTypeConvert(in, schema)
 }
 
+// decodeConverted applies the decode converter for schema, reporting conversion errors on r.
+func (c *TypeConverters) decodeConverted(in any, schema Schema, r *Reader) any {
+	if !c.HasAny() {
+		return in
+	}
+
+	out, err := c.DecodeTypeConvert(in, schema)
+	if err != nil && !errors.Is(err, errNoTypeConverter) {
+		r.Error = err
+	}
+	return out
+}
+
+// encodeConverted applies the encode converter for schema, reporting conversion errors on w.
+func (c *TypeConverters) encodeConverted(in any, schema Schema, w *Writer) (any, bool) {
+	if !c.HasAny() {
+		return in, true
+	}
+
+	out, err := c.EncodeTypeConvert(in, schema)
+	if err != nil && !errors.Is(err, errNoTypeConverter) {
+		w.Error = err
+		return nil, false
+	}
+	return out, true
+}
+
 func (c *TypeConverters) getTypeConverter(schema Schema) (TypeConverter, bool) {
 	typ := schema.Type()
 	lt := getLogicalType(schema)
