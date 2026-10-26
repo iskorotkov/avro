@@ -163,3 +163,9 @@ func TestShortBufferError_NotForOtherErrors(t *testing.T) {
 	var sbErr *avro.ShortBufferError
 	assert.False(t, errors.As(err, &sbErr))
 }
+
+func TestSemanticError_ManualFieldMessage(t *testing.T) {
+	err := &avro.SemanticError{Field: "a.b", Err: io.EOF}
+
+	assert.Equal(t, "a.b: EOF", err.Error())
+}

@@ -23,6 +23,10 @@ Unresolved issues from hamba/avro are tracked in [ISSUES.md](./ISSUES.md).
 
 ## Changes since fork
 
+- **Feature:** `AppendMarshal` encodes into a caller-owned buffer without allocations
+- **Feature:** opt-in `Config.DisallowUnknownFields` and `Config.AliasInput` (zero-copy strings and bytes in `Unmarshal`)
+- **Behaviour change:** record field errors are now `*avro.SemanticError`; messages and `errors.Is` matching are unchanged
+- **Behaviour change:** `Unmarshal` input that ends before the value is complete (including empty input) returns `*avro.ShortBufferError` wrapping `io.ErrUnexpectedEOF` instead of `nil`, and `Decoder.Decode` returns `io.ErrUnexpectedEOF` for a stream cut inside a value
 - **Feature:** added Avro 1.12 nanosecond-precision timestamp logical types (`timestamp-nanos`, `local-timestamp-nanos`)
 - **Bug fix:** timestamp encoders return an error when the value does not fit the `long` range of the schema precision instead of silently wrapping
 - **Bug fix:** corrected `local-timestamp-*` decoding to reinterpret wall-clock components in the local zone instead of subtracting the zone offset, fixing values around DST transitions
@@ -277,8 +281,8 @@ Fields the writer has but the reader schema dropped during schema resolution are
 
 #### Errors
 
-Record field errors are returned as `*avro.SemanticError` with a dotted `Field` path, and truncated input passed to `Unmarshal` is reported as `*avro.ShortBufferError`.
-Both wrap the original error, so `errors.Is` keeps working:
+Record field errors are returned as `*avro.SemanticError` with a dotted `Field` path, and `Unmarshal` input that ends before the value is complete is reported as `*avro.ShortBufferError`.
+Both wrap the original error, so error messages and `errors.Is` are unchanged:
 
 ```go
 err := avro.Unmarshal(schema, data, &out)
@@ -293,6 +297,14 @@ if errors.As(err, &shortErr) || errors.Is(err, io.ErrUnexpectedEOF) {
 	// input was truncated
 }
 ```
+
+Limitations:
+
+- The `Field` path covers nested records and stops at array, map and union boundaries (for `Items[2].Zip` it is `Items`, and the rest stays in the message).
+  Records decoded into `map[string]any` and generic decoding do not produce `SemanticError`.
+  Input that ends inside or right before a varint is reported without the field path.
+- `ShortBufferError.Have` is the length of the whole input. Bytes left after a complete value are ignored.
+- Streaming decoders return `io.EOF` when the stream ends before a value and `io.ErrUnexpectedEOF` when it ends inside one, never `ShortBufferError`.
 
 #### Untrusted Input
 
