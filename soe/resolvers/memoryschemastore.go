@@ -3,12 +3,16 @@ package resolvers
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"sync"
 
 	"github.com/iskorotkov/avro/v2"
 	"github.com/iskorotkov/avro/v2/soe"
 )
+
+// ErrFingerprintCollision is returned when a different schema already holds the fingerprint.
+var ErrFingerprintCollision = errors.New("schema fingerprint collision")
 
 // MemorySchemaStore is a basic in-memory schema store and resolver
 // implementation.
@@ -22,6 +26,10 @@ func NewMemorySchemaStore() *MemorySchemaStore {
 }
 
 // AddSchema puts a schema into the registry.
+//
+// Adding a schema whose fingerprint is already held by a schema with a
+// different canonical form returns ErrFingerprintCollision and keeps the
+// existing schema.
 func (s *MemorySchemaStore) AddSchema(schema avro.Schema) error {
 	fp, err := soe.ComputeFingerprint(schema)
 	if err != nil {
@@ -29,7 +37,10 @@ func (s *MemorySchemaStore) AddSchema(schema avro.Schema) error {
 	}
 
 	key := keyFromFingerprint(fp)
-	s.schemas.Store(key, schema)
+	existing, loaded := s.schemas.LoadOrStore(key, schema)
+	if loaded && existing.(avro.Schema).String() != schema.String() {
+		return fmt.Errorf("%w: %x", ErrFingerprintCollision, fp)
+	}
 	return nil
 }
 
