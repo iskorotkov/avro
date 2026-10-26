@@ -5,6 +5,7 @@ import (
 
 	"github.com/modern-go/reflect2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConfig_Freeze(t *testing.T) {
@@ -183,15 +184,54 @@ func TestConfig_DisableCache_DoesNotReuseEncoders(t *testing.T) {
 	assert.NotSame(t, enc1, enc2)
 }
 
-func TestConfig_MaxCodecCacheSizeBoundsCaches(t *testing.T) {
+func TestConfig_MaxCodecCacheSizeCachesNewCodecsWhenFull(t *testing.T) {
 	api := Config{MaxCodecCacheSize: 1}.Freeze()
 	cfg := api.(*frozenConfig)
 
-	values := map[string]any{`"long"`: int64(1), `"double"`: 1.0, `"float"`: float32(1)}
-	for s, v := range values {
-		_, err := api.Marshal(MustParse(s), v)
+	for _, s := range []string{`"long"`, `"int"`} {
+		_, err := api.Marshal(MustParse(s), 1)
 		assert.NoError(t, err)
 	}
+	schema := MustParse(`"float"`)
+	_, err := api.Marshal(schema, float32(1))
+	assert.NoError(t, err)
 
 	assert.Equal(t, int64(1), cfg.encoderCache.size.Load())
+	assert.NotNil(t, cfg.getEncoderFromCache(schema.CacheFingerprint(), reflect2.TypeOf(float32(1)).RType()))
+}
+
+func TestConfig_MaxCodecCacheSizeWithRecursiveSchema(t *testing.T) {
+	type node struct {
+		Value int   `avro:"value"`
+		Next  *node `avro:"next"`
+	}
+	api := Config{MaxCodecCacheSize: 1}.Freeze()
+	cfg := api.(*frozenConfig)
+	list := MustParse(`{"type":"record","name":"Node","namespace":"cache.recursive","fields":[
+		{"name":"value","type":"int"},
+		{"name":"next","type":["null","Node"]}
+	]}`)
+	want := []byte{0x02, 0x02, 0x04, 0x02, 0x06, 0x00}
+
+	for range 3 {
+		data, err := api.Marshal(list, node{Value: 1, Next: &node{Value: 2, Next: &node{Value: 3}}})
+		require.NoError(t, err)
+		assert.Equal(t, want, data)
+
+		_, err = api.Marshal(MustParse(`"long"`), int64(1))
+		require.NoError(t, err)
+
+		var got node
+		require.NoError(t, api.Unmarshal(list, data, &got))
+		assert.Equal(t, node{Value: 1, Next: &node{Value: 2, Next: &node{Value: 3}}}, got)
+
+		var generic map[string]any
+		require.NoError(t, api.Unmarshal(list, data, &generic))
+		third := map[string]any{"value": 3, "next": nil}
+		second := map[string]any{"value": 2, "next": map[string]any{"cache.recursive.Node": third}}
+		assert.Equal(t, map[string]any{"value": 1, "next": map[string]any{"cache.recursive.Node": second}}, generic)
+
+		assert.Equal(t, int64(1), cfg.encoderCache.size.Load())
+		assert.Equal(t, int64(1), cfg.decoderCache.size.Load())
+	}
 }

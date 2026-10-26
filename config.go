@@ -54,7 +54,7 @@ type Config struct {
 	DisableCaching bool
 
 	// MaxCodecCacheSize caps the number of cached encoders and, separately, decoders.
-	// Once a cache is full, codecs for new schema and type pairs are rebuilt on every call.
+	// Once a cache is full, caching a new codec evicts an arbitrary cached one.
 	// This defaults to 0, which leaves the caches unbounded; set it or DisableCaching when
 	// schemas come from untrusted sources.
 	MaxCodecCacheSize int
