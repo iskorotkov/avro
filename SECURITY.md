@@ -35,7 +35,7 @@ decoder, err := avro.NewDecoder(schema, untrustedReader)
 
 ## Configuration Guidelines
 
-1. **MaxByteSliceSize**: Controls the maximum size of individual `bytes` or `string` values. Default: 1 MiB. Set to -1 to disable (not recommended for untrusted input).
+1. **MaxByteSliceSize**: Controls the maximum size of individual `bytes` or `string` values. Default: 1 MiB. Zero or negative values select the default; the limit cannot be disabled, but can be raised up to the platform allocation limit. A length larger than the remaining input fails with an error wrapping `io.ErrUnexpectedEOF` before anything is allocated.
 
 2. **MaxSliceAllocSize**: Controls the total number of array elements in one decoded value, summed over all arrays it contains (including skipped fields). Default: 67,108,864. Zero or negative values select the default.
 
