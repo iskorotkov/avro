@@ -699,27 +699,12 @@ type bytesDecimalCodec struct {
 }
 
 func (c *bytesDecimalCodec) Decode(ptr unsafe.Pointer, r *Reader) {
-	b := r.ReadBytes()
-	if i := (&big.Int{}).SetBytes(b); len(b) > 0 && b[0]&0x80 > 0 {
-		i.Sub(i, new(big.Int).Lsh(one, uint(len(b))*8))
-	}
-	*(**big.Rat)(ptr) = ratFromBytes(b, c.scale)
-}
-
-func ratFromBytes(b []byte, scale int) *big.Rat {
-	num := (&big.Int{}).SetBytes(b)
-	if len(b) > 0 && b[0]&0x80 > 0 {
-		num.Sub(num, new(big.Int).Lsh(one, uint(len(b))*8))
-	}
-	denom := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(scale)), nil)
-	return new(big.Rat).SetFrac(num, denom)
+	*(**big.Rat)(ptr) = ratFromBytes(r.ReadBytes(), c.scale)
 }
 
 func (c *bytesDecimalCodec) Encode(ptr unsafe.Pointer, w *Writer) {
 	r := (*big.Rat)(ptr)
-	scale := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(c.scale)), nil)
-	i := (&big.Int{}).Mul(r.Num(), scale)
-	i = i.Div(i, r.Denom())
+	i := unscaledDecimal(r, c.scale)
 
 	if numDigits, ok := checkDecimalPrecision(i, c.prec); !ok {
 		w.Error = fmt.Errorf(
@@ -755,18 +740,12 @@ type bytesDecimalPtrCodec struct {
 }
 
 func (c *bytesDecimalPtrCodec) Decode(ptr unsafe.Pointer, r *Reader) {
-	b := r.ReadBytes()
-	if i := (&big.Int{}).SetBytes(b); len(b) > 0 && b[0]&0x80 > 0 {
-		i.Sub(i, new(big.Int).Lsh(one, uint(len(b))*8))
-	}
-	*(**big.Rat)(ptr) = ratFromBytes(b, c.scale)
+	*(**big.Rat)(ptr) = ratFromBytes(r.ReadBytes(), c.scale)
 }
 
 func (c *bytesDecimalPtrCodec) Encode(ptr unsafe.Pointer, w *Writer) {
 	r := *(**big.Rat)(ptr)
-	scale := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(c.scale)), nil)
-	i := (&big.Int{}).Mul(r.Num(), scale)
-	i = i.Div(i, r.Denom())
+	i := unscaledDecimal(r, c.scale)
 
 	if numDigits, ok := checkDecimalPrecision(i, c.prec); !ok {
 		w.Error = fmt.Errorf(

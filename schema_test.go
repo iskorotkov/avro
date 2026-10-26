@@ -994,6 +994,11 @@ func TestFixedSchema(t *testing.T) {
 			schema:  `{"type":"fixed", "name":"test", "namespace": "org.hamba.avro", "size": -1}`,
 			wantErr: require.Error,
 		},
+		{
+			name:    "Size Exceeds Maximum",
+			schema:  `{"type":"fixed", "name":"test", "namespace": "org.hamba.avro", "size": 1099511627776}`,
+			wantErr: require.Error,
+		},
 	}
 
 	for _, test := range tests {
@@ -1157,6 +1162,12 @@ func TestSchema_LogicalTypes(t *testing.T) {
 		{
 			name:        "Bytes Decimal Negative Scale",
 			schema:      `{"type": "bytes", "logicalType": "decimal", "precision": 1, "scale": -1}`,
+			wantType:    avro.Bytes,
+			wantLogical: false,
+		},
+		{
+			name:        "Bytes Decimal Precision Too Large",
+			schema:      `{"type": "bytes", "logicalType": "decimal", "precision": 50000000, "scale": 50000000}`,
 			wantType:    avro.Bytes,
 			wantLogical: false,
 		},

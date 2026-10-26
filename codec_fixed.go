@@ -141,9 +141,7 @@ func (c *fixedDecimalCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 
 func (c *fixedDecimalCodec) Encode(ptr unsafe.Pointer, w *Writer) {
 	r := *(**big.Rat)(ptr)
-	scale := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(c.scale)), nil)
-	i := (&big.Int{}).Mul(r.Num(), scale)
-	i = i.Div(i, r.Denom())
+	i := unscaledDecimal(r, c.scale)
 
 	if numDigits, ok := checkDecimalPrecision(i, c.prec); !ok {
 		w.Error = fmt.Errorf(

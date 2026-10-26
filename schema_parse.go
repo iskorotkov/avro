@@ -456,7 +456,7 @@ type fixedSchema struct {
 	Namespace string         `mapstructure:"namespace"`
 	Aliases   []string       `mapstructure:"aliases"`
 	Type      string         `mapstructure:"type"`
-	Size      int            `mapstructure:"size"`
+	Size      int64          `mapstructure:"size"`
 	Props     map[string]any `mapstructure:",remain"`
 }
 
@@ -479,16 +479,23 @@ func parseFixed(namespace string, m map[string]any, seen seenCache, cache *Schem
 	if !slices.Contains(meta.Keys, "size") {
 		return nil, errors.New("avro: fixed must have a size")
 	}
+	if limit, exceeded := maxFixedSize.exceeds(f.Size); exceeded {
+		return nil, fmt.Errorf("avro: fixed size %d exceeds the maximum of %d", f.Size, limit)
+	}
+	if f.Size > math.MaxInt {
+		return nil, fmt.Errorf("avro: fixed size %d overflows int", f.Size)
+	}
+	size := int(f.Size)
 
 	var logical LogicalSchema
 	if logicalType := logicalTypeProperty(f.Props); logicalType != "" {
-		logical = parseFixedLogicalType(f.Size, logicalType, f.Props)
+		logical = parseFixedLogicalType(size, logicalType, f.Props)
 		if logical != nil {
 			delete(f.Props, "logicalType")
 		}
 	}
 
-	fixed, err := NewFixedSchema(f.Name, f.Namespace, f.Size, logical, WithAliases(f.Aliases), WithProps(f.Props))
+	fixed, err := NewFixedSchema(f.Name, f.Namespace, size, logical, WithAliases(f.Aliases), WithProps(f.Props))
 	if err != nil {
 		return nil, err
 	}
@@ -541,7 +548,7 @@ func parseDecimalLogicalType(size int, props map[string]any) LogicalSchema {
 }
 
 func newDecimalLogicalType(size, prec, scale int) LogicalSchema {
-	if prec <= 0 {
+	if _, exceeded := maxDecimalPrecision.exceeds(int64(prec)); prec <= 0 || exceeded {
 		return nil
 	}
 

@@ -3,6 +3,7 @@ package avro
 import (
 	"errors"
 	"math/big"
+	"reflect"
 	"time"
 
 	"github.com/modern-go/reflect2"
@@ -116,8 +117,7 @@ func genericReceiver(schema Schema) (reflect2.Type, error) {
 				return reflect2.TypeOf(v), nil
 			}
 		}
-		v := byteSliceToArray(make([]byte, fixed.Size()), fixed.Size())
-		return reflect2.TypeOf(v), nil
+		return reflect2.Type2(reflect.ArrayOf(fixed.Size(), byteType)), nil
 	default:
 		// This should not be possible.
 		return nil, errors.New("dynamic receiver not found for schema " + schemaName)
