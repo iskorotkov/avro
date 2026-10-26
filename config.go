@@ -55,8 +55,9 @@ type Config struct {
 	// call to Marshal() and Unmarshal()
 	DisableCaching bool
 
-	// MaxByteSliceSize is the maximum size of `bytes` or `string` types the Reader will create, defaulting to 1MiB.
-	// If this size is exceeded, the Reader returns an error. This can be disabled by setting a negative number.
+	// MaxByteSliceSize is the maximum size in bytes of `bytes` or `string` types the Reader will allocate.
+	// It defaults to 1 MiB when set to zero or a negative value and is capped at the platform allocation limit.
+	// If this size is exceeded, the Reader returns an error.
 	MaxByteSliceSize int
 
 	// MaxSliceAllocSize is the maximum total number of array elements the decoder will read for a
@@ -330,10 +331,10 @@ func (c *frozenConfig) getBlockLength() int {
 
 func (c *frozenConfig) getMaxByteSliceSize() int {
 	size := c.config.MaxByteSliceSize
-	if size == 0 {
+	if size <= 0 {
 		return defaultMaxByteSliceSize
 	}
-	return size
+	return min(size, maxAllocSize)
 }
 
 func (c *frozenConfig) getMaxSliceAllocSize() int {

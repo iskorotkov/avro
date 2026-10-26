@@ -1,6 +1,11 @@
 package avro
 
-import "math/bits"
+import (
+	"errors"
+	"fmt"
+	"io"
+	"math/bits"
+)
 
 const (
 	// maxBlockPrealloc caps how many items a block header may allocate before they are decoded.
@@ -68,6 +73,14 @@ func (r *Reader) remainingInput() int {
 	default:
 		return -1
 	}
+}
+
+// reportTruncated records an error wrapping io.ErrUnexpectedEOF for a value that cannot fit in the remaining input.
+func (r *Reader) reportTruncated(operation, msg string) {
+	if r.Error != nil && !errors.Is(r.Error, io.EOF) {
+		return
+	}
+	r.Error = fmt.Errorf("avro: %s: %s: %w", operation, msg, io.ErrUnexpectedEOF)
 }
 
 // allowArrayBlock reports whether an array block of n items with the given minimum item size may be decoded.

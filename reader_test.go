@@ -724,7 +724,7 @@ func TestReader_ReadBytes(t *testing.T) {
 		},
 		{
 			data:    []byte{0x08, 0xFF}, // io.EOF length greater then data
-			want:    []byte{0xFF, 0x0, 0x0, 0x0},
+			want:    nil,
 			wantErr: require.Error,
 		},
 	}
@@ -773,16 +773,13 @@ func TestReader_ReadBytesTruncationBypassesMaxByteSliceSize(t *testing.T) {
 	require.ErrorContains(t, r.Error, "MaxByteSliceSize")
 }
 
-// With MaxByteSliceSize disabled (0), a length above the platform int
-// range would otherwise reach `make([]byte, size)` and panic on 32-bit.
-// The dedicated MaxInt guard rejects it cleanly.
+// On 32-bit a length above the platform int range must be rejected before
+// `make([]byte, size)` truncates and panics. The MaxByteSliceSize cap (which
+// can never exceed the platform int) catches it cleanly.
 func TestReader_ReadBytesLengthExceedsPlatformInt(t *testing.T) {
 	if strconv.IntSize != 32 {
 		t.Skipf("only meaningful on 32-bit (have %d-bit)", strconv.IntSize)
 	}
-
-	avro.DefaultConfig = avro.Config{MaxByteSliceSize: -1}.Freeze()
-	defer ConfigTeardown()
 
 	buf := &bytes.Buffer{}
 	w := avro.NewWriter(buf, 0)
@@ -793,7 +790,7 @@ func TestReader_ReadBytesLengthExceedsPlatformInt(t *testing.T) {
 	got := r.ReadBytes()
 
 	assert.Nil(t, got)
-	require.ErrorContains(t, r.Error, "is too big")
+	require.ErrorContains(t, r.Error, "MaxByteSliceSize")
 }
 
 func TestReader_ReadString(t *testing.T) {
@@ -854,7 +851,7 @@ func TestReader_ReadString(t *testing.T) {
 		},
 		{
 			data:    []byte{0x08, 0x66}, // io.EOF length greater then data
-			want:    "\x66\x00\x00\x00",
+			want:    "",
 			wantErr: require.Error,
 		},
 	}

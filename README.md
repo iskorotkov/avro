@@ -245,6 +245,8 @@ When processing untrusted Avro data, it is important to configure protection aga
 
 Independently of these options, array and map counts must fit in the remaining input when it is known (byte slices, `bytes.Reader`, `bytes.Buffer`), allocation grows in chunks as items are decoded, and arrays whose items have no wire representation (such as `null` or empty records) are limited to 1,048,576 items per decoded value.
 
+When reading Object Container Files, `ocf.WithMaxBlockBytes` and `ocf.WithMaxDecompressedBlockBytes` additionally cap a single data block's compressed and decompressed sizes (default: `64MiB` each).
+
 For comprehensive security considerations and configuration requirements, please refer to [SECURITY.md](SECURITY.md).
 
 ## Benchmark

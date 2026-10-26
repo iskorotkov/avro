@@ -35,7 +35,7 @@ decoder, err := avro.NewDecoder(schema, untrustedReader)
 
 ## Configuration Guidelines
 
-1. **MaxByteSliceSize**: Controls the maximum size of individual `bytes` or `string` values. Default: 1 MiB. Set to -1 to disable (not recommended for untrusted input).
+1. **MaxByteSliceSize**: Controls the maximum size of individual `bytes` or `string` values. Default: 1 MiB. Zero or negative values select the default; the limit cannot be disabled, but can be raised up to the platform allocation limit. A length larger than the remaining input fails with an error wrapping `io.ErrUnexpectedEOF` before anything is allocated.
 
 2. **MaxSliceAllocSize**: Controls the total number of array elements in one decoded value, summed over all arrays it contains (including skipped fields). Default: 67,108,864. Zero or negative values select the default.
 
@@ -64,7 +64,7 @@ OCF files contain a sequence of *blocks*. Each block declares its compressed siz
 dec, err := ocf.NewDecoder(
     untrustedReader,
     ocf.WithMaxBlockBytes(16 << 20),             // compressed cap, 16 MiB
-    ocf.WithMaxDecompressedBlockBytes(64 << 20), // decompressed cap, 64 MiB
+    ocf.WithMaxDecompressedBlockBytes(32 << 20), // decompressed cap, 32 MiB
 )
 ```
 
@@ -73,7 +73,7 @@ dec, err := ocf.NewDecoder(
 | `WithMaxBlockBytes(n)` | the **compressed** block size declared in the block header, checked before any allocation | a header that claims a huge block (forced pre-allocation OOM) |
 | `WithMaxDecompressedBlockBytes(n)` | the **decompressed** output produced by the codec | zip-bomb-style amplification (small block expands to gigabytes) |
 
-Both caps default to unlimited for backward compatibility. **For untrusted input, both must be set.** A compressed cap alone is not sufficient: deflate, snappy, and zstandard all support amplification ratios well past 1000:1.
+Both caps default to 64 MiB; zero or negative values select the default. Consider lowering both when decoding untrusted input. A compressed cap alone is not sufficient: deflate, snappy, and zstandard all support amplification ratios well past 1000:1.
 
 ### Codec coverage
 

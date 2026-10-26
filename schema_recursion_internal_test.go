@@ -2,6 +2,7 @@ package avro
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -37,4 +38,14 @@ func TestIsRecursive(t *testing.T) {
 			assert.Equal(t, tt.want, isRecursive(MustParse(tt.schema).(*RecordSchema)))
 		})
 	}
+}
+
+func TestIsRecursive_DAGIsLinear(t *testing.T) {
+	schema := MustParse(dagSchema(64)).(*RecordSchema)
+
+	start := time.Now()
+	got := isRecursive(schema)
+
+	assert.False(t, got)
+	assert.Less(t, time.Since(start), 100*time.Millisecond)
 }

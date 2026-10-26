@@ -1,7 +1,9 @@
 package avro
 
 import (
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -57,4 +59,24 @@ func TestMinWireSize_SaturatesHugeRecords(t *testing.T) {
 	]}`)
 
 	assert.Equal(t, maxWireSize, minWireSize(schema))
+}
+
+// dagSchema builds records Lk with two fields of type L(k-1), so naive traversal visits 2^levels nodes.
+func dagSchema(levels int) string {
+	schema := `{"type":"record","name":"L0","fields":[{"name":"v","type":"long"}]}`
+	for k := 1; k <= levels; k++ {
+		prev := fmt.Sprintf("L%d", k-1)
+		schema = fmt.Sprintf(`{"type":"record","name":"L%d","fields":[{"name":"a","type":%s},{"name":"b","type":%q}]}`, k, schema, prev)
+	}
+	return schema
+}
+
+func TestMinWireSize_DAGIsLinear(t *testing.T) {
+	schema := MustParse(dagSchema(64))
+
+	start := time.Now()
+	got := minWireSize(schema)
+
+	assert.Equal(t, maxWireSize, got)
+	assert.Less(t, time.Since(start), 100*time.Millisecond)
 }
