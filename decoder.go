@@ -1,6 +1,8 @@
 package avro
 
 import (
+	"errors"
+	"fmt"
 	"io"
 )
 
@@ -34,12 +36,20 @@ func (d *Decoder) Decode(v any) error {
 	}
 
 	d.r.ReadVal(d.s, v)
+	return valueError(d.r.Error)
+}
 
-	//nolint:errorlint // Only direct EOF errors should be discarded.
-	if d.r.Error == io.EOF {
-		return nil
+// valueError reports input that ends inside a value as io.ErrUnexpectedEOF.
+func valueError(err error) error {
+	switch {
+	case err == nil, !errors.Is(err, io.EOF):
+		return err
+	//nolint:errorlint // A bare EOF is replaced without extra context.
+	case err == io.EOF:
+		return io.ErrUnexpectedEOF
+	default:
+		return fmt.Errorf("%w: %s", io.ErrUnexpectedEOF, err.Error())
 	}
-	return d.r.Error
 }
 
 // Unmarshal parses the Avro encoded data and stores the result in the value pointed to by v.

@@ -2,10 +2,12 @@ package avro_test
 
 import (
 	"bytes"
+	"io"
 	"testing"
 
 	"github.com/iskorotkov/avro/v2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewDecoder_SchemaError(t *testing.T) {
@@ -74,9 +76,22 @@ func TestUnmarshal(t *testing.T) {
 	schema := avro.MustParse("int")
 
 	var i int
+	err := avro.Unmarshal(schema, []byte{0xE2, 0x03}, &i)
+
+	require.NoError(t, err)
+	assert.Equal(t, 241, i)
+}
+
+func TestUnmarshal_TruncatedValueReturnsUnexpectedEOF(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := avro.MustParse("int")
+
+	var i int
 	err := avro.Unmarshal(schema, []byte{0xE2}, &i)
 
-	assert.NoError(t, err)
+	require.ErrorIs(t, err, io.ErrUnexpectedEOF)
+	assert.NotErrorIs(t, err, io.EOF)
 }
 
 func TestUnmarshal_Ptr(t *testing.T) {
