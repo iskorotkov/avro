@@ -2,6 +2,7 @@ package avro
 
 import (
 	"reflect"
+	"sync/atomic"
 	"unsafe"
 
 	"github.com/modern-go/reflect2"
@@ -54,8 +55,16 @@ func (d *efaceDecoder) decode(pObj *any, r *Reader) {
 }
 
 type interfaceEncoder struct {
+	cfg    *frozenConfig
 	schema Schema
 	typ    reflect2.Type
+	cached atomic.Pointer[typedEncoder]
+}
+
+// typedEncoder pins the encoder built for the first dynamic type seen by an interfaceEncoder.
+type typedEncoder struct {
+	rtype   uintptr
+	encoder ValEncoder
 }
 
 func (e *interfaceEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
@@ -66,5 +75,17 @@ func (e *interfaceEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 		return
 	}
 
-	w.WriteVal(e.schema, obj)
+	e.encoderOf(obj).Encode(reflect2.PtrOf(obj), w)
+}
+
+func (e *interfaceEncoder) encoderOf(obj any) ValEncoder {
+	rtype := reflect2.RTypeOf(obj)
+	if cached := e.cached.Load(); cached != nil && cached.rtype == rtype {
+		return cached.encoder
+	}
+
+	enc := e.cfg.EncoderOf(e.schema, reflect2.TypeOf(obj))
+	// First type wins so values of mixed types never thrash the slot.
+	e.cached.CompareAndSwap(nil, &typedEncoder{rtype: rtype, encoder: enc})
+	return enc
 }
