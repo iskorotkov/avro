@@ -13,10 +13,12 @@ import (
 	"io"
 	"math"
 	"os"
+	"reflect"
+	"slices"
 
 	"github.com/iskorotkov/avro/v2"
-	"github.com/iskorotkov/avro/v2/internal/bytesx"
 	"github.com/klauspost/compress/zstd"
+	"github.com/modern-go/reflect2"
 )
 
 const (
@@ -114,19 +116,25 @@ func WithMaxDecompressedBlockBytes(n int) DecoderFunc {
 	}
 }
 
+// maxZeroWidthBlockCount caps the record count of a block whose schema encodes to zero bytes.
+const maxZeroWidthBlockCount = 1 << 24
+
 // Decoder reads and decodes Avro values from a container file.
 type Decoder struct {
-	reader      *avro.Reader
-	resetReader *bytesx.ResetReader
-	decoder     *avro.Decoder
-	meta        map[string][]byte
-	sync        [16]byte
-	schema      avro.Schema
+	reader   *avro.Reader
+	block    *avro.Reader
+	blockBuf []byte
+	api      avro.API
+	decoders typeCache[avro.ValDecoder]
+	meta     map[string][]byte
+	sync     [16]byte
+	schema   avro.Schema
 
 	codec Codec
 
 	count         int64
 	maxBlockBytes int
+	minValueBytes int
 }
 
 // NewDecoder returns a new decoder that reads from reader r.
@@ -151,17 +159,16 @@ func NewDecoder(r io.Reader, opts ...DecoderFunc) (*Decoder, error) {
 		return nil, fmt.Errorf("decoder: %w", err)
 	}
 
-	decReader := bytesx.NewResetReader([]byte{})
-
 	return &Decoder{
 		reader:        reader,
-		resetReader:   decReader,
-		decoder:       cfg.DecoderConfig.NewDecoder(h.Schema, decReader),
+		block:         avro.NewReader(nil, 0, avro.WithReaderConfig(cfg.DecoderConfig)),
+		api:           cfg.DecoderConfig,
 		meta:          h.Meta,
 		sync:          h.Sync,
 		codec:         h.Codec,
 		schema:        h.Schema,
 		maxBlockBytes: cfg.MaxBlockBytes,
+		minValueBytes: minWireSize(h.Schema),
 	}, nil
 }
 
@@ -178,9 +185,8 @@ func (d *Decoder) Schema() avro.Schema {
 
 // HasNext determines if there is another value to read.
 func (d *Decoder) HasNext() bool {
-	if d.count <= 0 {
-		count := d.readBlock()
-		d.count = count
+	if d.count <= 0 && d.reader.Error == nil && d.blockConsumed() {
+		d.count = d.readBlock()
 	}
 
 	if d.reader.Error != nil {
@@ -196,9 +202,42 @@ func (d *Decoder) Decode(v any) error {
 		return errors.New("decoder: no data found, call HasNext first")
 	}
 
-	d.count--
+	dec, err := d.decoders.get(v, d.decoderOf)
+	if err != nil {
+		return err
+	}
+	ptr := reflect2.PtrOf(v)
+	if ptr == nil {
+		return errors.New("decoder: can not read into nil pointer")
+	}
 
-	return d.decoder.Decode(v)
+	d.count--
+	dec.Decode(ptr, d.block)
+
+	if err = d.block.Error; err != nil {
+		if errors.Is(err, io.EOF) {
+			err = fmt.Errorf("decoder: block ended mid-value: %w", io.ErrUnexpectedEOF)
+		}
+		d.reader.Error = err
+		return err
+	}
+	return nil
+}
+
+func (d *Decoder) decoderOf(typ reflect2.Type) (avro.ValDecoder, error) {
+	if typ == nil || typ.Kind() != reflect.Pointer {
+		return nil, errors.New("decoder: can only unmarshal into pointer")
+	}
+	return d.api.DecoderOf(d.schema, typ), nil
+}
+
+func (d *Decoder) blockConsumed() bool {
+	_ = d.block.Peek()
+	if d.block.Error == nil {
+		d.reader.Error = errors.New("decoder: block has bytes left after its last value")
+		return false
+	}
+	return true
 }
 
 // Error returns the last reader error.
@@ -245,60 +284,71 @@ func (d *Decoder) readBlock() int64 {
 	}
 	size := int(size64)
 
-	data, err := readBounded(d.reader, size)
+	data, err := readBounded(d.reader, size, d.blockBuf)
 	if err != nil {
 		d.reader.Error = err
 		return 0
 	}
+	d.blockBuf = data
 
 	var sync [16]byte
 	d.reader.Read(sync[:])
-	if d.sync != sync && !errors.Is(d.reader.Error, io.EOF) {
+	if d.reader.Error != nil {
+		d.reader.Error = fmt.Errorf("decoder: invalid block: truncated sync marker: %w", d.reader.Error)
+		return 0
+	}
+	if d.sync != sync {
 		d.reader.Error = errors.New("decoder: invalid block")
 		return 0
 	}
 
-	if count > 0 {
-		decoded, err := d.codec.Decode(data)
-		if err != nil {
-			d.reader.Error = err
-			return 0
-		}
-		d.resetReader.Reset(decoded)
+	if count == 0 {
+		return 0
 	}
+
+	decoded, err := d.codec.Decode(data)
+	if err != nil {
+		d.reader.Error = err
+		return 0
+	}
+	if err = d.checkBlockCount(count, len(decoded)); err != nil {
+		d.reader.Error = err
+		return 0
+	}
+	d.block.Reset(decoded)
+	d.block.Error = nil
 
 	return count
 }
 
+func (d *Decoder) checkBlockCount(count int64, size int) error {
+	if d.minValueBytes == 0 {
+		if count > maxZeroWidthBlockCount {
+			return fmt.Errorf("decoder: block count %d exceeds %d for a zero-width schema", count, maxZeroWidthBlockCount)
+		}
+		return nil
+	}
+	if count > int64(size/d.minValueBytes) {
+		return fmt.Errorf("decoder: block count %d does not fit in %d bytes", count, size)
+	}
+	return nil
+}
+
 const blockReadChunkSize = 64 * 1024
 
-func readBounded(r *avro.Reader, size int) ([]byte, error) {
-	if size == 0 {
-		return nil, nil
-	}
-	if size <= blockReadChunkSize {
-		buf := make([]byte, size)
-		r.Read(buf)
+// readBounded reads size bytes into buf, growing it chunk by chunk so a lying size cannot force a huge allocation.
+func readBounded(r *avro.Reader, size int, buf []byte) ([]byte, error) {
+	buf = buf[:0]
+	for len(buf) < size {
+		n := min(size-len(buf), blockReadChunkSize)
+		buf = slices.Grow(buf, n)
+		r.Read(buf[len(buf) : len(buf)+n])
 		if r.Error != nil {
 			return nil, r.Error
 		}
-		return buf, nil
+		buf = buf[:len(buf)+n]
 	}
-
-	var out bytes.Buffer
-	out.Grow(blockReadChunkSize)
-	chunk := make([]byte, blockReadChunkSize)
-	remaining := size
-	for remaining > 0 {
-		n := min(remaining, blockReadChunkSize)
-		r.Read(chunk[:n])
-		if r.Error != nil {
-			return nil, r.Error
-		}
-		out.Write(chunk[:n])
-		remaining -= n
-	}
-	return out.Bytes(), nil
+	return buf, nil
 }
 
 type encoderConfig struct {
@@ -709,8 +759,11 @@ func skipToEnd(reader *avro.Reader, sync [16]byte) error {
 
 		var synMark [16]byte
 		reader.Read(synMark[:])
-		if sync != synMark && !errors.Is(reader.Error, io.EOF) {
-			reader.Error = errors.New("invalid block")
+		if reader.Error != nil {
+			return fmt.Errorf("invalid block: truncated sync marker: %w", reader.Error)
+		}
+		if sync != synMark {
+			return errors.New("invalid block")
 		}
 	}
 }
