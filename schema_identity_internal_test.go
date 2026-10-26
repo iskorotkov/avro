@@ -1,6 +1,7 @@
 package avro
 
 import (
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -69,4 +70,21 @@ func mustNewUnion(t *testing.T, types ...Schema) *UnionSchema {
 	u, err := NewUnionSchema(types)
 	require.NoError(t, err)
 	return u
+}
+
+func TestDefaultsIdentity_NonJSONDefaults(t *testing.T) {
+	record := func(def float64) Schema {
+		t.Helper()
+		f, err := NewField("d", NewPrimitiveSchema(Double, nil), WithDefault(def))
+		require.NoError(t, err)
+		rec, err := NewRecordSchema("R", "identity.nan", []*Field{f})
+		require.NoError(t, err)
+		return rec
+	}
+
+	nan, inf := defaultsIdentity(record(math.NaN())), defaultsIdentity(record(math.Inf(1)))
+
+	assert.Equal(t, `"identity.nan.R"."d"=3:NaN`, string(nan))
+	assert.Equal(t, `"identity.nan.R"."d"=4:+Inf`, string(inf))
+	assert.NotEqual(t, record(math.NaN()).CacheFingerprint(), record(math.Inf(1)).CacheFingerprint())
 }

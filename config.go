@@ -53,6 +53,12 @@ type Config struct {
 	// call to Marshal() and Unmarshal()
 	DisableCaching bool
 
+	// MaxCodecCacheSize caps the number of cached encoders and, separately, decoders.
+	// Once a cache is full, codecs for new schema and type pairs are rebuilt on every call.
+	// This defaults to 0, which leaves the caches unbounded; set it or DisableCaching when
+	// schemas come from untrusted sources.
+	MaxCodecCacheSize int
+
 	// MaxByteSliceSize is the maximum size of `bytes` or `string` types the Reader will create, defaulting to 1MiB.
 	// If this size is exceeded, the Reader returns an error. This can be disabled by setting a negative number.
 	MaxByteSliceSize int
@@ -145,8 +151,8 @@ type API interface {
 type frozenConfig struct {
 	config Config
 
-	decoderCache sync.Map // map[cacheKey]ValDecoder
-	encoderCache sync.Map // map[cacheKey]ValEncoder
+	decoderCache codecCache
+	encoderCache codecCache
 
 	readerPool *sync.Pool
 	writerPool *sync.Pool
@@ -258,7 +264,7 @@ func (c *frozenConfig) addDecoderToCache(fingerprint [32]byte, rtype uintptr, de
 		return
 	}
 	key := cacheKey{fingerprint: fingerprint, rtype: rtype}
-	c.decoderCache.Store(key, dec)
+	c.decoderCache.store(key, dec, c.config.MaxCodecCacheSize)
 }
 
 func (c *frozenConfig) getDecoderFromCache(fingerprint [32]byte, rtype uintptr) ValDecoder {
@@ -266,11 +272,8 @@ func (c *frozenConfig) getDecoderFromCache(fingerprint [32]byte, rtype uintptr) 
 		return nil
 	}
 	key := cacheKey{fingerprint: fingerprint, rtype: rtype}
-	if dec, ok := c.decoderCache.Load(key); ok {
-		return dec.(ValDecoder)
-	}
-
-	return nil
+	dec, _ := c.decoderCache.load(key).(ValDecoder)
+	return dec
 }
 
 func (c *frozenConfig) addEncoderToCache(fingerprint [32]byte, rtype uintptr, enc ValEncoder) {
@@ -278,7 +281,7 @@ func (c *frozenConfig) addEncoderToCache(fingerprint [32]byte, rtype uintptr, en
 		return
 	}
 	key := cacheKey{fingerprint: fingerprint, rtype: rtype}
-	c.encoderCache.Store(key, enc)
+	c.encoderCache.store(key, enc, c.config.MaxCodecCacheSize)
 }
 
 func (c *frozenConfig) getEncoderFromCache(fingerprint [32]byte, rtype uintptr) ValEncoder {
@@ -286,11 +289,8 @@ func (c *frozenConfig) getEncoderFromCache(fingerprint [32]byte, rtype uintptr) 
 		return nil
 	}
 	key := cacheKey{fingerprint: fingerprint, rtype: rtype}
-	if enc, ok := c.encoderCache.Load(key); ok {
-		return enc.(ValEncoder)
-	}
-
-	return nil
+	enc, _ := c.encoderCache.load(key).(ValEncoder)
+	return enc
 }
 
 func (c *frozenConfig) getTagKey() string {

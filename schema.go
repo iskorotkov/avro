@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/md5" //nolint:gosec
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -371,14 +372,17 @@ func (i *cacheFingerprinter) CacheFingerprint(schema Schema, fn func() []byte) [
 
 	fp := schema.Fingerprint()
 	refs := externalRefsIdentity(schema)
-	if i.writerFingerprint == nil && len(refs) == 0 {
+	defs := defaultsIdentity(schema)
+	if i.writerFingerprint == nil && len(refs) == 0 && len(defs) == 0 {
 		i.cache.Store(fp)
 		return fp
 	}
 
 	h := sha256.New()
 	_, _ = h.Write(fp[:])
+	_, _ = h.Write(binary.AppendUvarint(nil, uint64(len(refs))))
 	_, _ = h.Write(refs)
+	_, _ = h.Write(defs)
 	if i.writerFingerprint != nil {
 		_, _ = h.Write(i.writerFingerprint[:])
 		if fn != nil {
@@ -728,17 +732,7 @@ func (s *RecordSchema) FingerprintUsing(typ FingerprintType) ([]byte, error) {
 
 // CacheFingerprint returns unique identity of the schema.
 func (s *RecordSchema) CacheFingerprint() [32]byte {
-	return s.cacheFingerprinter.CacheFingerprint(s, func() []byte {
-		var defs []any
-		for _, field := range s.fields {
-			if !field.HasDefault() {
-				continue
-			}
-			defs = append(defs, field.Default())
-		}
-		b, _ := json.Marshal(defs)
-		return b
-	})
+	return s.cacheFingerprinter.CacheFingerprint(s, nil)
 }
 
 // Field is an Avro record type field.

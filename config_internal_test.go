@@ -182,3 +182,16 @@ func TestConfig_DisableCache_DoesNotReuseEncoders(t *testing.T) {
 
 	assert.NotSame(t, enc1, enc2)
 }
+
+func TestConfig_MaxCodecCacheSizeBoundsCaches(t *testing.T) {
+	api := Config{MaxCodecCacheSize: 1}.Freeze()
+	cfg := api.(*frozenConfig)
+
+	values := map[string]any{`"long"`: int64(1), `"double"`: 1.0, `"float"`: float32(1)}
+	for s, v := range values {
+		_, err := api.Marshal(MustParse(s), v)
+		assert.NoError(t, err)
+	}
+
+	assert.Equal(t, int64(1), cfg.encoderCache.size.Load())
+}
