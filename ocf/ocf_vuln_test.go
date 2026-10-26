@@ -550,6 +550,21 @@ func TestDecoder_RejectsTruncatedSyncMarker(t *testing.T) {
 	assert.ErrorContains(t, err, "truncated sync marker")
 }
 
+func TestEncoder_FailedEncodeKeepsBlockIntact(t *testing.T) {
+	var buf bytes.Buffer
+	enc, err := ocf.NewEncoder(secSchema, &buf)
+	require.NoError(t, err)
+
+	require.NoError(t, enc.Encode(int64(1)))
+	require.Error(t, enc.Encode("not a long"))
+	require.NoError(t, enc.Encode(2))
+	require.NoError(t, enc.Close())
+
+	got, err := decodeAllLongs(t, buf.Bytes())
+	require.NoError(t, err)
+	assert.Equal(t, []int64{1, 2}, got)
+}
+
 func TestDecoder_AlternatingTargetTypes(t *testing.T) {
 	data := buildOCF(t, ocf.Null, []int64{1, 2, 3, 4})
 	dec, err := ocf.NewDecoder(bytes.NewReader(data))

@@ -4,7 +4,6 @@
 package ocf
 
 import (
-	"bytes"
 	"compress/flate"
 	"crypto/rand"
 	"encoding/json"
@@ -460,10 +459,12 @@ func WithEncodingConfig(wCfg avro.API) EncoderFunc {
 
 // Encoder writes Avro container file to an output stream.
 type Encoder struct {
-	writer  *avro.Writer
-	buf     *bytes.Buffer
-	encoder *avro.Encoder
-	sync    [16]byte
+	writer   *avro.Writer
+	block    *avro.Writer
+	api      avro.API
+	schema   avro.Schema
+	encoders typeCache[avro.ValEncoder]
+	sync     [16]byte
 
 	codec Codec
 
@@ -517,22 +518,8 @@ func newEncoder(schema avro.Schema, w io.Writer, cfg encoderConfig) (*Encoder, e
 			}
 
 			writer := avro.NewWriter(w, 0, avro.WithWriterConfig(cfg.EncodingConfig))
-			buf := &bytes.Buffer{}
-			e := &Encoder{
-				writer:      writer,
-				buf:         buf,
-				encoder:     cfg.EncodingConfig.NewEncoder(h.Schema, buf),
-				sync:        h.Sync,
-				codec:       h.Codec,
-				blockLength: cfg.BlockLength,
-				blockSize:   cfg.BlockSize,
-				header: Header{
-					Magic: magicBytes,
-					Meta:  h.Meta,
-					Sync:  h.Sync,
-				},
-			}
-			return e, nil
+			header := Header{Magic: magicBytes, Meta: h.Meta, Sync: h.Sync}
+			return newBlockEncoder(writer, h.Schema, h.Codec, header, cfg), nil
 		}
 	}
 
@@ -563,18 +550,21 @@ func newEncoder(schema avro.Schema, w io.Writer, cfg encoderConfig) (*Encoder, e
 		return nil, err
 	}
 
-	buf := &bytes.Buffer{}
-	e := &Encoder{
+	return newBlockEncoder(writer, schema, codec, header, cfg), nil
+}
+
+func newBlockEncoder(writer *avro.Writer, schema avro.Schema, codec Codec, header Header, cfg encoderConfig) *Encoder {
+	return &Encoder{
 		writer:      writer,
-		buf:         buf,
-		encoder:     cfg.EncodingConfig.NewEncoder(schema, buf),
+		block:       avro.NewWriter(nil, 0, avro.WithWriterConfig(cfg.EncodingConfig)),
+		api:         cfg.EncodingConfig,
+		schema:      schema,
 		sync:        header.Sync,
 		codec:       codec,
 		blockLength: cfg.BlockLength,
 		blockSize:   cfg.BlockSize,
 		header:      header,
 	}
-	return e, nil
 }
 
 func computeEncoderConfig(opts []EncoderFunc) encoderConfig {
@@ -597,7 +587,7 @@ func computeEncoderConfig(opts []EncoderFunc) encoderConfig {
 
 func (e *Encoder) shouldWriteDataBlock() bool {
 	blockLengthReached := e.blockLength != 0 && e.count >= e.blockLength
-	blockSizeReached := e.blockSize != 0 && e.buf.Len() >= e.blockSize
+	blockSizeReached := e.blockSize != 0 && e.block.Buffered() >= e.blockSize
 	return blockLengthReached || blockSizeReached
 }
 
@@ -606,10 +596,7 @@ func (e *Encoder) shouldWriteDataBlock() bool {
 // thrown if the bytes does not conform to the schema given to NewEncoder, but
 // the final ocf data will be corrupted.
 func (e *Encoder) Write(p []byte) (n int, err error) {
-	n, err = e.buf.Write(p)
-	if err != nil {
-		return n, err
-	}
+	n, _ = e.block.Write(p)
 
 	e.count++
 	if e.shouldWriteDataBlock() {
@@ -623,7 +610,11 @@ func (e *Encoder) Write(p []byte) (n int, err error) {
 
 // Encode writes the Avro encoding of v to the stream.
 func (e *Encoder) Encode(v any) error {
-	if err := e.encoder.Encode(v); err != nil {
+	enc, _ := e.encoders.get(v, e.encoderOf)
+	mark := e.block.Buffered()
+	enc.Encode(reflect2.PtrOf(v), e.block)
+	if err := e.block.Error; err != nil {
+		e.truncateBlock(mark)
 		return err
 	}
 
@@ -635,6 +626,18 @@ func (e *Encoder) Encode(v any) error {
 	}
 
 	return e.writer.Error
+}
+
+func (e *Encoder) encoderOf(typ reflect2.Type) (avro.ValEncoder, error) {
+	return e.api.EncoderOf(e.schema, typ), nil
+}
+
+// truncateBlock drops a partially encoded value so a failed Encode leaves the block intact.
+func (e *Encoder) truncateBlock(n int) {
+	kept := e.block.Buffer()[:n]
+	e.block.Reset(nil)
+	_, _ = e.block.Write(kept)
+	e.block.Error = nil
 }
 
 // Flush flushes the underlying writer.
@@ -681,9 +684,7 @@ func (e *Encoder) Reset(w io.Writer) error {
 		return err
 	}
 
-	// Reset buffer and encoder.
-	e.buf.Reset()
-	e.encoder.Reset(e.buf)
+	e.block.Reset(nil)
 	e.count = 0
 
 	return nil
@@ -692,7 +693,7 @@ func (e *Encoder) Reset(w io.Writer) error {
 func (e *Encoder) writerBlock() error {
 	e.writer.WriteLong(int64(e.count))
 
-	b := e.codec.Encode(e.buf.Bytes())
+	b := e.codec.Encode(e.block.Buffer())
 
 	e.writer.WriteLong(int64(len(b)))
 	_, _ = e.writer.Write(b)
@@ -700,7 +701,7 @@ func (e *Encoder) writerBlock() error {
 	_, _ = e.writer.Write(e.sync[:])
 
 	e.count = 0
-	e.buf.Reset()
+	e.block.Reset(nil)
 	return e.writer.Flush()
 }
 
