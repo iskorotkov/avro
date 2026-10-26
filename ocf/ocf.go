@@ -115,10 +115,13 @@ func WithMaxDecompressedBlockBytes(n int) DecoderFunc {
 	}
 }
 
-// maxZeroWidthBlockCount caps the record count of a block whose schema encodes to zero bytes.
+// maxZeroWidthBlockCount caps the record count of a block whose schema encodes to zero bytes, such as "null" or an empty record.
 const maxZeroWidthBlockCount = 1 << 24
 
 // Decoder reads and decodes Avro values from a container file.
+//
+// A block whose record count cannot fit in its decoded bytes is rejected. For schemas that encode to zero
+// bytes, such as "null" or an empty record, a block may hold at most 2^24 records; larger blocks are rejected.
 type Decoder struct {
 	reader   *avro.Reader
 	block    *avro.Reader
@@ -185,7 +188,11 @@ func (d *Decoder) Schema() avro.Schema {
 // HasNext determines if there is another value to read.
 func (d *Decoder) HasNext() bool {
 	if d.count <= 0 && d.reader.Error == nil && d.blockConsumed() {
+		// Empty blocks are skipped; readBlock stops the loop with an error at the end of the input.
 		d.count = d.readBlock()
+		for d.count == 0 && d.reader.Error == nil {
+			d.count = d.readBlock()
+		}
 	}
 
 	if d.reader.Error != nil {

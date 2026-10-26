@@ -150,3 +150,24 @@ func TestDecoder_RejectsNonPointerTarget(t *testing.T) {
 	require.NoError(t, dec.Decode(&v))
 	assert.Equal(t, int64(1), v)
 }
+
+func TestDecoder_SkipsEmptyBlockMidFile(t *testing.T) {
+	data := craftOCF(t, secSchema, 1, []byte{2})
+	sync := data[len(data)-16:]
+	var buf bytes.Buffer
+	buf.Write(data)
+	for _, block := range []struct {
+		count   int64
+		payload []byte
+	}{{0, nil}, {0, nil}, {2, []byte{4, 6}}} {
+		writeZigZagLong(&buf, block.count)
+		writeZigZagLong(&buf, int64(len(block.payload)))
+		buf.Write(block.payload)
+		buf.Write(sync)
+	}
+
+	got, err := decodeAllLongs(t, buf.Bytes())
+
+	require.NoError(t, err)
+	assert.Equal(t, []int64{1, 2, 3}, got)
+}
