@@ -458,7 +458,7 @@ func newEncoder(schema avro.Schema, w io.Writer, cfg encoderConfig) (*Encoder, e
 
 		if info.Size() > 0 {
 			reader := avro.NewReader(file, 0, avro.WithReaderConfig(cfg.EncodingConfig))
-			h, err := readHeader(reader, cfg.SchemaCache, cfg.CodecOptions)
+			h, err := readHeader(reader, avro.NewSchemaCache(cfg.SchemaCache), cfg.CodecOptions)
 			if err != nil {
 				return nil, err
 			}

@@ -1725,3 +1725,21 @@ func TestNewDecoder_DoesNotPolluteDefaultSchemaCache(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, cache.Get("ocf.poison.User"))
 }
+
+func TestNewEncoder_AppendDoesNotPolluteDefaultSchemaCache(t *testing.T) {
+	schema := `{"type":"record","name":"User","namespace":"ocf.append.poison","fields":[{"name":"admin","type":"boolean"}]}`
+	tmpFile, err := os.CreateTemp(t.TempDir(), "append-poison-*.avro")
+	require.NoError(t, err)
+	enc, err := ocf.NewEncoder(schema, tmpFile, ocf.WithEncoderSchemaCache(&avro.SchemaCache{}))
+	require.NoError(t, err)
+	require.NoError(t, enc.Close())
+	require.NoError(t, tmpFile.Close())
+
+	file, err := os.OpenFile(tmpFile.Name(), os.O_RDWR, 0o600)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = file.Close() })
+	_, err = ocf.NewEncoderWithSchema(avro.MustParse(`"null"`), file)
+
+	require.NoError(t, err)
+	assert.Nil(t, avro.DefaultSchemaCache.Get("ocf.append.poison.User"))
+}
