@@ -93,6 +93,21 @@ fmt.Println(out)
 
 More examples in the [godoc](https://pkg.go.dev/github.com/iskorotkov/avro/v2).
 
+### Encoding into a reused buffer
+
+`AppendMarshal` appends the encoding to a caller-owned buffer, so a hot loop that reuses the buffer does not allocate:
+
+```go
+buf := make([]byte, 0, 512)
+for _, rec := range records {
+	buf, err = avro.AppendMarshal(buf[:0], schema, &rec)
+	if err != nil {
+		log.Fatal(err)
+	}
+	send(buf)
+}
+```
+
 ### Types Conversions
 
 | Avro                          | Go Struct                                                  | Go Interface             |
