@@ -1,32 +1,43 @@
 package ocf
 
-import "github.com/iskorotkov/avro/v2"
+import (
+	"math"
+
+	"github.com/iskorotkov/avro/v2"
+)
 
 // minWireSize returns the fewest bytes a value of the schema can occupy in binary encoding.
 func minWireSize(schema avro.Schema) int {
-	return minWireSizeOf(schema, map[string]bool{})
+	w := wireSizer{memo: map[string]int{}}
+	return w.size(schema)
 }
 
-func minWireSizeOf(schema avro.Schema, visiting map[string]bool) int {
+// wireSizer memoizes records by name; a record seen mid-walk counts as zero, which is still a lower bound.
+type wireSizer struct {
+	memo   map[string]int
+	visits int
+}
+
+func (w *wireSizer) size(schema avro.Schema) int {
+	w.visits++
 	switch s := schema.(type) {
 	case *avro.NullSchema:
 		return 0
 	case *avro.FixedSchema:
-		return s.Size()
+		return min(s.Size(), math.MaxInt32)
 	case *avro.RefSchema:
-		return minWireSizeOf(s.Schema(), visiting)
+		return w.size(s.Schema())
 	case *avro.RecordSchema:
-		// A record that contains itself directly can never be encoded, so zero is a safe lower bound.
-		if visiting[s.FullName()] {
-			return 0
+		if size, ok := w.memo[s.FullName()]; ok {
+			return size
 		}
-		visiting[s.FullName()] = true
-		defer delete(visiting, s.FullName())
+		w.memo[s.FullName()] = 0
 
 		size := 0
 		for _, f := range s.Fields() {
-			size += minWireSizeOf(f.Type(), visiting)
+			size = saturatingAdd(size, w.size(f.Type()))
 		}
+		w.memo[s.FullName()] = size
 		return size
 	}
 
@@ -38,4 +49,12 @@ func minWireSizeOf(schema avro.Schema, visiting map[string]bool) int {
 	default:
 		return 1
 	}
+}
+
+// saturatingAdd adds two sizes in [0, MaxInt32] without overflowing a 32-bit int.
+func saturatingAdd(a, b int) int {
+	if b > math.MaxInt32-a {
+		return math.MaxInt32
+	}
+	return a + b
 }
