@@ -95,7 +95,7 @@ func logicalVectors() []binaryVector {
 		{"decimal-bytes/positive", `{"type":"bytes","logicalType":"decimal","precision":4,"scale":2}`, big.NewRat(1234, 100), "0404d2"},
 		{"decimal-bytes/negative", `{"type":"bytes","logicalType":"decimal","precision":4,"scale":2}`, big.NewRat(-1, 1), "029c"},
 		{"decimal-fixed/negative", `{"type":"fixed","name":"D","size":4,"logicalType":"decimal","precision":9,"scale":2}`, big.NewRat(-1, 1), "ffffff9c"},
-		{"uuid", `{"type":"string","logicalType":"uuid"}`, matrixUUID, "48" + hex.EncodeToString([]byte(matrixUUID))},
+		{"uuid", `{"type":"string","logicalType":"uuid"}`, matrixUUID, "48" + "66383164346661652d376465632d313164302d613736352d303061306339316536626636"},
 		{"duration", `{"type":"fixed","name":"Dur","size":12,"logicalType":"duration"}`, avro.LogicalDuration{Months: 1, Days: 2, Milliseconds: 3}, "010000000200000003000000"},
 	}
 }

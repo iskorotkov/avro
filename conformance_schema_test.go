@@ -29,8 +29,9 @@ func TestConformance_ApacheSchemaVectors(t *testing.T) {
 
 	for _, v := range vectors {
 		t.Run(v.id, func(t *testing.T) {
-			if v.input == "[  ]" {
-				t.Skip("empty union is rejected by NewUnionSchema; spec allows it")
+			// TODO: unskip once Parse accepts the empty union allowed by the spec.
+			if v.id == "016" {
+				t.Skip("empty union [] is rejected by Parse")
 			}
 
 			schema, err := avro.ParseWithCache(v.input, "", &avro.SchemaCache{})
