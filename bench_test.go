@@ -129,14 +129,18 @@ func BenchmarkSuperheroGenericEncode(b *testing.B) {
 	super := map[string]any{
 		"id":             234765,
 		"affiliation_id": 9867,
-		"Name":           "Wolverine",
-		"life":           85.25,
-		"energy":         32.75,
+		"name":           "Wolverine",
+		"life":           float32(85.25),
+		"energy":         float32(32.75),
 		"powers": []map[string]any{
-			{"id": 2345, "name": "Bone Claws", "damage": 5, "energy": 1.15, "passive": false},
-			{"id": 2346, "name": "Regeneration", "damage": -2, "energy": 0.55, "passive": true},
-			{"id": 2347, "name": "Adamant skeleton", "damage": -10, "energy": 0, "passive": true},
+			{"id": 2345, "name": "Bone Claws", "damage": float32(5), "energy": float32(1.15), "passive": false},
+			{"id": 2346, "name": "Regeneration", "damage": float32(-2), "energy": float32(0.55), "passive": true},
+			{"id": 2347, "name": "Adamant skeleton", "damage": float32(-10), "energy": float32(0), "passive": true},
 		},
+	}
+
+	if _, err = avro.Marshal(schema, super); err != nil {
+		b.Fatal(err)
 	}
 
 	b.ReportAllocs()
