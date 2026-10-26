@@ -21,9 +21,19 @@ type resolveKey struct {
 type resolveEntry struct {
 	record   *RecordSchema
 	resolved bool
+	seq      int
 }
 
 type resolveMemo map[resolveKey]*resolveEntry
+
+// rollback drops the entries added since seq, since they may reference records that failed to resolve.
+func (m resolveMemo) rollback(seq int) {
+	for key, entry := range m {
+		if entry.seq >= seq {
+			delete(m, key)
+		}
+	}
+}
 
 type compatKey struct {
 	reader [32]byte
@@ -433,12 +443,12 @@ func (c *SchemaCompatibility) resolveRecordOnce(r, w *RecordSchema, memo resolve
 		return nil, false, err
 	}
 	// A pair still being resolved is conservatively reported as resolved.
-	entry := &resolveEntry{record: record, resolved: true}
+	entry := &resolveEntry{record: record, resolved: true, seq: len(memo)}
 	memo[key] = entry
 
 	fields, resolved, err := c.resolveRecordFields(r, w, memo)
 	if err != nil {
-		delete(memo, key)
+		memo.rollback(entry.seq)
 		return nil, false, err
 	}
 	record.fields = fields

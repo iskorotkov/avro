@@ -1090,3 +1090,77 @@ func dagSchema(t *testing.T, depth int, extra string) avro.Schema {
 	require.NoError(t, err)
 	return sch
 }
+
+func TestSchemaCompatibility_ResolveFailedUnionBranchLeavesNoEmptyRecords(t *testing.T) {
+	// Resolving WA fails on y after memoizing X, whose back field refers to WA; B then resolves through X.
+	r := avro.MustParse(`{"type":"record","name":"Top","namespace":"resolve.rollback","fields":[{"name":"f","type":[
+		{"type":"record","name":"WA","fields":[
+			{"name":"x","type":{"type":"record","name":"X","fields":[{"name":"back","type":[
+				"null","WA",{"type":"record","name":"B","aliases":["WA"],"fields":[{"name":"x","type":"X"}]}
+			]}]}},
+			{"name":"y","type":{"type":"record","name":"R","aliases":["W1","W2"],"fields":[{"name":"v","type":"int"}]}}
+		]},
+		"B"
+	]}]}`)
+	w := avro.MustParse(`{"type":"record","name":"Top","namespace":"resolve.rollback","fields":[{"name":"f","type":
+		{"type":"record","name":"WA","fields":[
+			{"name":"x","type":{"type":"record","name":"X","fields":[{"name":"back","type":["null","WA"]}]}},
+			{"name":"y","type":[
+				{"type":"record","name":"W1","fields":[{"name":"v","type":"int"}]},
+				{"type":"record","name":"W2","fields":[{"name":"v","type":"int"}]}
+			]}
+		]}
+	}]}`)
+
+	sch, err := avro.NewSchemaCompatibility().Resolve(r, w)
+	require.NoError(t, err)
+
+	assert.Empty(t, emptyRecords(sch, map[*avro.RecordSchema]struct{}{}))
+	inner := map[string]any{"x": map[string]any{"back": nil}, "y": map[string]any{"resolve.rollback.W1": map[string]any{"v": 1}}}
+	outer := map[string]any{"x": map[string]any{"back": map[string]any{"resolve.rollback.WA": inner}}, "y": map[string]any{"resolve.rollback.W2": map[string]any{"v": 2}}}
+	data, err := avro.Marshal(w, map[string]any{"f": outer})
+	require.NoError(t, err)
+	var got map[string]any
+	require.NoError(t, avro.Unmarshal(sch, data, &got))
+	wantInner := map[string]any{"x": map[string]any{"back": nil}}
+	want := map[string]any{"f": map[string]any{"x": map[string]any{"back": map[string]any{"resolve.rollback.B": wantInner}}}}
+	assert.Equal(t, want, got)
+}
+
+func emptyRecords(schema avro.Schema, seen map[*avro.RecordSchema]struct{}) []string {
+	var names []string
+	switch s := schema.(type) {
+	case *avro.RefSchema:
+		return emptyRecords(s.Schema(), seen)
+	case *avro.RecordSchema:
+		if _, ok := seen[s]; ok {
+			return nil
+		}
+		seen[s] = struct{}{}
+		if len(s.Fields()) == 0 {
+			names = append(names, s.FullName())
+		}
+		for _, f := range s.Fields() {
+			names = append(names, emptyRecords(f.Type(), seen)...)
+		}
+	case *avro.UnionSchema:
+		for _, typ := range s.Types() {
+			names = append(names, emptyRecords(typ, seen)...)
+		}
+	}
+	return names
+}
+
+func TestSchemaCompatibility_ResolveRejectsReaderNameInvalidAtResolveTime(t *testing.T) {
+	defer func(skip bool) { avro.SkipNameValidation = skip }(avro.SkipNameValidation)
+	avro.SkipNameValidation = true
+	r, err := avro.ParseWithCache(`{"type":"record","name":"bad-name","fields":[]}`, "", &avro.SchemaCache{})
+	require.NoError(t, err)
+	w, err := avro.ParseWithCache(`{"type":"record","name":"bad-name","fields":[{"name":"x","type":"int"}]}`, "", &avro.SchemaCache{})
+	require.NoError(t, err)
+	avro.SkipNameValidation = false
+
+	_, err = avro.NewSchemaCompatibility().Resolve(r, w)
+
+	require.EqualError(t, err, "avro: invalid name part \"bad-name\" in name \"bad-name\": invalid name bad-name")
+}
