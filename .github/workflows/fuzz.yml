@@ -27,6 +27,12 @@ jobs:
             pkg: .
           - name: FuzzOCFReader
             pkg: ./ocf
+          - name: FuzzReaderReadNext
+            pkg: .
+          - name: FuzzCodecDecode
+            pkg: ./soe
+          - name: FuzzDecoderDecode
+            pkg: ./registry
 
     steps:
       - name: Checkout code
