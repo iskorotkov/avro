@@ -60,7 +60,7 @@ func createSkipDecoderWithCache(schema Schema, cache map[[32]byte]ValDecoder) Va
 		return skipDecoderOfMap(schema, cache)
 
 	case Union:
-		return skipDecoderOfUnion(schema)
+		return skipDecoderOfUnion(schema, cache)
 
 	case Fixed:
 		return &fixedSkipDecoder{size: schema.(*FixedSchema).Size()}
@@ -212,30 +212,40 @@ func (d *mapSkipDecoder) Decode(_ unsafe.Pointer, r *Reader) {
 	}
 }
 
-func skipDecoderOfUnion(schema Schema) ValDecoder {
+func skipDecoderOfUnion(schema Schema, cache map[[32]byte]ValDecoder) ValDecoder {
 	union := schema.(*UnionSchema)
 
+	decoders := make([]ValDecoder, len(union.Types()))
+	for i, typ := range union.Types() {
+		if typ.Type() == Null {
+			continue
+		}
+		decoders[i] = createSkipDecoderWithCache(typ, cache)
+	}
+
 	return &unionSkipDecoder{
-		schema: union,
+		schema:   union,
+		decoders: decoders,
 	}
 }
 
 type unionSkipDecoder struct {
-	schema *UnionSchema
+	schema   *UnionSchema
+	decoders []ValDecoder
 }
 
 func (d *unionSkipDecoder) Decode(_ unsafe.Pointer, r *Reader) {
-	_, resSchema := getUnionSchema(d.schema, r)
+	idx, resSchema := getUnionSchema(d.schema, r)
 	if resSchema == nil {
 		return
 	}
 
-	// In a null case, just return
-	if resSchema.Type() == Null {
+	// Null branches have no decoder and no payload.
+	if d.decoders[idx] == nil {
 		return
 	}
 
-	createSkipDecoder(resSchema).Decode(nil, r)
+	d.decoders[idx].Decode(nil, r)
 }
 
 type fixedSkipDecoder struct {

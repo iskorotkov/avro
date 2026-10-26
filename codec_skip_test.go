@@ -328,6 +328,35 @@ func TestDecoder_SkipRecursiveRecordNestedData(t *testing.T) {
 	assert.Empty(t, got.Other)
 }
 
+func TestDecoder_SkipRecursiveUnion(t *testing.T) {
+	defer ConfigTeardown()
+
+	schemaStr := `{"type":"record","name":"Node","fields":[{"name":"value","type":"string"},{"name":"next","type":["null","Node"]},{"name":"tail","type":"string"}]}`
+
+	root := map[string]any{
+		"value": "a",
+		"tail":  "end",
+		"next": map[string]any{"Node": map[string]any{
+			"value": "b",
+			"tail":  "inner",
+			"next":  map[string]any{"Node": map[string]any{"value": "c", "tail": "x", "next": nil}},
+		}},
+	}
+
+	var buf bytes.Buffer
+	enc, err := avro.NewEncoder(schemaStr, &buf)
+	require.NoError(t, err)
+	require.NoError(t, enc.Encode(root))
+
+	dec, err := avro.NewDecoder(schemaStr, &buf)
+	require.NoError(t, err)
+	var got struct {
+		Tail string `avro:"tail"`
+	}
+	require.NoError(t, decodeWithTimeout(t, dec, &got))
+	assert.Equal(t, "end", got.Tail)
+}
+
 func TestDecoder_SkipEnum(t *testing.T) {
 	defer ConfigTeardown()
 
