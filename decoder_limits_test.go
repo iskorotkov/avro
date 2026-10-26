@@ -2,11 +2,13 @@ package avro_test
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/netip"
 	"runtime"
 	"testing"
 	"testing/iotest"
+	"time"
 
 	"github.com/iskorotkov/avro/v2"
 	"github.com/stretchr/testify/assert"
@@ -381,4 +383,133 @@ func allocatedBytes(fn func()) uint64 {
 	fn()
 	runtime.ReadMemStats(&after)
 	return after.TotalAlloc - before.TotalAlloc
+}
+
+// dagRecordSchema builds records Lk with two fields of type L(k-1), so a decoder that keeps going after an error does 2^levels work.
+func dagRecordSchema(levels int) string {
+	schema := `{"type":"record","name":"L0","fields":[{"name":"v","type":"long"}]}`
+	for k := 1; k <= levels; k++ {
+		schema = fmt.Sprintf(`{"type":"record","name":"L%d","fields":[{"name":"a","type":%s},{"name":"b","type":"L%d"}]}`, k, schema, k-1)
+	}
+	return schema
+}
+
+// dagNode matches every level of dagRecordSchema.
+type dagNode struct {
+	V int64    `avro:"v"`
+	A *dagNode `avro:"a"`
+	B *dagNode `avro:"b"`
+}
+
+func TestUnmarshal_TruncatedDAGStopsAtFirstError(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := avro.MustParse(dagRecordSchema(64))
+	data := []byte{0x02}
+
+	tests := []struct {
+		name   string
+		decode func() error
+	}{
+		{name: "struct", decode: func() error {
+			return avro.Unmarshal(schema, data, &dagNode{})
+		}},
+		{name: "any", decode: func() error { return avro.Unmarshal(schema, data, new(any)) }},
+		{name: "skip", decode: func() error { return avro.Unmarshal(schema, data, &struct{}{}) }},
+		{name: "ReadNext", decode: func() error {
+			r := avro.NewReader(nil, 0).Reset(data)
+			_ = r.ReadNext(schema)
+			return r.Error
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			start := time.Now()
+			err := tt.decode()
+
+			require.ErrorIs(t, err, io.ErrUnexpectedEOF)
+			assert.Less(t, time.Since(start), time.Second)
+		})
+	}
+}
+
+func TestUnmarshal_DepthErrorIsNotRepeatedPerLevel(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := avro.MustParse(linkedListSchema)
+
+	var got linkedNode
+	err := avro.Unmarshal(schema, linkedListPayload(5000), &got)
+
+	require.ErrorContains(t, err, "Config.MaxDepth")
+	assert.Less(t, len(err.Error()), 512)
+}
+
+func TestMarshal_DepthErrorIsNotRepeatedPerLevel(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := avro.MustParse(linkedListSchema)
+	node := &linkedNode{}
+	node.Next = node
+
+	_, err := avro.Marshal(schema, node)
+
+	require.ErrorContains(t, err, "Config.MaxDepth")
+	assert.Less(t, len(err.Error()), 512)
+}
+
+func TestReader_ReadArrayCBIsNotChargedToElementBudget(t *testing.T) {
+	defer ConfigTeardown()
+
+	api := avro.Config{MaxSliceAllocSize: 2}.Freeze()
+	r := avro.NewReader(nil, 0, avro.WithReaderConfig(api)).Reset([]byte{0x06, 0x02, 0x04, 0x06, 0x00})
+
+	var got []int32
+	r.ReadArrayCB(func(r *avro.Reader) bool {
+		got = append(got, r.ReadInt())
+		return true
+	})
+
+	require.NoError(t, r.Error)
+	assert.Equal(t, []int32{1, 2, 3}, got)
+}
+
+func TestReader_ReadNextTruncatedReturnsUnexpectedEOF(t *testing.T) {
+	r := avro.NewReader(nil, 0).Reset([]byte{0x02, 0x06, 'f'})
+
+	_ = r.ReadNext(avro.MustParse(`{"type":"record","name":"R","fields":[{"name":"a","type":"long"},{"name":"b","type":"string"}]}`))
+
+	require.ErrorIs(t, r.Error, io.ErrUnexpectedEOF)
+	assert.NotErrorIs(t, r.Error, io.EOF)
+}
+
+func TestReader_ReadNextAtCleanEndReturnsEOF(t *testing.T) {
+	r := avro.NewReader(bytes.NewReader([]byte{0x02}), 16)
+	schema := avro.MustParse(`"long"`)
+
+	assert.Equal(t, int64(1), r.ReadNext(schema))
+	require.NoError(t, r.Error)
+
+	_ = r.ReadNext(schema)
+	assert.Equal(t, io.EOF, r.Error)
+}
+
+// availableNowReader reports only the bytes available right now, which is not the remaining input.
+type availableNowReader struct {
+	io.Reader
+}
+
+func (availableNowReader) Len() int { return 0 }
+
+func TestDecoder_UnknownLenReaderIsTreatedAsStream(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := avro.MustParse(`{"type":"array","items":"int"}`)
+	dec := avro.NewDecoderForSchema(schema, availableNowReader{bytes.NewReader([]byte{0x04, 0x02, 0x04, 0x00})})
+
+	var got []int
+	err := dec.Decode(&got)
+
+	require.NoError(t, err)
+	assert.Equal(t, []int{1, 2}, got)
 }

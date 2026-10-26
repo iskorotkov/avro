@@ -50,11 +50,14 @@ func (w *Writer) Reset(out io.Writer) {
 	w.depth = 0
 }
 
+// errMaxEncodeDepth is reported unwrapped so deep values do not build an error message per level.
+var errMaxEncodeDepth = errors.New("avro: encode: nesting depth exceeds `Config.MaxDepth`")
+
 // enterNested records one more nesting level, failing once `Config.MaxDepth` is exceeded.
 func (w *Writer) enterNested() bool {
 	if w.depth >= w.cfg.getMaxDepth() {
 		if w.Error == nil {
-			w.Error = errors.New("avro: encode: nesting depth exceeds `Config.MaxDepth`")
+			w.Error = errMaxEncodeDepth
 		}
 		return false
 	}

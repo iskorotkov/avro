@@ -13,9 +13,6 @@ const (
 
 	// maxZeroWidthItems caps items per decoded value whose schema occupies no bytes on the wire.
 	maxZeroWidthItems = 1 << 20
-
-	// unknownWireSize disables the input-size and zero-width checks for callers that cannot size items.
-	unknownWireSize = -1
 )
 
 // readerLimits tracks the resources consumed by the outermost value currently being decoded.
@@ -54,8 +51,13 @@ func (r *Reader) enterNested() bool {
 	return false
 }
 
+// errMaxDepth is reported unwrapped so deep values do not build an error message per level.
+var errMaxDepth = errors.New("avro: decode: nesting depth exceeds `Config.MaxDepth`")
+
 func (r *Reader) reportDepthExceeded() {
-	r.ReportError("decode", "nesting depth exceeds `Config.MaxDepth`")
+	if r.Error == nil || errors.Is(r.Error, io.EOF) {
+		r.Error = errMaxDepth
+	}
 }
 
 func (r *Reader) leaveNested() {
@@ -98,10 +100,7 @@ func (r *Reader) allowMapBlock(n, minEntrySize int) bool {
 }
 
 func (r *Reader) allowBlock(op string, n, minItemSize int) bool {
-	switch {
-	case minItemSize < 0:
-		return true
-	case minItemSize == 0:
+	if minItemSize == 0 {
 		return r.charge(&r.limits.zeroWidth, n, maxZeroWidthItems, op, "too many items without wire representation")
 	}
 

@@ -18,7 +18,7 @@ func (ws wireSizer) size(schema Schema) int {
 	case *EnumSchema, *ArraySchema, *MapSchema:
 		return 1
 	case *FixedSchema:
-		return s.Size()
+		return min(s.Size(), maxWireSize)
 	case *RefSchema:
 		return ws.size(s.Schema())
 	case *UnionSchema:

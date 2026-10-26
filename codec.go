@@ -1,6 +1,7 @@
 package avro
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -114,6 +115,9 @@ func (d *nestedDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 	}
 	d.decoder.Decode(ptr, r)
 	r.leaveNested()
+	if r.Error != nil && errors.Is(r.Error, errMaxDepth) {
+		r.Error = errMaxDepth
+	}
 }
 
 // nestEncoderIfRecursive bounds the nesting depth of enc when rec can contain itself, which also stops cyclic values.
@@ -135,6 +139,9 @@ func (e *nestedEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 	}
 	e.encoder.Encode(ptr, w)
 	w.depth--
+	if w.Error != nil && errors.Is(w.Error, errMaxEncodeDepth) {
+		w.Error = errMaxEncodeDepth
+	}
 }
 
 type decoderContext struct {

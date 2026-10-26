@@ -7,11 +7,25 @@ import (
 )
 
 // ReadNext reads the next Avro element as a generic interface.
+// Input that ends inside the element is reported as an error wrapping io.ErrUnexpectedEOF.
 func (r *Reader) ReadNext(schema Schema) any {
+	outermost := r.limits.open == 0
+	if outermost && r.atCleanEnd(schema) {
+		return nil
+	}
+
 	r.beginValue()
 	v := r.readNext(schema)
 	r.endValue()
+	if outermost {
+		r.Error = valueError(r.Error)
+	}
 	return v
+}
+
+// atCleanEnd reports whether the input ends before an element that needs at least one byte, leaving io.EOF set.
+func (r *Reader) atCleanEnd(schema Schema) bool {
+	return r.Error == nil && r.head == r.tail && r.cfg.minWireSizeOf(schema) > 0 && !r.loadMore()
 }
 
 func (r *Reader) readNext(schema Schema) any {
@@ -103,6 +117,9 @@ func (r *Reader) readNext(schema Schema) any {
 		obj := make(map[string]any, len(fields))
 		for _, field := range fields {
 			obj[field.Name()] = r.readNext(field.Type())
+			if r.Error != nil {
+				break
+			}
 		}
 		r.leaveNested()
 		return obj
@@ -119,7 +136,8 @@ func (r *Reader) readNext(schema Schema) any {
 	case Array:
 		items := schema.(*ArraySchema).Items()
 		arr := []any{}
-		r.readArrayCB(r.cfg.minWireSizeOf(items), func(r *Reader) bool {
+		minItemSize := r.cfg.minWireSizeOf(items)
+		r.readArrayCB(func(n int) bool { return r.allowArrayBlock(n, minItemSize) }, func(r *Reader) bool {
 			elem := r.readNext(items)
 			arr = append(arr, elem)
 			return true
@@ -128,7 +146,8 @@ func (r *Reader) readNext(schema Schema) any {
 	case Map:
 		m := schema.(*MapSchema)
 		obj := map[string]any{}
-		r.readMapCB(minMapEntrySize(m), func(r *Reader, field string) bool {
+		minEntrySize := minMapEntrySize(m)
+		r.readMapCB(func(n int) bool { return r.allowMapBlock(n, minEntrySize) }, func(r *Reader, field string) bool {
 			elem := r.readNext(m.Values())
 			obj[field] = elem
 			return true
@@ -170,14 +189,15 @@ func (r *Reader) readNext(schema Schema) any {
 
 // ReadArrayCB reads an array with a callback per item.
 func (r *Reader) ReadArrayCB(fn func(*Reader) bool) {
-	r.readArrayCB(unknownWireSize, fn)
+	// Callbacks stream items without allocating, so only ReadNext charges the element budget.
+	r.readArrayCB(func(int) bool { return true }, fn)
 }
 
-func (r *Reader) readArrayCB(minItemSize int, fn func(*Reader) bool) {
+func (r *Reader) readArrayCB(allow func(n int) bool, fn func(*Reader) bool) {
 	r.beginValue()
 	for {
 		l, _ := r.ReadBlockHeader()
-		if l == 0 || !r.allowArrayBlock(l, minItemSize) {
+		if l == 0 || !allow(l) {
 			break
 		}
 		for range l {
@@ -192,15 +212,15 @@ func (r *Reader) readArrayCB(minItemSize int, fn func(*Reader) bool) {
 
 // ReadMapCB reads a map with a callback per entry.
 func (r *Reader) ReadMapCB(fn func(*Reader, string) bool) {
-	// Every entry carries a key of at least one byte.
-	r.readMapCB(1, fn)
+	// Every entry carries a key of at least one byte; the element budget is left to ReadNext.
+	r.readMapCB(func(n int) bool { return r.allowBlock("decode map", n, 1) }, fn)
 }
 
-func (r *Reader) readMapCB(minEntrySize int, fn func(*Reader, string) bool) {
+func (r *Reader) readMapCB(allow func(n int) bool, fn func(*Reader, string) bool) {
 	r.beginValue()
 	for {
 		l, _ := r.ReadBlockHeader()
-		if l == 0 || !r.allowMapBlock(l, minEntrySize) {
+		if l == 0 || !allow(l) {
 			break
 		}
 		for range l {

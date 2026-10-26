@@ -135,6 +135,9 @@ func (d *structDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 		// Skip case
 		if field.field == nil {
 			field.decoder.Decode(nil, r)
+			if r.Error != nil {
+				return
+			}
 			continue
 		}
 
@@ -157,11 +160,11 @@ func (d *structDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 		}
 		field.decoder.Decode(fieldPtr, r)
 
-		if r.Error != nil && !errors.Is(r.Error, io.EOF) {
-			for _, step := range field.field {
-				r.Error = fmt.Errorf("%s: %w", step.field.Name(), r.Error)
-				return
+		if r.Error != nil {
+			if !errors.Is(r.Error, io.EOF) {
+				r.Error = fmt.Errorf("%s: %w", field.field[0].field.Name(), r.Error)
 			}
+			return
 		}
 	}
 }
@@ -320,15 +323,17 @@ func (d *recordMapDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 	for _, field := range d.fields {
 		elemPtr := d.elemType.UnsafeNew()
 		field.decoder.Decode(elemPtr, r)
+		if r.Error != nil {
+			if !errors.Is(r.Error, io.EOF) {
+				r.Error = fmt.Errorf("%v: %w", d.mapType, r.Error)
+			}
+			return
+		}
 		if field.skip {
 			continue
 		}
 
 		d.mapType.UnsafeSetIndex(ptr, reflect2.PtrOf(field), elemPtr)
-	}
-
-	if r.Error != nil && !errors.Is(r.Error, io.EOF) {
-		r.Error = fmt.Errorf("%v: %w", d.mapType, r.Error)
 	}
 }
 

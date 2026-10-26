@@ -80,3 +80,12 @@ func TestMinWireSize_DAGIsLinear(t *testing.T) {
 	assert.Equal(t, maxWireSize, got)
 	assert.Less(t, time.Since(start), 100*time.Millisecond)
 }
+
+func TestMinWireSize_CapsHugeFixed(t *testing.T) {
+	schema := MustParse(`{"type":"record","name":"R","fields":[
+		{"name":"a","type":{"type":"fixed","name":"F","size":9223372036000000000}},
+		{"name":"b","type":"F"}
+	]}`)
+
+	assert.Equal(t, maxWireSize, minWireSize(schema))
+}
