@@ -317,14 +317,17 @@ func (d *recordMapDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 		d.mapType.UnsafeSet(ptr, d.mapType.UnsafeMakeMap(len(d.fields)))
 	}
 
-	for _, field := range d.fields {
-		elemPtr := d.elemType.UnsafeNew()
+	// The map copies each element, so one interface slot serves every field.
+	elemPtr := d.elemType.UnsafeNew()
+	for i := range d.fields {
+		field := &d.fields[i]
+		*(*any)(elemPtr) = nil
 		field.decoder.Decode(elemPtr, r)
 		if field.skip {
 			continue
 		}
 
-		d.mapType.UnsafeSetIndex(ptr, reflect2.PtrOf(field), elemPtr)
+		d.mapType.UnsafeSetIndex(ptr, unsafe.Pointer(&field.name), elemPtr)
 	}
 
 	if r.Error != nil && !errors.Is(r.Error, io.EOF) {

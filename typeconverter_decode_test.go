@@ -3,6 +3,7 @@ package avro_test
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/iskorotkov/avro/v2"
@@ -214,4 +215,50 @@ func TestDecoderTypeConverter_ErrorUnionNullablePtr(t *testing.T) {
 
 	assert.ErrorIs(t, err, testError)
 	assert.Nil(t, got)
+}
+
+func TestDecoderTypeConverter_GenericPrimitives(t *testing.T) {
+	schema := avro.MustParse(`{"type":"record","name":"prims","fields":[
+		{"name":"b","type":"boolean"},{"name":"i","type":"int"},{"name":"l","type":"long"},
+		{"name":"f","type":"float"},{"name":"d","type":"double"},{"name":"s","type":"string"},
+		{"name":"y","type":"bytes"}]}`)
+	data, err := avro.Marshal(schema, map[string]any{
+		"b": true, "i": 1, "l": int64(2), "f": float32(3), "d": 4.0, "s": "foo", "y": []byte{5},
+	})
+	require.NoError(t, err)
+
+	api := avro.Config{}.Freeze()
+	for _, typ := range []avro.Type{avro.Boolean, avro.Int, avro.Long, avro.Float, avro.Double, avro.String, avro.Bytes} {
+		api.RegisterTypeConverters(avro.TypeConversionFuncs{
+			AvroType: typ,
+			DecoderTypeConversion: func(in any, _ avro.Schema) (any, error) {
+				return fmt.Sprintf("%s:%v", typ, in), nil
+			},
+		})
+	}
+
+	var got map[string]any
+	err = api.Unmarshal(schema, data, &got)
+
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{
+		"b": "boolean:true", "i": "int:1", "l": "long:2", "f": "float:3", "d": "double:4", "s": "string:foo", "y": "bytes:[5]",
+	}, got)
+}
+
+func TestDecoderTypeConverter_GenericPrimitiveError(t *testing.T) {
+	schema := avro.MustParse(`{"type":"record","name":"prims","fields":[{"name":"l","type":"long"}]}`)
+	errConv := errors.New("conversion failed")
+	api := avro.Config{}.Freeze()
+	api.RegisterTypeConverters(avro.TypeConversionFuncs{
+		AvroType: avro.Long,
+		DecoderTypeConversion: func(any, avro.Schema) (any, error) {
+			return nil, errConv
+		},
+	})
+
+	var got map[string]any
+	err := api.Unmarshal(schema, []byte{0x02}, &got)
+
+	assert.ErrorIs(t, err, errConv)
 }

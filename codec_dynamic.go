@@ -12,6 +12,7 @@ type efaceDecoder struct {
 	schema Schema
 	typ    reflect2.Type
 	dec    ValDecoder
+	direct directReader
 }
 
 func newEfaceDecoder(d *decoderContext, schema Schema) *efaceDecoder {
@@ -22,6 +23,7 @@ func newEfaceDecoder(d *decoderContext, schema Schema) *efaceDecoder {
 		schema: schema,
 		typ:    typ,
 		dec:    dec,
+		direct: directReaderOf(schema),
 	}
 }
 
@@ -33,13 +35,13 @@ func (d *efaceDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 
 func (d *efaceDecoder) decode(pObj *any, r *Reader) {
 	if *pObj == nil {
-		*pObj = genericDecode(d.typ, d.dec, r)
+		*pObj = d.decodeNew(r)
 		return
 	}
 
 	typ := reflect2.TypeOf(*pObj)
 	if typ.Kind() != reflect.Pointer {
-		*pObj = genericDecode(d.typ, d.dec, r)
+		*pObj = d.decodeNew(r)
 		return
 	}
 
@@ -52,6 +54,18 @@ func (d *efaceDecoder) decode(pObj *any, r *Reader) {
 		return
 	}
 	r.ReadVal(d.schema, *pObj)
+}
+
+func (d *efaceDecoder) decodeNew(r *Reader) any {
+	if d.direct == nil {
+		return genericDecode(d.typ, d.dec, r)
+	}
+
+	obj := d.direct(r)
+	if r.Error != nil {
+		return nil
+	}
+	return obj
 }
 
 type interfaceEncoder struct {

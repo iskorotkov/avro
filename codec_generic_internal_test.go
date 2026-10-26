@@ -296,3 +296,21 @@ func TestGenericDecode_MaxInt(t *testing.T) {
 
 	assert.EqualError(t, r.Error, "avro: decode array: size is greater than `Config.MaxSliceAllocSize`")
 }
+
+func TestDirectReaderOf_NeedsFullDecoder(t *testing.T) {
+	tests := []struct {
+		name   string
+		schema Schema
+	}{
+		{name: "null primitive", schema: NewPrimitiveSchema(Null, nil)},
+		{name: "logical", schema: MustParse(`{"type":"int","logicalType":"date"}`)},
+		{name: "encoded type", schema: &PrimitiveSchema{typ: Long, encodedType: Int}},
+		{name: "non-primitive", schema: MustParse(`{"type":"array","items":"int"}`)},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Nil(t, directReaderOf(test.schema))
+		})
+	}
+}
