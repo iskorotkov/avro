@@ -35,6 +35,8 @@ func (d *Decoder) Decode(v any) error {
 		}
 	}
 
+	// Each value starts with a fresh budget, even if an earlier decode panicked mid-value.
+	d.r.limits = readerLimits{}
 	d.r.ReadVal(d.s, v)
 	return valueError(d.r.Error)
 }
