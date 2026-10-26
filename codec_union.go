@@ -186,14 +186,7 @@ func (e *mapUnionEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 		return
 	}
 
-	elemType := reflect2.TypeOf(val)
-	elemPtr := reflect2.PtrOf(val)
-
-	encoder := encoderOfType(newEncoderContext(e.cfg), schema, elemType)
-	if elemType.LikePtr() {
-		encoder = &onePtrEncoder{encoder}
-	}
-	encoder.Encode(elemPtr, w)
+	e.cfg.EncoderOf(schema, reflect2.TypeOf(val)).Encode(reflect2.PtrOf(val), w)
 }
 
 func decoderOfNullableUnion(d *decoderContext, schema Schema, typ reflect2.Type) ValDecoder {
@@ -475,7 +468,7 @@ func (d *unionResolvedDecoder) decodeBranch(i int, schema Schema, pObj *any, r *
 			r.ReportError("Union", err.Error())
 			return
 		}
-		obj[name] = genericDecode(vTyp, decoderOfType(newDecoderContext(d.cfg), schema, vTyp), r)
+		obj[name] = genericDecode(vTyp, d.cfg.DecoderOf(schema, reflect2.PtrTo(vTyp)), r)
 
 		*pObj = obj
 		return
