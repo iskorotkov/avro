@@ -22,6 +22,9 @@ import (
 const (
 	schemaKey = "avro.schema"
 	codecKey  = "avro.codec"
+
+	defaultMaxBlockBytes             = 64 * 1024 * 1024 // 64 MiB
+	defaultMaxDecompressedBlockBytes = 64 * 1024 * 1024 // 64 MiB
 )
 
 var (
@@ -96,7 +99,7 @@ func WithZStandardDecoder(dec *zstd.Decoder) DecoderFunc {
 	}
 }
 
-// WithMaxBlockBytes caps the declared compressed size of a single OCF data block; a header claiming more errors out before any allocation. Values <= 0 disable the check (the default).
+// WithMaxBlockBytes caps the declared compressed size of a single OCF data block; a header claiming more errors out before any allocation. It defaults to 64 MiB when set to zero or a negative value; set a higher value to allow larger blocks.
 //
 // It does not bound decompression amplification — a small block can still expand much larger; combine it with WithMaxDecompressedBlockBytes.
 func WithMaxBlockBytes(n int) DecoderFunc {
@@ -105,7 +108,7 @@ func WithMaxBlockBytes(n int) DecoderFunc {
 	}
 }
 
-// WithMaxDecompressedBlockBytes caps the size of a single OCF data block after the codec decompresses it; built-in codecs (deflate, snappy, zstandard) reject inputs that would expand past it. Values <= 0 disable the check (the default).
+// WithMaxDecompressedBlockBytes caps the size of a single OCF data block after the codec decompresses it; built-in codecs (deflate, snappy, zstandard) reject inputs that would expand past it. It defaults to 64 MiB when set to zero or a negative value; set a higher value to allow larger blocks.
 //
 // It does not apply to user-supplied codecs registered outside this package; with a zstandard decoder shared via WithZStandardDecoder it still rejects oversized output but cannot prevent the allocation, so set zstd.WithDecoderMaxMemory on the shared decoder to reject earlier.
 func WithMaxDecompressedBlockBytes(n int) DecoderFunc {
@@ -142,6 +145,12 @@ func NewDecoder(r io.Reader, opts ...DecoderFunc) (*Decoder, error) {
 		opt(&cfg)
 	}
 
+	if cfg.MaxBlockBytes <= 0 {
+		cfg.MaxBlockBytes = defaultMaxBlockBytes
+	}
+	if cfg.MaxDecompressedBlockBytes <= 0 {
+		cfg.MaxDecompressedBlockBytes = defaultMaxDecompressedBlockBytes
+	}
 	cfg.CodecOptions.MaxDecompressedBytes = cfg.MaxDecompressedBlockBytes
 
 	reader := avro.NewReader(r, 0, avro.WithReaderConfig(cfg.DecoderConfig))
@@ -239,7 +248,7 @@ func (d *Decoder) readBlock() int64 {
 		d.reader.ReportError("ocf decoder: read block", "block size is too big")
 		return 0
 	}
-	if d.maxBlockBytes > 0 && size64 > int64(d.maxBlockBytes) {
+	if size64 > int64(d.maxBlockBytes) {
 		d.reader.ReportError("ocf decoder: read block", "block size is greater than `WithMaxBlockBytes`")
 		return 0
 	}
