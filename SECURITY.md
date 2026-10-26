@@ -82,6 +82,7 @@ The `registry` client treats subjects as untrusted input and bounds what a regis
 | `WithSchemaCacheSize(n)` | unbounded | number of schemas cached by ID; arbitrary entries are evicted past the bound |
 
 Every subject is escaped as a single URL path segment, so `/`, `..`, `?` and `#` cannot redirect a request (and its basic-auth credentials) to another endpoint or tenant. Empty, `.`, `..` and control-character subjects are rejected with `registry.ErrInvalidPathSegment` before any request is sent.
+Reverse proxies in front of the registry must not decode `%2F` before routing, or a subject containing `/` is routed as several path segments.
 
 A schema registered after a lookup miss becomes visible to `GetSchema` once the miss TTL expires, or at once after `CreateSchema` or `IsRegistered` on the same client.
 
