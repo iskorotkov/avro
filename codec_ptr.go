@@ -2,14 +2,12 @@ package avro
 
 import (
 	"errors"
+	"reflect"
 	"unsafe"
-
-	"github.com/modern-go/reflect2"
 )
 
-func decoderOfPtr(d *decoderContext, schema Schema, typ reflect2.Type) ValDecoder {
-	ptrType := typ.(*reflect2.UnsafePtrType)
-	elemType := ptrType.Elem()
+func decoderOfPtr(d *decoderContext, schema Schema, typ reflect.Type) ValDecoder {
+	elemType := typ.Elem()
 
 	decoder := decoderOfType(d, schema, elemType)
 
@@ -17,14 +15,14 @@ func decoderOfPtr(d *decoderContext, schema Schema, typ reflect2.Type) ValDecode
 }
 
 type dereferenceDecoder struct {
-	typ     reflect2.Type
+	typ     reflect.Type
 	decoder ValDecoder
 }
 
 func (d *dereferenceDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 	if *(*unsafe.Pointer)(ptr) == nil {
 		// Create new instance
-		newPtr := d.typ.UnsafeNew()
+		newPtr := reflect.New(d.typ).UnsafePointer()
 		d.decoder.Decode(newPtr, r)
 		*(*unsafe.Pointer)(ptr) = newPtr
 		return
@@ -34,17 +32,13 @@ func (d *dereferenceDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 	d.decoder.Decode(*(*unsafe.Pointer)(ptr), r)
 }
 
-func encoderOfPtr(e *encoderContext, schema Schema, typ reflect2.Type) ValEncoder {
-	ptrType := typ.(*reflect2.UnsafePtrType)
-	elemType := ptrType.Elem()
+func encoderOfPtr(e *encoderContext, schema Schema, typ reflect.Type) ValEncoder {
+	enc := encoderOfType(e, schema, typ.Elem())
 
-	enc := encoderOfType(e, schema, elemType)
-
-	return &dereferenceEncoder{typ: elemType, encoder: enc}
+	return &dereferenceEncoder{encoder: enc}
 }
 
 type dereferenceEncoder struct {
-	typ     reflect2.Type
 	encoder ValEncoder
 }
 

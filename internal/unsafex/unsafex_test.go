@@ -78,6 +78,14 @@ func TestBoxer_Box(t *testing.T) {
 	assert.Equal(t, any(reflect.TypeFor[int]()), unsafex.NewBoxer(reflect.TypeFor[interface{ String() string }]()).Box(unsafe.Pointer(&st)))
 }
 
+func TestNewAddrBoxer_BoxesPointer(t *testing.T) {
+	s := "hello"
+
+	got := unsafex.NewAddrBoxer(reflect.TypeFor[string]()).Box(unsafe.Pointer(&s))
+
+	assert.Same(t, &s, got)
+}
+
 func TestSetEmptySlice(t *testing.T) {
 	var s []int
 	other := []int{1}

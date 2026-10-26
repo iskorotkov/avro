@@ -7,35 +7,33 @@ import (
 	"reflect"
 	"slices"
 	"unsafe"
-
-	"github.com/modern-go/reflect2"
 )
 
-func createDecoderOfEnum(schema *EnumSchema, typ reflect2.Type) ValDecoder {
+func createDecoderOfEnum(schema *EnumSchema, typ reflect.Type) ValDecoder {
 	switch {
 	case typ.Kind() == reflect.String:
 		return &enumCodec{enum: schema}
 	case typ.Implements(textUnmarshalerType):
-		return &enumTextMarshalerCodec{typ: typ, enum: schema}
-	case reflect2.PtrTo(typ).Implements(textUnmarshalerType):
-		return &enumTextMarshalerCodec{typ: typ, enum: schema, ptr: true}
+		return &enumTextMarshalerCodec{text: newTextValue(typ), enum: schema}
+	case reflect.PointerTo(typ).Implements(textUnmarshalerType):
+		return &enumTextMarshalerCodec{text: newAddrTextValue(typ), enum: schema}
 	}
 
 	return &errorDecoder{err: fmt.Errorf("avro: %s is unsupported for Avro %s", typ.String(), schema.Type())}
 }
 
-func createEncoderOfEnum(schema *EnumSchema, typ reflect2.Type) ValEncoder {
+func createEncoderOfEnum(schema *EnumSchema, typ reflect.Type) ValEncoder {
 	switch {
 	case typ.Kind() == reflect.String:
 		return &enumCodec{enum: schema}
 	case typ.Implements(textAppenderType):
-		return &enumTextAppenderCodec{typ: typ, enum: schema}
-	case reflect2.PtrTo(typ).Implements(textAppenderType):
-		return &enumTextAppenderCodec{typ: typ, enum: schema, ptr: true}
+		return &enumTextAppenderCodec{text: newTextValue(typ), enum: schema}
+	case reflect.PointerTo(typ).Implements(textAppenderType):
+		return &enumTextAppenderCodec{text: newAddrTextValue(typ), enum: schema}
 	case typ.Implements(textMarshalerType):
-		return &enumTextMarshalerCodec{typ: typ, enum: schema}
-	case reflect2.PtrTo(typ).Implements(textMarshalerType):
-		return &enumTextMarshalerCodec{typ: typ, enum: schema, ptr: true}
+		return &enumTextMarshalerCodec{text: newTextValue(typ), enum: schema}
+	case reflect.PointerTo(typ).Implements(textMarshalerType):
+		return &enumTextMarshalerCodec{text: newAddrTextValue(typ), enum: schema}
 	}
 
 	return &errorEncoder{err: fmt.Errorf("avro: %s is unsupported for Avro %s", typ.String(), schema.Type())}
@@ -68,9 +66,8 @@ func (c *enumCodec) Encode(ptr unsafe.Pointer, w *Writer) {
 }
 
 type enumTextMarshalerCodec struct {
-	typ  reflect2.Type
+	text textValue
 	enum *EnumSchema
-	ptr  bool
 }
 
 func (c *enumTextMarshalerCodec) Decode(ptr unsafe.Pointer, r *Reader) {
@@ -82,32 +79,19 @@ func (c *enumTextMarshalerCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 		return
 	}
 
-	var obj any
-	if c.ptr {
-		obj = c.typ.PackEFace(ptr)
-	} else {
-		obj = c.typ.UnsafeIndirect(ptr)
+	unmarshaler, ok := c.text.valueOrNew(ptr).(encoding.TextUnmarshaler)
+	if !ok {
+		r.ReportError("decode enum text unmarshaler", "can not unmarshal into nil")
+		return
 	}
-	if reflect2.IsNil(obj) {
-		ptrType := c.typ.(*reflect2.UnsafePtrType)
-		newPtr := ptrType.Elem().UnsafeNew()
-		*(*unsafe.Pointer)(ptr) = newPtr
-		obj = c.typ.UnsafeIndirect(ptr)
-	}
-	unmarshaler := obj.(encoding.TextUnmarshaler)
 	if err := unmarshaler.UnmarshalText([]byte(symbol)); err != nil {
 		r.ReportError("decode enum text unmarshaler", err.Error())
 	}
 }
 
 func (c *enumTextMarshalerCodec) Encode(ptr unsafe.Pointer, w *Writer) {
-	var obj any
-	if c.ptr {
-		obj = c.typ.PackEFace(ptr)
-	} else {
-		obj = c.typ.UnsafeIndirect(ptr)
-	}
-	if c.typ.IsNullable() && reflect2.IsNil(obj) {
+	obj := c.text.value(ptr)
+	if obj == nil {
 		w.Error = errors.New("encoding nil enum text marshaler")
 		return
 	}
@@ -131,19 +115,13 @@ func (c *enumTextMarshalerCodec) Encode(ptr unsafe.Pointer, w *Writer) {
 }
 
 type enumTextAppenderCodec struct {
-	typ  reflect2.Type
+	text textValue
 	enum *EnumSchema
-	ptr  bool
 }
 
 func (c *enumTextAppenderCodec) Encode(ptr unsafe.Pointer, w *Writer) {
-	var obj any
-	if c.ptr {
-		obj = c.typ.PackEFace(ptr)
-	} else {
-		obj = c.typ.UnsafeIndirect(ptr)
-	}
-	if c.typ.IsNullable() && reflect2.IsNil(obj) {
+	obj := c.text.value(ptr)
+	if obj == nil {
 		w.Error = errors.New("encoding nil enum text appender")
 		return
 	}

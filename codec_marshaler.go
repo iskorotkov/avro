@@ -2,57 +2,99 @@ package avro
 
 import (
 	"encoding"
+	"reflect"
 	"unsafe"
 
-	"github.com/modern-go/reflect2"
+	"github.com/iskorotkov/avro/v2/internal/unsafex"
 )
 
 var (
-	textMarshalerType   = reflect2.TypeOfPtr((*encoding.TextMarshaler)(nil)).Elem()
-	textUnmarshalerType = reflect2.TypeOfPtr((*encoding.TextUnmarshaler)(nil)).Elem()
+	textMarshalerType   = reflect.TypeFor[encoding.TextMarshaler]()
+	textUnmarshalerType = reflect.TypeFor[encoding.TextUnmarshaler]()
 	// textAppenderType is preferred over textMarshalerType at every dispatch site; encoding contract requires AppendText output to match MarshalText.
-	textAppenderType = reflect2.TypeOfPtr((*encoding.TextAppender)(nil)).Elem()
+	textAppenderType = reflect.TypeFor[encoding.TextAppender]()
 )
 
-func createDecoderOfMarshaler(schema Schema, typ reflect2.Type) ValDecoder {
-	if typ.Implements(textUnmarshalerType) && schema.Type() == String {
-		return &textMarshalerCodec{typ}
+// textValue boxes values of types implementing the text marshaling interfaces.
+type textValue struct {
+	typ      reflect.Type
+	box      unsafex.Boxer
+	nullable bool
+}
+
+func newTextValue(typ reflect.Type) textValue {
+	return textValue{typ: typ, box: unsafex.NewBoxer(typ), nullable: isNullable(typ)}
+}
+
+// newAddrTextValue boxes the address of values of typ.
+func newAddrTextValue(typ reflect.Type) textValue {
+	return textValue{typ: reflect.PointerTo(typ), box: unsafex.NewAddrBoxer(typ)}
+}
+
+// value returns the value at ptr, or nil when it is a nil reference.
+func (v textValue) value(ptr unsafe.Pointer) any {
+	obj := v.box.Box(ptr)
+	if v.nullable && unsafex.IsNil(obj) {
+		return nil
 	}
-	ptrType := reflect2.PtrTo(typ)
+	return obj
+}
+
+// valueOrNew returns the value at ptr, allocating its target first when it is a nil pointer.
+func (v textValue) valueOrNew(ptr unsafe.Pointer) any {
+	if obj := v.value(ptr); obj != nil || v.typ.Kind() != reflect.Pointer {
+		return obj
+	}
+
+	*(*unsafe.Pointer)(ptr) = reflect.New(v.typ.Elem()).UnsafePointer()
+	return v.box.Box(ptr)
+}
+
+func isNullable(typ reflect.Type) bool {
+	switch typ.Kind() {
+	case reflect.Pointer, reflect.Map, reflect.Chan, reflect.Func, reflect.Slice, reflect.Interface:
+		return true
+	default:
+		return false
+	}
+}
+
+func createDecoderOfMarshaler(schema Schema, typ reflect.Type) ValDecoder {
+	if typ.Implements(textUnmarshalerType) && schema.Type() == String {
+		return &textMarshalerCodec{newTextValue(typ)}
+	}
+	ptrType := reflect.PointerTo(typ)
 	if ptrType.Implements(textUnmarshalerType) && schema.Type() == String {
 		return &referenceDecoder{
-			&textMarshalerCodec{ptrType},
+			&textMarshalerCodec{newTextValue(ptrType)},
 		}
 	}
 	return nil
 }
 
-func createEncoderOfMarshaler(schema Schema, typ reflect2.Type) ValEncoder {
+func createEncoderOfMarshaler(schema Schema, typ reflect.Type) ValEncoder {
 	if schema.Type() != String {
 		return nil
 	}
 	if typ.Implements(textAppenderType) {
-		return &textAppenderCodec{typ: typ}
+		return &textAppenderCodec{newTextValue(typ)}
 	}
 	if typ.Implements(textMarshalerType) {
-		return &textMarshalerCodec{typ: typ}
+		return &textMarshalerCodec{newTextValue(typ)}
 	}
 	return nil
 }
 
 type textMarshalerCodec struct {
-	typ reflect2.Type
+	text textValue
 }
 
 func (c textMarshalerCodec) Decode(ptr unsafe.Pointer, r *Reader) {
-	obj := c.typ.UnsafeIndirect(ptr)
-	if reflect2.IsNil(obj) {
-		ptrType := c.typ.(*reflect2.UnsafePtrType)
-		newPtr := ptrType.Elem().UnsafeNew()
-		*(*unsafe.Pointer)(ptr) = newPtr
-		obj = c.typ.UnsafeIndirect(ptr)
+	unmarshaler, ok := c.text.valueOrNew(ptr).(encoding.TextUnmarshaler)
+	if !ok {
+		r.ReportError("textMarshalerCodec", "can not unmarshal into nil")
+		return
 	}
-	unmarshaler := obj.(encoding.TextUnmarshaler)
 	b := r.ReadBytes()
 	err := unmarshaler.UnmarshalText(b)
 	if err != nil {
@@ -61,8 +103,8 @@ func (c textMarshalerCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 }
 
 func (c textMarshalerCodec) Encode(ptr unsafe.Pointer, w *Writer) {
-	obj := c.typ.UnsafeIndirect(ptr)
-	if c.typ.IsNullable() && reflect2.IsNil(obj) {
+	obj := c.text.value(ptr)
+	if obj == nil {
 		w.WriteBytes(nil)
 		return
 	}
@@ -76,12 +118,12 @@ func (c textMarshalerCodec) Encode(ptr unsafe.Pointer, w *Writer) {
 }
 
 type textAppenderCodec struct {
-	typ reflect2.Type
+	text textValue
 }
 
 func (c textAppenderCodec) Encode(ptr unsafe.Pointer, w *Writer) {
-	obj := c.typ.UnsafeIndirect(ptr)
-	if c.typ.IsNullable() && reflect2.IsNil(obj) {
+	obj := c.text.value(ptr)
+	if obj == nil {
 		w.WriteBytes(nil)
 		return
 	}

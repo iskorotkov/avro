@@ -6,18 +6,15 @@ import (
 	"math/big"
 	"reflect"
 	"unsafe"
-
-	"github.com/modern-go/reflect2"
 )
 
-func createDecoderOfFixed(fixed *FixedSchema, typ reflect2.Type) ValDecoder {
+func createDecoderOfFixed(fixed *FixedSchema, typ reflect.Type) ValDecoder {
 	switch typ.Kind() {
 	case reflect.Array:
-		arrayType := typ.(reflect2.ArrayType)
-		if arrayType.Elem().Kind() != reflect.Uint8 || arrayType.Len() != fixed.Size() {
+		if typ.Elem().Kind() != reflect.Uint8 || typ.Len() != fixed.Size() {
 			break
 		}
-		return &fixedCodec{arrayType: typ.(*reflect2.UnsafeArrayType)}
+		return &fixedCodec{size: typ.Len()}
 	case reflect.Uint64:
 		if fixed.Size() != 8 {
 			break
@@ -25,11 +22,10 @@ func createDecoderOfFixed(fixed *FixedSchema, typ reflect2.Type) ValDecoder {
 
 		return &fixedUint64Codec{}
 	case reflect.Pointer:
-		ptrType := typ.(*reflect2.UnsafePtrType)
-		elemType := ptrType.Elem()
+		elemType := typ.Elem()
 
 		ls := fixed.Logical()
-		typ1 := elemType.Type1()
+		typ1 := elemType
 		if elemType.Kind() != reflect.Struct || !typ1.ConvertibleTo(ratType) || ls == nil ||
 			ls.Type() != Decimal {
 			break
@@ -41,7 +37,7 @@ func createDecoderOfFixed(fixed *FixedSchema, typ reflect2.Type) ValDecoder {
 		if ls == nil {
 			break
 		}
-		typ1 := typ.Type1()
+		typ1 := typ
 		if !typ1.ConvertibleTo(durType) || ls.Type() != Duration {
 			break
 		}
@@ -53,14 +49,13 @@ func createDecoderOfFixed(fixed *FixedSchema, typ reflect2.Type) ValDecoder {
 	}
 }
 
-func createEncoderOfFixed(fixed *FixedSchema, typ reflect2.Type) ValEncoder {
+func createEncoderOfFixed(fixed *FixedSchema, typ reflect.Type) ValEncoder {
 	switch typ.Kind() {
 	case reflect.Array:
-		arrayType := typ.(reflect2.ArrayType)
-		if arrayType.Elem().Kind() != reflect.Uint8 || arrayType.Len() != fixed.Size() {
+		if typ.Elem().Kind() != reflect.Uint8 || typ.Len() != fixed.Size() {
 			break
 		}
-		return &fixedCodec{arrayType: typ.(*reflect2.UnsafeArrayType)}
+		return &fixedCodec{size: typ.Len()}
 	case reflect.Uint64:
 		if fixed.Size() != 8 {
 			break
@@ -68,11 +63,10 @@ func createEncoderOfFixed(fixed *FixedSchema, typ reflect2.Type) ValEncoder {
 
 		return &fixedUint64Codec{}
 	case reflect.Pointer:
-		ptrType := typ.(*reflect2.UnsafePtrType)
-		elemType := ptrType.Elem()
+		elemType := typ.Elem()
 
 		ls := fixed.Logical()
-		typ1 := elemType.Type1()
+		typ1 := elemType
 		if elemType.Kind() != reflect.Struct || !typ1.ConvertibleTo(ratType) || ls == nil ||
 			ls.Type() != Decimal {
 			break
@@ -85,7 +79,7 @@ func createEncoderOfFixed(fixed *FixedSchema, typ reflect2.Type) ValEncoder {
 		if ls == nil {
 			break
 		}
-		typ1 := typ.Type1()
+		typ1 := typ
 		if typ1.ConvertibleTo(durType) && ls.Type() == Duration {
 			return &fixedDurationCodec{}
 		}
@@ -111,20 +105,18 @@ func (c *fixedUint64Codec) Encode(ptr unsafe.Pointer, w *Writer) {
 }
 
 type fixedCodec struct {
-	arrayType *reflect2.UnsafeArrayType
+	size int
 }
 
 func (c *fixedCodec) Decode(ptr unsafe.Pointer, r *Reader) {
-	for i := range c.arrayType.Len() {
-		c.arrayType.UnsafeSetIndex(ptr, i, reflect2.PtrOf(r.readByte()))
+	b := unsafe.Slice((*byte)(ptr), c.size)
+	for i := range b {
+		b[i] = r.readByte()
 	}
 }
 
 func (c *fixedCodec) Encode(ptr unsafe.Pointer, w *Writer) {
-	for i := range c.arrayType.Len() {
-		bytePtr := c.arrayType.UnsafeGetIndex(ptr, i)
-		w.writeByte(*(*byte)(bytePtr))
-	}
+	_, _ = w.Write(unsafe.Slice((*byte)(ptr), c.size))
 }
 
 type fixedDecimalCodec struct {

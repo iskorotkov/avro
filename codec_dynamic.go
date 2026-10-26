@@ -5,12 +5,13 @@ import (
 	"reflect"
 	"unsafe"
 
-	"github.com/modern-go/reflect2"
+	"github.com/iskorotkov/avro/v2/internal/unsafex"
 )
 
 type efaceDecoder struct {
 	schema Schema
-	typ    reflect2.Type
+	typ    reflect.Type
+	box    unsafex.Boxer
 	dec    ValDecoder
 }
 
@@ -21,6 +22,7 @@ func newEfaceDecoder(d *decoderContext, schema Schema) *efaceDecoder {
 	return &efaceDecoder{
 		schema: schema,
 		typ:    typ,
+		box:    unsafex.NewBoxer(typ),
 		dec:    dec,
 	}
 }
@@ -37,20 +39,18 @@ func (d *efaceDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 	}()
 
 	if *pObj == nil {
-		*pObj = genericDecode(d.typ, d.dec, r)
+		*pObj = genericDecode(d.typ, d.box, d.dec, r)
 		return
 	}
 
-	typ := reflect2.TypeOf(*pObj)
+	typ := reflect.TypeOf(*pObj)
 	if typ.Kind() != reflect.Pointer {
-		*pObj = genericDecode(d.typ, d.dec, r)
+		*pObj = genericDecode(d.typ, d.box, d.dec, r)
 		return
 	}
 
-	ptrType := typ.(*reflect2.UnsafePtrType)
-	ptrElemType := ptrType.Elem()
-	if reflect2.IsNil(*pObj) {
-		obj := ptrElemType.New()
+	if unsafex.IsNil(*pObj) {
+		obj := reflect.New(typ.Elem()).Interface()
 		r.ReadVal(d.schema, obj)
 		*pObj = obj
 		return
@@ -60,11 +60,11 @@ func (d *efaceDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 
 type interfaceEncoder struct {
 	schema Schema
-	typ    reflect2.Type
+	box    unsafex.Boxer
 }
 
 func (e *interfaceEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
-	obj := e.typ.UnsafeIndirect(ptr)
+	obj := e.box.Box(ptr)
 
 	obj, err := w.cfg.typeConverters.EncodeTypeConvert(obj, e.schema)
 	if err != nil && !errors.Is(err, errNoTypeConverter) {

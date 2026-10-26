@@ -7,12 +7,10 @@ import (
 	"strconv"
 	"time"
 	"unsafe"
-
-	"github.com/modern-go/reflect2"
 )
 
 //nolint:maintidx // Splitting this would not make it simpler.
-func createDecoderOfNative(schema *PrimitiveSchema, typ reflect2.Type) ValDecoder {
+func createDecoderOfNative(schema *PrimitiveSchema, typ reflect.Type) ValDecoder {
 	resolved := schema.encodedType != ""
 	switch typ.Kind() {
 	case reflect.Bool:
@@ -84,9 +82,9 @@ func createDecoderOfNative(schema *PrimitiveSchema, typ reflect2.Type) ValDecode
 			}
 
 		case st == Long:
-			if isTimestampLogicalType(lt) && typ.Type1() == timeDurationType {
+			if isTimestampLogicalType(lt) && typ == timeDurationType {
 				return &errorDecoder{err: fmt.Errorf("avro: %s is unsupported for Avro %s and logicalType %s",
-					typ.Type1().String(), schema.Type(), lt)}
+					typ.String(), schema.Type(), lt)}
 			}
 			if resolved {
 				return &longConvCodec[int64]{convert: createLongConverter(schema.encodedType)}
@@ -122,16 +120,16 @@ func createDecoderOfNative(schema *PrimitiveSchema, typ reflect2.Type) ValDecode
 		return &stringCodec{}
 
 	case reflect.Slice:
-		if typ.(reflect2.SliceType).Elem().Kind() != reflect.Uint8 || schema.Type() != Bytes {
+		if typ.Elem().Kind() != reflect.Uint8 || schema.Type() != Bytes {
 			break
 		}
-		return &bytesCodec{sliceType: typ.(*reflect2.UnsafeSliceType)}
+		return &bytesCodec{}
 
 	case reflect.Struct:
 		st := schema.Type()
 		ls := getLogicalSchema(schema)
 		lt := getLogicalType(schema)
-		isTime := typ.Type1().ConvertibleTo(timeType)
+		isTime := typ.ConvertibleTo(timeType)
 		switch {
 		case isTime && st == Int && lt == Date:
 			return &dateCodec{}
@@ -162,7 +160,7 @@ func createDecoderOfNative(schema *PrimitiveSchema, typ reflect2.Type) ValDecode
 				local:   true,
 				convert: createLongConverter(schema.encodedType),
 			}
-		case typ.Type1().ConvertibleTo(ratType) && st == Bytes && lt == Decimal:
+		case typ.ConvertibleTo(ratType) && st == Bytes && lt == Decimal:
 			dec := ls.(*DecimalLogicalSchema)
 			return &bytesDecimalCodec{prec: dec.Precision(), scale: dec.Scale()}
 
@@ -170,9 +168,7 @@ func createDecoderOfNative(schema *PrimitiveSchema, typ reflect2.Type) ValDecode
 			break
 		}
 	case reflect.Pointer:
-		ptrType := typ.(*reflect2.UnsafePtrType)
-		elemType := ptrType.Elem()
-		typ1 := elemType.Type1()
+		typ1 := typ.Elem()
 		ls := getLogicalSchema(schema)
 		if ls == nil {
 			break
@@ -189,7 +185,7 @@ func createDecoderOfNative(schema *PrimitiveSchema, typ reflect2.Type) ValDecode
 }
 
 //nolint:maintidx // Splitting this would not make it simpler.
-func createEncoderOfNative(schema *PrimitiveSchema, typ reflect2.Type) ValEncoder {
+func createEncoderOfNative(schema *PrimitiveSchema, typ reflect.Type) ValEncoder {
 	switch typ.Kind() {
 	case reflect.Bool:
 		if schema.Type() != Boolean {
@@ -255,9 +251,9 @@ func createEncoderOfNative(schema *PrimitiveSchema, typ reflect2.Type) ValEncode
 			return &timeMicrosCodec{}
 
 		case st == Long:
-			if isTimestampLogicalType(lt) && typ.Type1() == timeDurationType {
+			if isTimestampLogicalType(lt) && typ == timeDurationType {
 				return &errorEncoder{err: fmt.Errorf("avro: %s is unsupported for Avro %s and logicalType %s",
-					typ.Type1().String(), schema.Type(), lt)}
+					typ.String(), schema.Type(), lt)}
 			}
 			return &longCodec[int64]{}
 
@@ -286,15 +282,15 @@ func createEncoderOfNative(schema *PrimitiveSchema, typ reflect2.Type) ValEncode
 		return &stringCodec{}
 
 	case reflect.Slice:
-		if typ.(reflect2.SliceType).Elem().Kind() != reflect.Uint8 || schema.Type() != Bytes {
+		if typ.Elem().Kind() != reflect.Uint8 || schema.Type() != Bytes {
 			break
 		}
-		return &bytesCodec{sliceType: typ.(*reflect2.UnsafeSliceType)}
+		return &bytesCodec{}
 
 	case reflect.Struct:
 		st := schema.Type()
 		lt := getLogicalType(schema)
-		isTime := typ.Type1().ConvertibleTo(timeType)
+		isTime := typ.ConvertibleTo(timeType)
 		switch {
 		case isTime && st == Int && lt == Date:
 			return &dateCodec{}
@@ -310,7 +306,7 @@ func createEncoderOfNative(schema *PrimitiveSchema, typ reflect2.Type) ValEncode
 			return &timestampMicrosCodec{local: true}
 		case isTime && st == Long && lt == LocalTimestampNanos:
 			return &timestampNanosCodec{local: true}
-		case typ.Type1().ConvertibleTo(ratType) && st != Bytes || lt == Decimal:
+		case typ.ConvertibleTo(ratType) && st != Bytes || lt == Decimal:
 			ls := getLogicalSchema(schema)
 			dec := ls.(*DecimalLogicalSchema)
 			return &bytesDecimalCodec{prec: dec.Precision(), scale: dec.Scale()}
@@ -319,9 +315,7 @@ func createEncoderOfNative(schema *PrimitiveSchema, typ reflect2.Type) ValEncode
 		}
 
 	case reflect.Pointer:
-		ptrType := typ.(*reflect2.UnsafePtrType)
-		elemType := ptrType.Elem()
-		typ1 := elemType.Type1()
+		typ1 := typ.Elem()
 		ls := getLogicalSchema(schema)
 		if ls == nil {
 			break
@@ -459,13 +453,10 @@ func (*stringCodec) Encode(ptr unsafe.Pointer, w *Writer) {
 	w.WriteString(*(*string)(ptr))
 }
 
-type bytesCodec struct {
-	sliceType *reflect2.UnsafeSliceType
-}
+type bytesCodec struct{}
 
 func (c *bytesCodec) Decode(ptr unsafe.Pointer, r *Reader) {
-	b := r.ReadBytes()
-	c.sliceType.UnsafeSet(ptr, reflect2.PtrOf(b))
+	*(*[]byte)(ptr) = r.ReadBytes()
 }
 
 func (c *bytesCodec) Encode(ptr unsafe.Pointer, w *Writer) {

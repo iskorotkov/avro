@@ -3,9 +3,8 @@ package avro
 import (
 	"errors"
 	"io"
+	"reflect"
 	"sync"
-
-	"github.com/modern-go/reflect2"
 )
 
 const (
@@ -124,10 +123,10 @@ type API interface {
 	NewDecoder(schema Schema, r io.Reader) *Decoder
 
 	// DecoderOf returns the value decoder for a given schema and type.
-	DecoderOf(schema Schema, typ reflect2.Type) ValDecoder
+	DecoderOf(schema Schema, typ reflect.Type) ValDecoder
 
 	// EncoderOf returns the value encoder for a given schema and type.
-	EncoderOf(schema Schema, typ reflect2.Type) ValEncoder
+	EncoderOf(schema Schema, typ reflect.Type) ValEncoder
 
 	// Register registers names to their types for resolution. All primitive types are pre-registered.
 	Register(name string, obj any)
@@ -136,10 +135,10 @@ type API interface {
 	RegisterTypeConverters(conv ...TypeConverter)
 
 	// TypeOf returns the schema type for a given name.
-	TypeOf(name string) (reflect2.Type, error)
+	TypeOf(name string) (reflect.Type, error)
 
 	// NamesOf returns the names associated with a given type.
-	NamesOf(typ reflect2.Type) ([]string, error)
+	NamesOf(typ reflect.Type) ([]string, error)
 }
 
 type frozenConfig struct {
@@ -240,11 +239,11 @@ func (c *frozenConfig) RegisterTypeConverters(convs ...TypeConverter) {
 	c.typeConverters.RegisterTypeConverters(convs...)
 }
 
-func (c *frozenConfig) TypeOf(name string) (reflect2.Type, error) {
+func (c *frozenConfig) TypeOf(name string) (reflect.Type, error) {
 	return c.resolver.Type(name)
 }
 
-func (c *frozenConfig) NamesOf(typ reflect2.Type) ([]string, error) {
+func (c *frozenConfig) NamesOf(typ reflect.Type) ([]string, error) {
 	return c.resolver.Name(typ)
 }
 

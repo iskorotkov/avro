@@ -2,26 +2,27 @@ package avro
 
 import (
 	"fmt"
+	"reflect"
 	"unsafe"
 
-	"github.com/modern-go/reflect2"
+	"github.com/iskorotkov/avro/v2/internal/unsafex"
 )
 
-func createDefaultDecoder(d *decoderContext, field *Field, typ reflect2.Type) ValDecoder {
+func createDefaultDecoder(d *decoderContext, field *Field, typ reflect.Type) ValDecoder {
 	cfg := d.cfg
 	fn := func(def any) ([]byte, error) {
-		defaultType := reflect2.TypeOf(def)
+		defaultType := reflect.TypeOf(def)
 		if defaultType == nil {
-			defaultType = reflect2.TypeOf((*null)(nil))
+			defaultType = reflect.TypeFor[*null]()
 		}
 		defaultEncoder := encoderOfType(newEncoderContext(cfg), field.Type(), defaultType)
-		if defaultType.LikePtr() {
+		if unsafex.IsDirect(defaultType) {
 			defaultEncoder = &onePtrEncoder{defaultEncoder}
 		}
 		w := cfg.borrowWriter()
 		defer cfg.returnWriter(w)
 
-		defaultEncoder.Encode(reflect2.PtrOf(def), w)
+		defaultEncoder.Encode(unsafex.DataOf(def), w)
 		if w.Error != nil {
 			return nil, w.Error
 		}

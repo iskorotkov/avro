@@ -7,7 +7,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/modern-go/reflect2"
+	"github.com/iskorotkov/avro/v2/internal/unsafex"
 )
 
 var (
@@ -35,17 +35,17 @@ type ValEncoder interface {
 
 // ReadVal parses Avro value and stores the result in the value pointed to by obj.
 func (r *Reader) ReadVal(schema Schema, obj any) {
-	decoder := r.cfg.getDecoderFromCache(schema.CacheFingerprint(), reflect2.RTypeOf(obj))
+	decoder := r.cfg.getDecoderFromCache(schema.CacheFingerprint(), uintptr(unsafex.TypePtrOf(obj)))
 	if decoder == nil {
-		typ := reflect2.TypeOf(obj)
-		if typ.Kind() != reflect.Pointer {
+		typ := reflect.TypeOf(obj)
+		if typ == nil || typ.Kind() != reflect.Pointer {
 			r.ReportError("ReadVal", "can only unmarshal into pointer")
 			return
 		}
 		decoder = r.cfg.DecoderOf(schema, typ)
 	}
 
-	ptr := reflect2.PtrOf(obj)
+	ptr := unsafex.DataOf(obj)
 	if ptr == nil {
 		r.ReportError("ReadVal", "can not read into nil pointer")
 		return
@@ -56,23 +56,26 @@ func (r *Reader) ReadVal(schema Schema, obj any) {
 
 // WriteVal writes the Avro encoding of obj.
 func (w *Writer) WriteVal(schema Schema, val any) {
-	encoder := w.cfg.getEncoderFromCache(schema.CacheFingerprint(), reflect2.RTypeOf(val))
+	encoder := w.cfg.getEncoderFromCache(schema.CacheFingerprint(), uintptr(unsafex.TypePtrOf(val)))
 	if encoder == nil {
-		typ := reflect2.TypeOf(val)
-		encoder = w.cfg.EncoderOf(schema, typ)
+		encoder = w.cfg.EncoderOf(schema, reflect.TypeOf(val))
 	}
-	encoder.Encode(reflect2.PtrOf(val), w)
+	encoder.Encode(unsafex.DataOf(val), w)
 }
 
-func (c *frozenConfig) DecoderOf(schema Schema, typ reflect2.Type) ValDecoder {
-	rtype := typ.RType()
+// typeID returns the cache identity of typ, which equals the interface type word of its values.
+func typeID(typ reflect.Type) uintptr {
+	return uintptr(unsafex.TypePtr(typ))
+}
+
+func (c *frozenConfig) DecoderOf(schema Schema, typ reflect.Type) ValDecoder {
+	rtype := typeID(typ)
 	decoder := c.getDecoderFromCache(schema.CacheFingerprint(), rtype)
 	if decoder != nil {
 		return decoder
 	}
 
-	ptrType := typ.(*reflect2.UnsafePtrType)
-	decoder = decoderOfType(newDecoderContext(c), schema, ptrType.Elem())
+	decoder = decoderOfType(newDecoderContext(c), schema, typ.Elem())
 	c.addDecoderToCache(schema.CacheFingerprint(), rtype, decoder)
 	return decoder
 }
@@ -118,16 +121,14 @@ func newEncoderContext(cfg *frozenConfig) *encoderContext {
 }
 
 //nolint:dupl
-func decoderOfType(d *decoderContext, schema Schema, typ reflect2.Type) ValDecoder {
+func decoderOfType(d *decoderContext, schema Schema, typ reflect.Type) ValDecoder {
 	if dec := createDecoderOfMarshaler(schema, typ); dec != nil {
 		return dec
 	}
 
 	// Handle eface (empty interface) case when it isn't a union
-	if typ.Kind() == reflect.Interface && schema.Type() != Union {
-		if _, ok := typ.(*reflect2.UnsafeIFaceType); !ok {
-			return newEfaceDecoder(d, schema)
-		}
+	if typ.Kind() == reflect.Interface && schema.Type() != Union && typ.NumMethod() == 0 {
+		return newEfaceDecoder(d, schema)
 	}
 
 	switch schema.Type() {
@@ -136,13 +137,13 @@ func decoderOfType(d *decoderContext, schema Schema, typ reflect2.Type) ValDecod
 	case String, Bytes, Int, Long, Float, Double, Boolean:
 		return createDecoderOfNative(schema.(*PrimitiveSchema), typ)
 	case Record:
-		key := cacheKey{fingerprint: schema.CacheFingerprint(), rtype: typ.RType()}
+		key := cacheKey{fingerprint: schema.CacheFingerprint(), rtype: typeID(typ)}
 		defDec := &deferDecoder{}
 		d.decoders[key] = defDec
 		defDec.decoder = createDecoderOfRecord(d, schema.(*RecordSchema), typ)
 		return defDec.decoder
 	case Ref:
-		key := cacheKey{fingerprint: schema.(*RefSchema).Schema().CacheFingerprint(), rtype: typ.RType()}
+		key := cacheKey{fingerprint: schema.(*RefSchema).Schema().CacheFingerprint(), rtype: typeID(typ)}
 		if dec, f := d.decoders[key]; f {
 			return dec
 		}
@@ -163,19 +164,19 @@ func decoderOfType(d *decoderContext, schema Schema, typ reflect2.Type) ValDecod
 	}
 }
 
-func (c *frozenConfig) EncoderOf(schema Schema, typ reflect2.Type) ValEncoder {
+func (c *frozenConfig) EncoderOf(schema Schema, typ reflect.Type) ValEncoder {
 	if typ == nil {
-		typ = reflect2.TypeOf((*null)(nil))
+		typ = reflect.TypeFor[*null]()
 	}
 
-	rtype := typ.RType()
+	rtype := typeID(typ)
 	encoder := c.getEncoderFromCache(schema.CacheFingerprint(), rtype)
 	if encoder != nil {
 		return encoder
 	}
 
 	encoder = encoderOfType(newEncoderContext(c), schema, typ)
-	if typ.LikePtr() {
+	if unsafex.IsDirect(typ) {
 		encoder = &onePtrEncoder{encoder}
 	}
 	c.addEncoderToCache(schema.CacheFingerprint(), rtype, encoder)
@@ -191,13 +192,13 @@ func (e *onePtrEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 }
 
 //nolint:dupl
-func encoderOfType(e *encoderContext, schema Schema, typ reflect2.Type) ValEncoder {
+func encoderOfType(e *encoderContext, schema Schema, typ reflect.Type) ValEncoder {
 	if enc := createEncoderOfMarshaler(schema, typ); enc != nil {
 		return enc
 	}
 
 	if typ.Kind() == reflect.Interface {
-		return &interfaceEncoder{schema: schema, typ: typ}
+		return &interfaceEncoder{schema: schema, box: unsafex.NewBoxer(typ)}
 	}
 
 	switch schema.Type() {
@@ -206,13 +207,13 @@ func encoderOfType(e *encoderContext, schema Schema, typ reflect2.Type) ValEncod
 	case String, Bytes, Int, Long, Float, Double, Boolean:
 		return createEncoderOfNative(schema.(*PrimitiveSchema), typ)
 	case Record:
-		key := cacheKey{fingerprint: schema.CacheFingerprint(), rtype: typ.RType()}
+		key := cacheKey{fingerprint: schema.CacheFingerprint(), rtype: typeID(typ)}
 		defEnc := &deferEncoder{}
 		e.encoders[key] = defEnc
 		defEnc.encoder = createEncoderOfRecord(e, schema.(*RecordSchema), typ)
 		return defEnc.encoder
 	case Ref:
-		key := cacheKey{fingerprint: schema.(*RefSchema).Schema().CacheFingerprint(), rtype: typ.RType()}
+		key := cacheKey{fingerprint: schema.(*RefSchema).Schema().CacheFingerprint(), rtype: typeID(typ)}
 		if enc, f := e.encoders[key]; f {
 			return enc
 		}

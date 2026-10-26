@@ -8,35 +8,34 @@ import (
 	"unsafe"
 
 	"github.com/iskorotkov/avro/v2/internal/unsafex"
-	"github.com/modern-go/reflect2"
 )
 
-func createDecoderOfArray(d *decoderContext, schema *ArraySchema, typ reflect2.Type) ValDecoder {
+func createDecoderOfArray(d *decoderContext, schema *ArraySchema, typ reflect.Type) ValDecoder {
 	if typ.Kind() != reflect.Slice {
 		return &errorDecoder{err: fmt.Errorf("avro: %s is unsupported for Avro %s", typ.String(), schema.Type())}
 	}
 
-	if dec, ok := newScalarArrayDecoder(schema, typ.Type1()); ok {
+	if dec, ok := newScalarArrayDecoder(schema, typ); ok {
 		return dec
 	}
 
-	return decoderOfArray(d, schema, typ.Type1())
+	return decoderOfArray(d, schema, typ)
 }
 
-func createEncoderOfArray(e *encoderContext, schema *ArraySchema, typ reflect2.Type) ValEncoder {
+func createEncoderOfArray(e *encoderContext, schema *ArraySchema, typ reflect.Type) ValEncoder {
 	if typ.Kind() != reflect.Slice {
 		return &errorEncoder{err: fmt.Errorf("avro: %s is unsupported for Avro %s", typ.String(), schema.Type())}
 	}
 
-	if enc, ok := newScalarArrayEncoder(e, schema, typ.Type1()); ok {
+	if enc, ok := newScalarArrayEncoder(e, schema, typ); ok {
 		return enc
 	}
 
-	return encoderOfArray(e, schema, typ.Type1())
+	return encoderOfArray(e, schema, typ)
 }
 
 func decoderOfArray(d *decoderContext, arr *ArraySchema, typ reflect.Type) ValDecoder {
-	decoder := decoderOfType(d, arr.Items(), reflect2.Type2(typ.Elem()))
+	decoder := decoderOfType(d, arr.Items(), typ.Elem())
 
 	return &arrayDecoder{typ: typ, elemSize: typ.Elem().Size(), decoder: decoder}
 }
@@ -83,7 +82,7 @@ func (d *arrayDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 }
 
 func encoderOfArray(e *encoderContext, arr *ArraySchema, typ reflect.Type) ValEncoder {
-	encoder := encoderOfType(e, arr.Items(), reflect2.Type2(typ.Elem()))
+	encoder := encoderOfType(e, arr.Items(), typ.Elem())
 
 	return &arrayEncoder{
 		blockLength: e.cfg.getBlockLength(),

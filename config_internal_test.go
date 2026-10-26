@@ -1,9 +1,9 @@
 package avro
 
 import (
+	"reflect"
 	"testing"
 
-	"github.com/modern-go/reflect2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -36,7 +36,7 @@ func TestConfig_ReusesDecoders(t *testing.T) {
 		{"name": "a", "type": "long"}
 	]
 }`)
-	typ := reflect2.TypeOfPtr(&testObj{})
+	typ := reflect.TypeFor[*testObj]()
 
 	dec1 := cfg.DecoderOf(schema, typ)
 	dec2 := cfg.DecoderOf(schema, typ)
@@ -57,7 +57,7 @@ func TestConfig_ReusesDecoders_WithWriterFingerprint(t *testing.T) {
 			{"name": "b", "type": "string", "default": "foo"}
 		]
 	}`
-	typ := reflect2.TypeOfPtr(&testObj{})
+	typ := reflect.TypeFor[*testObj]()
 
 	api := Config{
 		TagKey:      "test",
@@ -83,7 +83,7 @@ func TestConfig_ReusesDecoders_WithEnum(t *testing.T) {
 		"symbols": ["foo"],
 		"default": "foo"
 	}`
-	typ := reflect2.TypeOfPtr(new(string))
+	typ := reflect.TypeFor[*string]()
 
 	api := Config{
 		TagKey:      "test",
@@ -122,7 +122,7 @@ func TestConfig_DisableCache_DoesNotReuseDecoders(t *testing.T) {
 		{"name": "a", "type": "long"}
 	]
 }`)
-	typ := reflect2.TypeOfPtr(&testObj{})
+	typ := reflect.TypeFor[*testObj]()
 
 	dec1 := cfg.DecoderOf(schema, typ)
 	dec2 := cfg.DecoderOf(schema, typ)
@@ -148,7 +148,7 @@ func TestConfig_ReusesEncoders(t *testing.T) {
 		{"name": "a", "type": "long"}
 	]
 }`)
-	typ := reflect2.TypeOfPtr(testObj{})
+	typ := reflect.TypeFor[*testObj]()
 
 	enc1 := cfg.EncoderOf(schema, typ)
 	enc2 := cfg.EncoderOf(schema, typ)
@@ -175,7 +175,7 @@ func TestConfig_DisableCache_DoesNotReuseEncoders(t *testing.T) {
 		{"name": "a", "type": "long"}
 	]
 }`)
-	typ := reflect2.TypeOfPtr(testObj{})
+	typ := reflect.TypeFor[*testObj]()
 
 	enc1 := cfg.EncoderOf(schema, typ)
 	enc2 := cfg.EncoderOf(schema, typ)

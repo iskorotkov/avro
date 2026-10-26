@@ -3,15 +3,14 @@ package avro
 import (
 	"fmt"
 	"math/big"
+	"reflect"
 	"sync"
 	"time"
-
-	"github.com/modern-go/reflect2"
 )
 
 // TypeResolver resolves types by name.
 type TypeResolver struct {
-	names sync.Map // map[string]reflect2.Type
+	names sync.Map // map[string]reflect.Type
 	types sync.Map // map[int][]string
 }
 
@@ -52,8 +51,8 @@ func NewTypeResolver() *TypeResolver {
 
 // Register registers names to their types for resolution.
 func (r *TypeResolver) Register(name string, obj any) {
-	typ := reflect2.TypeOf(obj)
-	rtype := typ.RType()
+	typ := reflect.TypeOf(obj)
+	rtype := typeID(typ)
 
 	r.names.Store(name, typ)
 
@@ -67,8 +66,8 @@ func (r *TypeResolver) Register(name string, obj any) {
 }
 
 // Name gets the name for a type, or an error.
-func (r *TypeResolver) Name(typ reflect2.Type) ([]string, error) {
-	rtype := typ.RType()
+func (r *TypeResolver) Name(typ reflect.Type) ([]string, error) {
+	rtype := typeID(typ)
 
 	names, ok := r.types.Load(rtype)
 	if !ok {
@@ -79,13 +78,13 @@ func (r *TypeResolver) Name(typ reflect2.Type) ([]string, error) {
 }
 
 // Type gets the type for a name, or an error.
-func (r *TypeResolver) Type(name string) (reflect2.Type, error) {
+func (r *TypeResolver) Type(name string) (reflect.Type, error) {
 	typ, ok := r.names.Load(name)
 	if !ok {
 		return nil, fmt.Errorf("avro: unable to resolve type with name %s", name)
 	}
 
-	return typ.(reflect2.Type), nil
+	return typ.(reflect.Type), nil
 }
 
 // Register registers names to their types for resolution. All primitive types are pre-registered.

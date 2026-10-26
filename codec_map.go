@@ -10,33 +10,32 @@ import (
 	"unsafe"
 
 	"github.com/iskorotkov/avro/v2/internal/unsafex"
-	"github.com/modern-go/reflect2"
 )
 
-func createDecoderOfMap(d *decoderContext, schema *MapSchema, typ reflect2.Type) ValDecoder {
+func createDecoderOfMap(d *decoderContext, schema *MapSchema, typ reflect.Type) ValDecoder {
 	if typ.Kind() == reflect.Map {
-		keyType := typ.(reflect2.MapType).Key()
+		keyType := typ.Key()
 		switch {
 		case keyType.Kind() == reflect.String:
-			return decoderOfMap(d, schema, typ.Type1())
+			return decoderOfMap(d, schema, typ)
 		case keyType.Implements(textUnmarshalerType):
-			return decoderOfMapUnmarshaler(d, schema, typ.Type1())
+			return decoderOfMapUnmarshaler(d, schema, typ)
 		}
 	}
 
 	return &errorDecoder{err: fmt.Errorf("avro: %s is unsupported for Avro %s", typ.String(), schema.Type())}
 }
 
-func createEncoderOfMap(e *encoderContext, schema *MapSchema, typ reflect2.Type) ValEncoder {
+func createEncoderOfMap(e *encoderContext, schema *MapSchema, typ reflect.Type) ValEncoder {
 	if typ.Kind() == reflect.Map {
-		keyType := typ.(reflect2.MapType).Key()
+		keyType := typ.Key()
 		switch {
 		case keyType.Kind() == reflect.String:
-			return encoderOfMap(e, schema, typ.Type1())
+			return encoderOfMap(e, schema, typ)
 		case keyType.Implements(textAppenderType):
-			return encoderOfMapKeys(e, schema, typ.Type1(), textAppenderKey{boxer: unsafex.NewBoxer(keyType.Type1())})
+			return encoderOfMapKeys(e, schema, typ, textAppenderKey{boxer: unsafex.NewBoxer(keyType)})
 		case keyType.Implements(textMarshalerType):
-			return encoderOfMapKeys(e, schema, typ.Type1(), textMarshalerKey{boxer: unsafex.NewBoxer(keyType.Type1())})
+			return encoderOfMapKeys(e, schema, typ, textMarshalerKey{boxer: unsafex.NewBoxer(keyType)})
 		}
 	}
 
@@ -65,8 +64,31 @@ func wrapMapDecodeError(r *Reader, typ reflect.Type) {
 	}
 }
 
+var anyMapType = reflect.TypeFor[map[string]any]()
+
+// makeMapIfNil stores a new map with room for n elements at ptr when the map there is nil.
+func makeMapIfNil(typ reflect.Type, ptr unsafe.Pointer, n int) {
+	if *(*unsafe.Pointer)(ptr) == nil {
+		unsafex.MakeMap(typ, ptr, n)
+	}
+}
+
+// decodeMapEntry decodes a value with dec and stores it under key in the non-nil map of type typ at ptr.
+func decodeMapEntry(typ reflect.Type, ptr unsafe.Pointer, key string, dec ValDecoder, r *Reader) {
+	if typ == anyMapType {
+		var elem any
+		dec.Decode(noescape(unsafe.Pointer(&elem)), r)
+		(*(*map[string]any)(ptr))[key] = elem
+		return
+	}
+
+	elem := reflect.New(typ.Elem())
+	dec.Decode(elem.UnsafePointer(), r)
+	unsafex.MapOf(typ, ptr).SetMapIndex(reflect.ValueOf(key).Convert(typ.Key()), elem.Elem())
+}
+
 func decoderOfMap(d *decoderContext, m *MapSchema, typ reflect.Type) ValDecoder {
-	decoder := decoderOfType(d, m.Values(), reflect2.Type2(typ.Elem()))
+	decoder := decoderOfType(d, m.Values(), typ.Elem())
 
 	switch typ {
 	case reflect.TypeFor[map[string]string]():
@@ -196,7 +218,7 @@ func (d *mapDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 }
 
 func decoderOfMapUnmarshaler(d *decoderContext, m *MapSchema, typ reflect.Type) ValDecoder {
-	decoder := decoderOfType(d, m.Values(), reflect2.Type2(typ.Elem()))
+	decoder := decoderOfType(d, m.Values(), typ.Elem())
 
 	return &mapDecoderUnmarshaler{
 		typ:     typ,
@@ -268,7 +290,7 @@ func wrapMapEncodeError(w *Writer, typ reflect.Type) {
 }
 
 func encoderOfMap(e *encoderContext, m *MapSchema, typ reflect.Type) ValEncoder {
-	encoder := encoderOfType(e, m.Values(), reflect2.Type2(typ.Elem()))
+	encoder := encoderOfType(e, m.Values(), typ.Elem())
 	blockLength := e.cfg.getBlockLength()
 
 	// Maps are iterated as a map[string]V with the same memory layout as their actual type.
@@ -394,7 +416,7 @@ func (k textAppenderKey) writeKey(ptr unsafe.Pointer, w *Writer) {
 }
 
 func encoderOfMapKeys(e *encoderContext, m *MapSchema, typ reflect.Type, keys mapKeyWriter) ValEncoder {
-	encoder := encoderOfType(e, m.Values(), reflect2.Type2(typ.Elem()))
+	encoder := encoderOfType(e, m.Values(), typ.Elem())
 
 	enc := &mapEncoder{
 		typ:         typ,
