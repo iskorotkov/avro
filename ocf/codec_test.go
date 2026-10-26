@@ -1,7 +1,10 @@
 package ocf
 
 import (
+	"bytes"
+	"errors"
 	"math/rand"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -102,4 +105,104 @@ func makeTestData(length int, charMaker func() byte) []byte {
 		input[i] = charMaker()
 	}
 	return input
+}
+
+func TestCodecs_ReuseBuffersAcrossCalls(t *testing.T) {
+	inputs := [][]byte{
+		makeTestData(8762, func() byte { return byte(rand.Uint32()) }),
+		makeTestData(7, func() byte { return 'a' }),
+		makeTestData(100000, func() byte { return 'b' }),
+	}
+
+	for _, name := range []CodecName{Null, Deflate, Snappy, ZStandard} {
+		t.Run(string(name), func(t *testing.T) {
+			codec, err := resolveCodec(name, codecOptions{DeflateCompressionLevel: -1})
+			require.NoError(t, err)
+
+			for _, input := range inputs {
+				encoded := codec.Encode(input)
+				decoded, err := codec.Decode(encoded)
+
+				require.NoError(t, err)
+				assert.Equal(t, input, decoded)
+			}
+		})
+	}
+}
+
+func TestZStandardCodec_SharesDefaultInstances(t *testing.T) {
+	a := newZStandardCodec(zstdOptions{}, 0)
+	b := newZStandardCodec(zstdOptions{}, 0)
+
+	assert.Same(t, a.encoder, b.encoder)
+	assert.Same(t, a.decoder, b.decoder)
+	require.NoError(t, a.Close())
+
+	out, err := b.Decode(b.Encode([]byte("x")))
+	require.NoError(t, err)
+	assert.Equal(t, []byte("x"), out)
+}
+
+func TestZstdDecoderCache_SharesUpToSize(t *testing.T) {
+	cache := newZstdDecoderCache(2)
+
+	a, sharedA := cache.get(10)
+	b, sharedB := cache.get(20)
+	again, sharedAgain := cache.get(10)
+	extra, sharedExtra := cache.get(30)
+	defer extra.Close()
+
+	assert.True(t, sharedA)
+	assert.True(t, sharedB)
+	assert.True(t, sharedAgain)
+	assert.Same(t, a, again)
+	assert.NotSame(t, a, b)
+	assert.False(t, sharedExtra)
+	assert.Equal(t, 2, cache.len())
+}
+
+func TestZStandardCodec_OwnsDecoderPastSharedLimit(t *testing.T) {
+	for limit := range maxSharedZstdDecoders + 1 {
+		require.NoError(t, newZStandardCodec(zstdOptions{}, 1<<20+limit).Close())
+	}
+
+	codec := newZStandardCodec(zstdOptions{}, 2<<20)
+	defer codec.Close()
+
+	assert.False(t, codec.sharedDecoder)
+	assert.LessOrEqual(t, defaultZstdDecoders.len(), maxSharedZstdDecoders)
+	out, err := codec.Decode(codec.Encode([]byte("x")))
+	require.NoError(t, err)
+	assert.Equal(t, []byte("x"), out)
+}
+
+// Run with -race: codecs built without options share the process-wide default encoder and decoder.
+func TestZStandardCodec_DefaultInstancesConcurrent(t *testing.T) {
+	const goroutines = 8
+	input := makeTestData(8762, func() byte { return byte(rand.Uint32()) })
+
+	var wg sync.WaitGroup
+	errs := make(chan error, goroutines)
+	for range goroutines {
+		wg.Go(func() {
+			codec := newZStandardCodec(zstdOptions{}, 0)
+			defer codec.Close()
+			for range 50 {
+				out, err := codec.Decode(codec.Encode(input))
+				if err != nil {
+					errs <- err
+					return
+				}
+				if !bytes.Equal(input, out) {
+					errs <- errors.New("round trip mismatch")
+					return
+				}
+			}
+		})
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Fatal(err)
+	}
 }
