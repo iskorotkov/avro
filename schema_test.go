@@ -867,12 +867,12 @@ func TestUnionSchema(t *testing.T) {
 		{
 			name:    "Empty Union",
 			schema:  `[]`,
-			wantErr: require.Error,
+			wantErr: require.NoError,
 		},
 		{
 			name:    "Empty Union In Record Field",
 			schema:  `{"type":"record","name":"R","fields":[{"name":"f","type":[]}]}`,
-			wantErr: require.Error,
+			wantErr: require.NoError,
 		},
 	}
 
@@ -900,6 +900,21 @@ func TestParseBytes_EmptyUnionDefaultDoesNotPanic(t *testing.T) {
 
 	_, err := avro.ParseBytes(input)
 	require.Error(t, err)
+}
+
+func TestUnionSchema_EmptyUnionMatchesNoValue(t *testing.T) {
+	schema, err := avro.ParseWithCache(`[]`, "", &avro.SchemaCache{})
+	require.NoError(t, err)
+
+	fp, err := schema.FingerprintUsing(avro.CRC64Avro)
+	require.NoError(t, err)
+	assert.Equal(t, "[]", schema.String())
+	assert.Equal(t, []byte{0xee, 0xc6, 0xe1, 0x73, 0xd2, 0x3f, 0xb9, 0xd1}, fp)
+
+	_, err = avro.Marshal(schema, nil)
+	require.Error(t, err)
+	var got any
+	require.Error(t, avro.Unmarshal(schema, []byte{0x00}, &got))
 }
 
 func TestUnionSchema_Indices(t *testing.T) {

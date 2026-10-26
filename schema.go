@@ -1248,10 +1248,6 @@ type UnionSchema struct {
 
 // NewUnionSchema creates a union schema instance.
 func NewUnionSchema(types []Schema, opts ...SchemaOption) (*UnionSchema, error) {
-	if len(types) == 0 {
-		return nil, errors.New("avro: union type must have at least one member")
-	}
-
 	var cfg schemaConfig
 	for _, opt := range opts {
 		opt(&cfg)
@@ -1770,6 +1766,9 @@ func isValidDefault(schema Schema, def any) (any, bool) {
 		return m, true
 	case Union:
 		unionSchema := schema.(*UnionSchema)
+		if len(unionSchema.Types()) == 0 {
+			return nil, false
+		}
 		return isValidDefault(unionSchema.Types()[0], def)
 	case Record:
 		m, ok := def.(map[string]any)
