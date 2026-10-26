@@ -30,6 +30,7 @@ Unresolved issues from hamba/avro are tracked in [ISSUES.md](./ISSUES.md).
 - **Bug fix:** registered missing logical types for local timestamps (`local-timestamp-millis`, `local-timestamp-micros`), which caused decoding errors
 - **Bug fix:** fixed enum type duplication in Go code generation (`avrogen`)
 - **Bug fix:** encoder and decoder caches take field defaults into account, so schemas differing only in defaults no longer share codecs ([hamba/avro#449](https://github.com/hamba/avro/issues/449))
+- **Bug fix:** empty unions (`[]`) are accepted as the Avro spec allows; encoding or decoding a value against one returns an error
 - **Security:** hardened handling of untrusted schemas: `Resolve` handles recursive and DAG schemas, `fixed` size and `decimal` precision are capped, OCF and registry schemas no longer leak into `avro.DefaultSchemaCache`, and codec caches can be bounded (see [SECURITY.md](SECURITY.md))
 - **Go 1.26+ required:** minimum Go version raised to 1.26; codebase updated to use latest Go idioms
 - **CI updated:** tested on Go 1.26 and 1.27; tools (golangci-lint, gotestsum) pinned via `go.mod` `tool` directive
@@ -245,6 +246,8 @@ When processing untrusted Avro data, it is important to configure protection aga
 - `avro.MaxFixedSize` - Limits the size of `fixed` types accepted by the schema parser (default: `1MiB`)
 
 OCF decoders and registry clients parse schemas into private caches by default, so untrusted schemas cannot redefine types in `avro.DefaultSchemaCache`.
+
+**Behavior change:** parsing no longer overwrites names already in a schema cache. A later `Parse` that redefines a name returns its own definition, but references to that name by other schemas keep resolving to the first one; use a fresh `avro.SchemaCache` with `ParseWithCache` to work with several versions of a type. Names from registry responses and OCF headers no longer appear in `avro.DefaultSchemaCache`; pass `registry.WithNamedSchemaCache(avro.DefaultSchemaCache)` or `ocf.WithDecoderSchemaCache(avro.DefaultSchemaCache)` to restore the old sharing for trusted sources.
 
 For comprehensive security considerations and configuration requirements, please refer to [SECURITY.md](SECURITY.md).
 

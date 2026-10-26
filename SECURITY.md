@@ -83,9 +83,9 @@ An OCF file carries its own schema, and a schema registry response is only as tr
 
 ### Schema caches
 
-`ocf.NewDecoder` and `registry.NewClient` parse into a private `avro.SchemaCache` that reads from `avro.DefaultSchemaCache` but never writes to it, so a hostile file or registry cannot redefine a type such as `com.app.User` for the rest of the process. Pass `ocf.WithDecoderSchemaCache` or `registry.WithSchemaCache` to share a cache explicitly; use `avro.NewSchemaCache(parent)` to build one that only reads from its parent.
+`ocf.NewDecoder` and every `registry.Client` response parse into a private `avro.SchemaCache` that reads from `avro.DefaultSchemaCache` but never writes to it, so a hostile file or registry cannot redefine a type such as `com.app.User` for the rest of the process. Pass `ocf.WithDecoderSchemaCache` or `registry.WithNamedSchemaCache` to share a cache explicitly; use `avro.NewSchemaCache(parent)` to build one that only reads from its parent.
 
-Parsing never overwrites a name that the target cache can already resolve. A schema that redefines a cached name still parses with its own definition, but later lookups of that name keep the first definition.
+Parsing never overwrites a name that the target cache can already resolve. A schema that redefines a cached name with a different definition still parses with its own definition, but adds none of its names to the cache, so later lookups keep the first definition and never mix the two. Appending to an existing OCF file with `ocf.NewEncoder` also parses that file's header into a private cache.
 
 ### Codec caches
 
