@@ -244,6 +244,24 @@ func BenchmarkMapDecode(b *testing.B) {
 	}
 }
 
+func BenchmarkMapEncode(b *testing.B) {
+	schema, err := avro.ParseFiles("testdata/mapbench.avsc")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for _, n := range []int{10, 50, 200} {
+		m := makeMapBench(n)
+
+		b.Run(fmt.Sprintf("n=%d", n), func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				_, _ = avro.Marshal(schema, m)
+			}
+		})
+	}
+}
+
 func BenchmarkMapGenericDecode(b *testing.B) {
 	schema, err := avro.ParseFiles("testdata/mapbench.avsc")
 	if err != nil {

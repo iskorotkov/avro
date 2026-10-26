@@ -168,26 +168,34 @@ func (w *Writer) WriteBlockHeader(l, s int64) {
 
 // WriteBlockCB writes a block using the callback.
 func (w *Writer) WriteBlockCB(callback func(w *Writer) int64) int64 {
-	var dummyHeader [18]byte
-	headerStart := len(w.buf)
-
-	// Write dummy header
-	_, _ = w.Write(dummyHeader[:])
-
-	// Write block data
-	capturedAt := len(w.buf)
+	b := w.beginBlock()
 	length := callback(w)
-	size := int64(len(w.buf) - capturedAt)
-
-	// Take a reference to the block data
-	captured := w.buf[capturedAt:len(w.buf)]
-
-	// Rewrite the header
-	w.buf = w.buf[:headerStart]
-	w.WriteBlockHeader(length, size)
-
-	// Copy the block data back to its position
-	w.buf = append(w.buf, captured...)
+	w.endBlock(b, length)
 
 	return length
+}
+
+// blockStart marks the header and data offsets of a block being written.
+type blockStart struct {
+	header int
+	data   int
+}
+
+// beginBlock reserves space for a block header and returns the block offsets.
+func (w *Writer) beginBlock() blockStart {
+	var dummyHeader [18]byte
+	headerStart := len(w.buf)
+	_, _ = w.Write(dummyHeader[:])
+
+	return blockStart{header: headerStart, data: len(w.buf)}
+}
+
+// endBlock replaces the reserved header of b with the final block header.
+func (w *Writer) endBlock(b blockStart, length int64) {
+	size := int64(len(w.buf) - b.data)
+	captured := w.buf[b.data:]
+
+	w.buf = w.buf[:b.header]
+	w.WriteBlockHeader(length, size)
+	w.buf = append(w.buf, captured...)
 }
