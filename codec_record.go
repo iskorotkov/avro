@@ -57,6 +57,10 @@ func createEncoderOfRecord(e *encoderContext, schema *RecordSchema, typ reflect2
 func decoderOfStruct(d *decoderContext, schema Schema, typ reflect2.Type) ValDecoder {
 	rec := schema.(*RecordSchema)
 	structDesc := describeStruct(d.cfg.getTagKey(), typ)
+	if err := d.cfg.checkStructFields(rec, structDesc, true); err != nil {
+		d.failBuild(err)
+		return &errorDecoder{err: err}
+	}
 
 	fields := make([]*structFieldDecoder, 0, len(rec.Fields()))
 
@@ -168,6 +172,10 @@ func (d *structDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 
 func encoderOfStruct(e *encoderContext, rec *RecordSchema, typ reflect2.Type) ValEncoder {
 	structDesc := describeStruct(e.cfg.getTagKey(), typ)
+	if err := e.cfg.checkStructFields(rec, structDesc, false); err != nil {
+		e.failBuild(err)
+		return &errorEncoder{err: err}
+	}
 
 	fields := make([]*structFieldEncoder, 0, len(rec.Fields()))
 	for _, field := range rec.Fields() {

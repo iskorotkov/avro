@@ -247,6 +247,22 @@ This requires the use of `map[string]any` or `[]any`.
 The type conversion for encoding will receive the original value that is to be encoded, and must return a data type that is compatible with the schema, as specified in the table above.
 The type conversion for decoding will receive the decoded value with a data type that is compatible with the schema, and its return value will be used as the final decoded value.
 
+#### Strict Field Matching
+
+By default, record fields without a matching struct field are skipped, and struct fields without a matching record field are ignored.
+Set `Config.DisallowUnknownFields` to fail instead; the error wraps `avro.ErrUnknownField`:
+
+```go
+api := avro.Config{DisallowUnknownFields: true}.Freeze()
+
+err := api.Unmarshal(schema, data, &out)
+if errors.Is(err, avro.ErrUnknownField) {
+	// schema and struct have drifted apart
+}
+```
+
+Fields the writer has but the reader schema dropped during schema resolution are still skipped.
+
 #### Untrusted Input
 
 When processing untrusted Avro data, it is important to configure protection against Denial of Service (DoS) attacks. The library provides three configuration options to limit resource allocation:

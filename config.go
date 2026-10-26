@@ -49,6 +49,11 @@ type Config struct {
 	// UnionResolutionError.
 	PartialUnionTypeResolution bool
 
+	// DisallowUnknownFields makes struct codecs fail when a record field has no matching
+	// struct field or an exported struct field has no matching record field.
+	// Writer-only fields removed by schema resolution are still skipped.
+	DisallowUnknownFields bool
+
 	// Disable caching layer for encoders and decoders, forcing them to get rebuilt on every
 	// call to Marshal() and Unmarshal()
 	DisableCaching bool

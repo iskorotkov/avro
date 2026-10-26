@@ -72,7 +72,11 @@ func (c *frozenConfig) DecoderOf(schema Schema, typ reflect2.Type) ValDecoder {
 	}
 
 	ptrType := typ.(*reflect2.UnsafePtrType)
-	decoder = decoderOfType(newDecoderContext(c), schema, ptrType.Elem())
+	ctx := newDecoderContext(c)
+	decoder = decoderOfType(ctx, schema, ptrType.Elem())
+	if ctx.buildErr != nil {
+		decoder = &errorDecoder{err: ctx.buildErr}
+	}
 	c.addDecoderToCache(schema.CacheFingerprint(), rtype, decoder)
 	return decoder
 }
@@ -96,6 +100,8 @@ func (d *deferEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 type decoderContext struct {
 	cfg      *frozenConfig
 	decoders map[cacheKey]ValDecoder
+	// buildErr fails the whole codec even when the failing part is never reached by data.
+	buildErr error
 }
 
 func newDecoderContext(cfg *frozenConfig) *decoderContext {
@@ -108,6 +114,8 @@ func newDecoderContext(cfg *frozenConfig) *decoderContext {
 type encoderContext struct {
 	cfg      *frozenConfig
 	encoders map[cacheKey]ValEncoder
+	// buildErr fails the whole codec even when the failing part is never reached by data.
+	buildErr error
 }
 
 func newEncoderContext(cfg *frozenConfig) *encoderContext {
@@ -174,7 +182,11 @@ func (c *frozenConfig) EncoderOf(schema Schema, typ reflect2.Type) ValEncoder {
 		return encoder
 	}
 
-	encoder = encoderOfType(newEncoderContext(c), schema, typ)
+	ctx := newEncoderContext(c)
+	encoder = encoderOfType(ctx, schema, typ)
+	if ctx.buildErr != nil {
+		encoder = &errorEncoder{err: ctx.buildErr}
+	}
 	if typ.LikePtr() {
 		encoder = &onePtrEncoder{encoder}
 	}
