@@ -117,7 +117,7 @@ func Marshal(schema avro.Schema, v any) ([]byte, error)
 func Unmarshal(schema avro.Schema, data []byte, v any) error
 ```
 
-Naming: we deliberately avoid `MarshalJSON`/`UnmarshalJSON` as method names, because `go vet`'s `stdmethods` check flags them when the signature differs from `json.Marshaler`, and readers would assume stdlib semantics. We also do not add methods to `avro.API`: that interface is implementable by users, and every addition is a breaking change (the recent `AppendMarshal` addition already paid that cost once). An `avro.API`-level shortcut can be added later if demand appears.
+Naming: we deliberately avoid `MarshalJSON`/`UnmarshalJSON` as method names, because `go vet`'s `stdmethods` check flags them when the signature differs from `json.Marshaler`, and readers would assume stdlib semantics. We also do not add methods to `avro.API`: that interface is implementable by users, and every addition is a breaking change. An `avro.API`-level shortcut can be added later if demand appears.
 
 ## Architecture
 

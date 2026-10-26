@@ -43,5 +43,5 @@ func Marshal(schema Schema, v any) ([]byte, error) {
 
 // AppendMarshal appends the Avro encoding of v to dst and returns the extended buffer.
 func AppendMarshal(dst []byte, schema Schema, v any) ([]byte, error) {
-	return DefaultConfig.AppendMarshal(dst, schema, v)
+	return AppendMarshalWith(DefaultConfig, dst, schema, v)
 }

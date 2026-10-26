@@ -122,9 +122,6 @@ type API interface {
 	// Marshal returns the Avro encoding of v.
 	Marshal(schema Schema, v any) ([]byte, error)
 
-	// AppendMarshal appends the Avro encoding of v to dst and returns the extended buffer.
-	AppendMarshal(dst []byte, schema Schema, v any) ([]byte, error)
-
 	// Unmarshal parses the Avro encoded data and stores the result in the value pointed to by v.
 	// If v is nil or not a pointer, Unmarshal returns an error.
 	Unmarshal(schema Schema, data []byte, v any) error

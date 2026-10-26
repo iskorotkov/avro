@@ -95,7 +95,8 @@ More examples in the [godoc](https://pkg.go.dev/github.com/iskorotkov/avro/v2).
 
 ### Encoding into a reused buffer
 
-`AppendMarshal` appends the encoding to a caller-owned buffer, so a hot loop that reuses the buffer does not allocate:
+`AppendMarshal` appends the encoding to a caller-owned buffer, so a hot loop that reuses the buffer does not allocate
+once the codec is cached and `v` is a pointer. Use `AppendMarshalWith(api, ...)` for a custom `Config`:
 
 ```go
 buf := make([]byte, 0, 512)
