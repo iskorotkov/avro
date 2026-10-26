@@ -87,6 +87,7 @@ func (*NullCodec) Encode(b []byte) []byte {
 }
 
 // DeflateCodec is a flate compression codec.
+// It reuses buffers between calls and is not safe for concurrent use.
 type DeflateCodec struct {
 	compLvl         int
 	maxDecompressed int
@@ -141,6 +142,7 @@ func (c *DeflateCodec) Encode(b []byte) []byte {
 }
 
 // SnappyCodec is a snappy compression codec.
+// It reuses buffers between calls and is not safe for concurrent use.
 type SnappyCodec struct {
 	maxDecompressed int
 
@@ -191,6 +193,7 @@ func (c *SnappyCodec) Encode(b []byte) []byte {
 }
 
 // ZStandardCodec is a zstandard compression codec.
+// It reuses buffers between calls and is not safe for concurrent use.
 type ZStandardCodec struct {
 	decoder         *zstd.Decoder
 	encoder         *zstd.Encoder
