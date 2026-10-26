@@ -222,3 +222,24 @@ func TestCodec_AppendEncode(t *testing.T) {
 		require.Equal(t, []byte{0xff}, dst)
 	})
 }
+
+type wrapperAPI struct {
+	avro.API
+}
+
+func TestCodec_CustomAPIFallsBackToMarshal(t *testing.T) {
+	codec, err := soe.NewCodecWithAPI(testdata.StringIntSchema, wrapperAPI{API: avro.DefaultConfig})
+	require.NoError(t, err)
+	want := testdata.StringInt{StringVal: "abc", IntVal: 123}
+
+	encoded, err := codec.Encode(want)
+	require.NoError(t, err)
+	appended, err := codec.AppendEncode([]byte{0xff}, want)
+	require.NoError(t, err)
+
+	require.Equal(t, append([]byte{0xff}, encoded...), appended)
+	require.Equal(t, len(encoded), cap(encoded))
+	var got testdata.StringInt
+	require.NoError(t, codec.Decode(encoded, &got))
+	require.Equal(t, want, got)
+}
