@@ -35,13 +35,26 @@ decoder, err := avro.NewDecoder(schema, untrustedReader)
 
 ## Configuration Guidelines
 
-1. **MaxByteSliceSize**: Controls the maximum size in bytes of individual `bytes` or `string` values. Default: 64 MiB. Negative or zero values select the default; the limit cannot be disabled. Values are capped at the platform allocation limit.
+1. **MaxByteSliceSize**: Controls the maximum size of individual `bytes` or `string` values. Default: 1 MiB. Set to -1 to disable (not recommended for untrusted input).
 
-2. **MaxSliceAllocSize**: Controls the maximum number of elements in an individual array. Default: 67,108,864 elements. Negative or zero values select the default. Set this to a reasonable value based on your expected data size.
+2. **MaxSliceAllocSize**: Controls the total number of array elements in one decoded value, summed over all arrays it contains (including skipped fields). Default: 67,108,864. Zero or negative values select the default.
 
-3. **MaxMapAllocSize**: Controls the maximum number of entries in an individual map. Default: 67,108,864 entries. Negative or zero values select the default. Set this to a reasonable value based on your expected data size.
+3. **MaxMapAllocSize**: Controls the total number of map entries in one decoded value, summed over all maps it contains (including skipped fields). Default: 67,108,864. Zero or negative values select the default.
 
-When decoding from a streaming `io.Reader`, slice and map allocations are bounded only by `MaxSliceAllocSize` and `MaxMapAllocSize` (the element/entry counts above); the decoder cannot pre-check the count against the remaining input as it does for in-memory byte slices. Set these counts conservatively for untrusted streams.
+4. **MaxDepth**: Controls how many values of recursive record types (records that can contain themselves, such as linked lists or trees) may nest inside each other. Default: 1000. Zero or negative values select the default. Deeper data fails to decode, and cyclic Go values fail to encode. Non-recursive schemas are not affected because their nesting is fixed by the schema. `Reader.ReadNext` counts every nested record.
+
+## Built-in Protections
+
+These checks always apply and need no configuration:
+
+- An array or map block count must fit in the remaining input, assuming each item takes the minimum number of bytes its schema allows. The remaining input is known when decoding a byte slice or reading from an `io.Reader` that has a `Len() int` method, such as `bytes.Reader`, `bytes.Buffer` and OCF data blocks.
+- Slices and maps are pre-allocated for at most 4096 items and grow as items are actually decoded, so a forged count on a stream cannot allocate ahead of the data.
+- Arrays whose items have no wire representation (such as `null` or empty records) are limited to 1,048,576 items per decoded value.
+- The limits above also apply to fields skipped because the target struct lacks them, and to `Reader.ReadNext`, `Reader.ReadArrayCB` and `Reader.ReadMapCB`.
+
+## Truncated Input
+
+`Unmarshal` and `Decoder.Decode` return an error wrapping `io.ErrUnexpectedEOF` when the input ends inside a value. Earlier versions returned `nil` and left the target partially filled. `Decoder.Decode` still returns `io.EOF` when the stream ends cleanly between values.
 
 ## Decoding untrusted OCF (Object Container Files)
 
@@ -60,7 +73,7 @@ dec, err := ocf.NewDecoder(
 | `WithMaxBlockBytes(n)` | the **compressed** block size declared in the block header, checked before any allocation | a header that claims a huge block (forced pre-allocation OOM) |
 | `WithMaxDecompressedBlockBytes(n)` | the **decompressed** output produced by the codec | zip-bomb-style amplification (small block expands to gigabytes) |
 
-Both caps default to 64 MiB; negative or zero values select the default. Consider lowering both when decoding untrusted input. A compressed cap alone is not sufficient: deflate, snappy, and zstandard all support amplification ratios well past 1000:1.
+Both caps default to 64 MiB; zero or negative values select the default. Consider lowering both when decoding untrusted input. A compressed cap alone is not sufficient: deflate, snappy, and zstandard all support amplification ratios well past 1000:1.
 
 ### Codec coverage
 
@@ -71,4 +84,4 @@ Both caps default to 64 MiB; negative or zero values select the default. Conside
 
 ### Reading OCF metadata (header)
 
-The OCF header itself contains a `map<string, bytes>` of arbitrary metadata, parsed *before* any data block — and therefore before any of the block-level caps above can apply. It is bounded by `MaxByteSliceSize` and `MaxMapAllocSize` from the value-decoder config — 64 MiB per value and 67,108,864 entries by default, far more than any legitimate header uses. For untrusted input, pass `WithDecoderConfig` a frozen `avro.Config` that sets `MaxMapAllocSize` (and `MaxByteSliceSize`) to tight values, in addition to the OCF-specific caps above.
+The OCF header itself contains a `map<string, bytes>` of arbitrary metadata, parsed *before* any data block — and therefore before any of the block-level caps above can apply. It is bounded by `MaxByteSliceSize` and `MaxMapAllocSize` from the value-decoder config, and its map is pre-allocated for at most 4096 entries. For untrusted input, pass `WithDecoderConfig` a frozen `avro.Config` that sets `MaxMapAllocSize` (and `MaxByteSliceSize`) to tight values, in addition to the OCF-specific caps above.
