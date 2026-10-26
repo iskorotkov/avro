@@ -174,8 +174,8 @@ type Schema interface {
 	FingerprintUsing(FingerprintType) ([]byte, error)
 
 	// CacheFingerprint returns the unique identity of the schema.
-	// This returns a unique identity for schemas resolved from a writer schema, otherwise it returns
-	// the schemas Fingerprint.
+	// This returns a unique identity for schemas resolved from a writer schema or referencing named
+	// schemas defined outside of them, otherwise it returns the schemas Fingerprint.
 	CacheFingerprint() [32]byte
 }
 
@@ -350,19 +350,24 @@ func (i *cacheFingerprinter) CacheFingerprint(schema Schema, fn func() []byte) [
 		return v.([32]byte)
 	}
 
-	if i.writerFingerprint == nil {
-		fp := schema.Fingerprint()
+	fp := schema.Fingerprint()
+	refs := externalRefsIdentity(schema)
+	if i.writerFingerprint == nil && len(refs) == 0 {
 		i.cache.Store(fp)
 		return fp
 	}
 
-	fp := schema.Fingerprint()
-	d := append([]byte{}, fp[:]...)
-	d = append(d, (*i.writerFingerprint)[:]...)
-	if fn != nil {
-		d = append(d, fn()...)
+	h := sha256.New()
+	_, _ = h.Write(fp[:])
+	_, _ = h.Write(refs)
+	if i.writerFingerprint != nil {
+		_, _ = h.Write(i.writerFingerprint[:])
+		if fn != nil {
+			_, _ = h.Write(fn())
+		}
 	}
-	ident := sha256.Sum256(d)
+	var ident [32]byte
+	h.Sum(ident[:0])
 	i.cache.Store(ident)
 	return ident
 }
