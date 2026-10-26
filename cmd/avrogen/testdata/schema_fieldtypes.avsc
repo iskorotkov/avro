@@ -1,0 +1,17 @@
+{
+  "type": "record",
+  "name": "test",
+  "namespace": "a.b",
+  "doc": "Test is a test struct",
+  "fields": [
+    { "name": "someBytes",
+      "type": "bytes",
+      "doc": "SomeBytes is overridden to a json raw message" },
+    { "name": "someString",
+      "type": "string",
+      "doc": "SomeString is a string" },
+    { "name": "maybeBytes",
+      "type": ["null", "bytes"],
+      "doc": "MaybeBytes is a nullable bytes field" }
+  ]
+}

@@ -234,6 +234,229 @@ func TestStruct_ConfigurableLogicalTypes(t *testing.T) {
 	}
 }
 
+func TestStruct_FieldTypeOverride(t *testing.T) {
+	tests := []struct {
+		name      string
+		schema    string
+		fieldType gen.FieldType
+		expected  []string
+		notWanted []string
+	}{
+		{
+			name: "stdlib import",
+			schema: `{
+  "type": "record",
+  "name": "test",
+  "fields": [
+    { "name": "someBytes", "type": "bytes" }
+  ]
+}`,
+			fieldType: gen.FieldType{
+				Record: "test",
+				Field:  "someBytes",
+				Typ:    "json.RawMessage",
+				Import: "encoding/json",
+			},
+			expected: []string{
+				"import (",
+				"\"encoding/json\"",
+				"SomeBytes json.RawMessage `avro:\"someBytes\"`",
+			},
+		},
+		{
+			name: "third-party import",
+			schema: `{
+  "type": "record",
+  "name": "test",
+  "fields": [
+    { "name": "id", "type": "string" }
+  ]
+}`,
+			fieldType: gen.FieldType{
+				Record:           "test",
+				Field:            "id",
+				Typ:              "uuid.UUID",
+				ThirdPartyImport: "github.com/google/uuid",
+			},
+			expected: []string{
+				"import (",
+				"\"github.com/google/uuid\"",
+				"ID uuid.UUID `avro:\"id\"`",
+			},
+		},
+		{
+			name: "built-in type with no import",
+			schema: `{
+  "type": "record",
+  "name": "test",
+  "fields": [
+    { "name": "someString", "type": "string" }
+  ]
+}`,
+			fieldType: gen.FieldType{
+				Record: "test",
+				Field:  "someString",
+				Typ:    "[]byte",
+			},
+			expected: []string{
+				"SomeString []byte `avro:\"someString\"`",
+			},
+		},
+		{
+			name: "override of nullable union",
+			schema: `{
+  "type": "record",
+  "name": "test",
+  "fields": [
+    { "name": "maybeBytes", "type": ["null", "bytes"] }
+  ]
+}`,
+			fieldType: gen.FieldType{
+				Record: "test",
+				Field:  "maybeBytes",
+				Typ:    "*json.RawMessage",
+				Import: "encoding/json",
+			},
+			expected: []string{
+				"MaybeBytes *json.RawMessage `avro:\"maybeBytes\"`",
+			},
+			notWanted: []string{
+				"[]byte",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			gc := gen.Config{
+				PackageName: "Something",
+				FieldTypes:  []gen.FieldType{test.fieldType},
+			}
+			_, lines := generate(t, test.schema, gc)
+
+			for _, expected := range test.expected {
+				assert.Contains(t, lines, expected)
+			}
+			for _, notWanted := range test.notWanted {
+				for _, line := range lines {
+					assert.NotContains(t, line, notWanted)
+				}
+			}
+		})
+	}
+}
+
+func TestStruct_FieldTypeOverrideStillEmitsNestedRecord(t *testing.T) {
+	schema := `{
+  "type": "record",
+  "name": "test",
+  "fields": [
+    { "name": "inner", "type": {
+      "name": "Inner",
+      "type": "record",
+      "fields": [
+        { "name": "aString", "type": "string" }
+      ]
+    } }
+  ]
+}`
+
+	gc := gen.Config{
+		PackageName: "Something",
+		FieldTypes: []gen.FieldType{{
+			Record: "test",
+			Field:  "inner",
+			Typ:    "*Inner",
+		}},
+	}
+	_, lines := generate(t, schema, gc)
+
+	for _, expected := range []string{
+		"Inner *Inner `avro:\"inner\"`",
+		"type Inner struct {",
+	} {
+		assert.Contains(t, lines, expected)
+	}
+}
+
+func TestGenerator_UnusedFieldTypes(t *testing.T) {
+	schema := `{
+  "type": "record",
+  "name": "test",
+  "fields": [
+    { "name": "someString", "type": "string" }
+  ]
+}`
+	parsed, err := avro.Parse(schema)
+	require.NoError(t, err)
+
+	g := gen.NewGenerator("something", map[string]gen.TagStyle{}, gen.WithFieldType(gen.FieldType{
+		Record: "test",
+		Field:  "doesNotExist",
+		Typ:    "string",
+	}))
+	g.Parse(parsed)
+
+	assert.Equal(t, []string{"test.doesNotExist"}, g.UnusedFieldTypes())
+}
+
+func TestGenerator_ResetClearsUsedFieldTypes(t *testing.T) {
+	withField := `{
+  "type": "record",
+  "name": "test",
+  "fields": [
+    { "name": "someString", "type": "string" }
+  ]
+}`
+	withoutField := `{
+  "type": "record",
+  "name": "test",
+  "fields": [
+    { "name": "someOtherString", "type": "string" }
+  ]
+}`
+	parsedWith, err := avro.Parse(withField)
+	require.NoError(t, err)
+	parsedWithout, err := avro.Parse(withoutField)
+	require.NoError(t, err)
+
+	g := gen.NewGenerator("something", map[string]gen.TagStyle{}, gen.WithFieldType(gen.FieldType{
+		Record: "test",
+		Field:  "someString",
+		Typ:    "string",
+	}))
+	g.Parse(parsedWith)
+	assert.Empty(t, g.UnusedFieldTypes())
+
+	g.Reset()
+	g.Parse(parsedWithout)
+	assert.Equal(t, []string{"test.someString"}, g.UnusedFieldTypes())
+}
+
+func TestStruct_ErrorsWhenFieldTypeOverrideUnused(t *testing.T) {
+	schema := `{
+  "type": "record",
+  "name": "test",
+  "fields": [
+    { "name": "someString", "type": "string" }
+  ]
+}`
+
+	gc := gen.Config{
+		PackageName: "Something",
+		FieldTypes: []gen.FieldType{{
+			Record: "test",
+			Field:  "doesNotExist",
+			Typ:    "string",
+		}},
+	}
+	err := gen.Struct(schema, &bytes.Buffer{}, gc)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "test.doesNotExist")
+	assert.Contains(t, err.Error(), "matched no field")
+}
+
 func TestStruct_GenFromRecordSchema(t *testing.T) {
 	fileName := "testdata/golden.go"
 	gc := gen.Config{PackageName: "Something"}
@@ -259,6 +482,30 @@ func TestStruct_GenFromRecordSchemaWithCustomLogicalTypes(t *testing.T) {
 		Name:             "uuid",
 		Typ:              "uuid.UUID",
 		ThirdPartyImport: "github.com/google/uuid",
+	}}}
+	schema, err := os.ReadFile("testdata/golden.avsc")
+	require.NoError(t, err)
+
+	file, _ := generate(t, string(schema), gc)
+
+	if *update {
+		err = os.WriteFile(fileName, file, 0o600)
+		require.NoError(t, err)
+	}
+
+	want, err := os.ReadFile(fileName)
+	require.NoError(t, err)
+	assert.Equal(t, string(want), string(file))
+}
+
+func TestStruct_GenFromRecordSchemaWithFieldTypes(t *testing.T) {
+	fileName := "testdata/golden_fieldtype.go"
+
+	gc := gen.Config{PackageName: "Something", FieldTypes: []gen.FieldType{{
+		Record: "a.b.test",
+		Field:  "justBytes",
+		Typ:    "json.RawMessage",
+		Import: "encoding/json",
 	}}}
 	schema, err := os.ReadFile("testdata/golden.avsc")
 	require.NoError(t, err)
@@ -467,4 +714,25 @@ func removeSpaceAndEmptyLines(goCode []byte) []string {
 func removeMoreThanOneConsecutiveSpaces(lineBytes []byte) string {
 	lines := strings.TrimSpace(string(lineBytes))
 	return strings.Join(regexp.MustCompile(`\s+|\t+`).Split(lines, -1), " ")
+}
+
+func TestGenerator_ValidateFieldTypesReportsDuplicates(t *testing.T) {
+	schema := `{
+  "type": "record",
+  "name": "test",
+  "fields": [
+    { "name": "someString", "type": "string" }
+  ]
+}`
+	parsed, err := avro.Parse(schema)
+	require.NoError(t, err)
+
+	override := gen.FieldType{Record: "test", Field: "someString", Typ: "string"}
+	g := gen.NewGenerator("something", map[string]gen.TagStyle{},
+		gen.WithFieldType(override), gen.WithFieldType(override))
+	g.Parse(parsed)
+
+	err = g.ValidateFieldTypes()
+	require.Error(t, err)
+	assert.Equal(t, "duplicate field type overrides: test.someString", err.Error())
 }
