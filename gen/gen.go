@@ -6,9 +6,11 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"go/token"
 	"io"
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 	"text/template"
 	"unicode/utf8"
@@ -168,7 +170,7 @@ func WithStrictTypes(b bool) OptsFunc {
 // WithPackageDoc configures the generator to output the given text as a package doc comment.
 func WithPackageDoc(text string) OptsFunc {
 	return func(g *Generator) {
-		g.pkgdoc = ensureTrailingPeriod(text)
+		g.pkgdoc = ensureTrailingPeriod(normalizeNewlines(text))
 	}
 }
 
@@ -514,7 +516,7 @@ func (g *Generator) newField(name, typ, doc, avroFieldName string, props map[str
 		Name:          name,
 		Type:          typ,
 		AvroFieldName: avroFieldName,
-		Doc:           ensureTrailingPeriod(doc),
+		Doc:           ensureTrailingPeriod(normalizeNewlines(doc)),
 		Tags:          g.tags,
 		Props:         props,
 	}
@@ -545,6 +547,10 @@ func (g *Generator) addImports(stdImport, thirdPartyImport string) {
 
 // Write writes Go code from the parsed schemas.
 func (g *Generator) Write(w io.Writer) error {
+	if err := g.validateNames(); err != nil {
+		return err
+	}
+
 	parsed, err := template.New("out").
 		Funcs(template.FuncMap{
 			"kebab":      strcase.ToKebab,
@@ -552,6 +558,7 @@ func (g *Generator) Write(w io.Writer) error {
 			"camel":      strcase.ToCamel,
 			"snake":      strcase.ToSnake,
 			"replace":    strings.Replace,
+			"quote":      strconv.Quote,
 		}).
 		Parse(g.template)
 	if err != nil {
@@ -579,6 +586,60 @@ func (g *Generator) Write(w io.Writer) error {
 	return parsed.Execute(w, data)
 }
 
+// ErrInvalidIdentifier is returned when a name cannot be used as a Go identifier.
+var ErrInvalidIdentifier = errors.New("not a valid Go identifier")
+
+// ErrUnsafeTagValue is returned when a field name cannot be placed in a struct tag.
+var ErrUnsafeTagValue = errors.New("cannot be used in a struct tag")
+
+// validateNames rejects names that would inject code into the generated file.
+func (g *Generator) validateNames() error {
+	if err := checkIdent(g.pkg); err != nil {
+		return fmt.Errorf("package name: %w", err)
+	}
+	for _, e := range g.typeenums {
+		if err := checkIdent(e.Name); err != nil {
+			return fmt.Errorf("enum name: %w", err)
+		}
+		for _, sym := range e.Symbols {
+			if err := checkIdent(strcase.ToPascal(e.Name + sym)); err != nil {
+				return fmt.Errorf("enum %q symbol: %w", e.Name, err)
+			}
+		}
+	}
+	for _, t := range g.typedefs {
+		if err := checkIdent(t.Name); err != nil {
+			return fmt.Errorf("record name: %w", err)
+		}
+		for _, f := range t.Fields {
+			if err := checkIdent(f.Name); err != nil {
+				return fmt.Errorf("record %q field: %w", t.Name, err)
+			}
+			if !isTagSafe(f.AvroFieldName) {
+				return fmt.Errorf("record %q field name %q: %w", t.Name, f.AvroFieldName, ErrUnsafeTagValue)
+			}
+		}
+	}
+	return nil
+}
+
+func checkIdent(name string) error {
+	if !token.IsIdentifier(name) {
+		return fmt.Errorf("%q is %w", name, ErrInvalidIdentifier)
+	}
+	return nil
+}
+
+// isTagSafe reports whether s can sit inside a quoted value in a raw-string struct tag.
+func isTagSafe(s string) bool {
+	return strconv.CanBackquote(s) && !strings.ContainsAny(s, "\"\\\t")
+}
+
+// normalizeNewlines turns every line break into \n so doc comments can be prefixed per line.
+func normalizeNewlines(s string) string {
+	return strings.NewReplacer("\r\n", "\n", "\r", "\n").Replace(s)
+}
+
 type typedef struct {
 	Name     string
 	Doc      string
@@ -591,7 +652,7 @@ type typedef struct {
 func newType(name, doc string, fields []field, schema string, props map[string]any, metadata any) typedef {
 	return typedef{
 		Name:     name,
-		Doc:      ensureTrailingPeriod(doc),
+		Doc:      ensureTrailingPeriod(normalizeNewlines(doc)),
 		Fields:   fields,
 		Schema:   schema,
 		Props:    props,
