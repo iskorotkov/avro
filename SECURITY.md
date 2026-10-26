@@ -77,15 +77,17 @@ An OCF file carries its own schema, and a schema registry response is only as tr
 
 | Protection | Default | Defends against |
 | --- | --- | --- |
-| `avro.MaxFixedSize` | 1 MiB; set `<= 0` to disable | a `fixed` declaring a huge size, which would allocate that size per value |
-| decimal precision cap | 1000 digits | a `decimal` with a huge precision or scale, whose power of ten is too costly to compute (such a logical type is ignored and the value read as plain `bytes`/`fixed`) |
+| `avro.SetMaxFixedSize` | 1 MiB; set `<= 0` to disable | a `fixed` declaring a huge size, which would allocate that size per value |
+| `avro.SetMaxDecimalPrecision` | 1000 digits; set `<= 0` to disable | a `decimal` with a huge precision or scale, whose power of ten is too costly to compute (such a logical type is ignored and the value read as plain `bytes`/`fixed`) |
 | `SchemaCompatibility.Resolve` memoization | always on | recursive schemas overflowing the stack and DAG-shaped schemas taking exponential time |
+
+Both setters are safe to call concurrently with parsing and return the previous limit; a change applies to schemas parsed afterwards. Decoding a `fixed` into `any` creates one Go array type per distinct size, and the Go runtime never frees those types, so untrusted schemas can grow runtime type metadata by one type per size up to the cap. Lower the fixed size limit to the largest size you expect if that matters.
 
 ### Schema caches
 
-`ocf.NewDecoder` and every `registry.Client` response parse into a private `avro.SchemaCache` that reads from `avro.DefaultSchemaCache` but never writes to it, so a hostile file or registry cannot redefine a type such as `com.app.User` for the rest of the process. Pass `ocf.WithDecoderSchemaCache` or `registry.WithNamedSchemaCache` to share a cache explicitly; use `avro.NewSchemaCache(parent)` to build one that only reads from its parent.
+`ocf.NewDecoder` and every `registry.Client` response parse into a private `avro.SchemaCache` that reads from `avro.DefaultSchemaCache` but never writes to it, so a hostile file or registry cannot redefine a type such as `com.app.User` for the rest of the process. A registry schema can therefore no longer refer to a type defined only in an earlier response. Pass `ocf.WithDecoderSchemaCache` or `registry.WithNamedSchemaCache` to share a cache explicitly; use `avro.NewSchemaCache(parent)` to build one that only reads from its parent.
 
-Parsing never overwrites a name that the target cache can already resolve. A schema that redefines a cached name with a different definition still parses with its own definition, but adds none of its names to the cache, so later lookups keep the first definition and never mix the two. Appending to an existing OCF file with `ocf.NewEncoder` also parses that file's header into a private cache.
+Parsing never overwrites a name that the target cache can already resolve. A schema that redefines a cached name with a different definition, even one differing only in defaults, aliases or logical type, still parses with its own definition, but adds none of its names to the cache, so later lookups keep the first definition and never mix the two. Appending to an existing OCF file with `ocf.NewEncoder` also parses that file's header into a private cache.
 
 ### Codec caches
 

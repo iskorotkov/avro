@@ -243,7 +243,8 @@ When processing untrusted Avro data, it is important to configure protection aga
 - `Config.MaxSliceAllocSize` - Limits the maximum size of slice allocations (default: unlimited)
 - `Config.MaxMapAllocSize` - Limits the maximum size of map allocations (default: unlimited)
 - `Config.MaxCodecCacheSize` - Limits the number of cached encoders and decoders, which grow with every distinct schema (default: unlimited)
-- `avro.MaxFixedSize` - Limits the size of `fixed` types accepted by the schema parser (default: `1MiB`)
+- `avro.SetMaxFixedSize` - Limits the size of `fixed` types accepted by the schema parser (default: `1MiB`)
+- `avro.SetMaxDecimalPrecision` - Limits the precision of `decimal` logical types accepted by the schema parser (default: `1000`)
 
 OCF decoders and registry clients parse schemas into private caches by default, so untrusted schemas cannot redefine types in `avro.DefaultSchemaCache`.
 
