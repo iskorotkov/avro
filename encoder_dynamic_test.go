@@ -17,3 +17,11 @@ func TestEncoder_InterfaceMixedTypes(t *testing.T) {
 		assert.Equal(t, []byte{0x07, 0x08, 0x02, 0x04, 0x06, 0x08, 0x00}, got)
 	}
 }
+
+func TestEncoder_UnionMapNilBranchValue(t *testing.T) {
+	schema := avro.MustParse(`["null","string"]`)
+
+	_, err := avro.Marshal(schema, map[string]any{"string": nil})
+
+	assert.EqualError(t, err, "avro: nil value for non-null union branch string")
+}

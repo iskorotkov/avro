@@ -181,6 +181,10 @@ func (e *mapUnionEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 		// element data type doesn't matter since it skips iterating the slice
 		val = []struct{}{}
 	}
+	if val == nil {
+		w.Error = fmt.Errorf("avro: nil value for non-null union branch %s", name)
+		return
+	}
 
 	val, ok := w.cfg.typeConverters.encodeConverted(val, e.schema, w)
 	if !ok {
