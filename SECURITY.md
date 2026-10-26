@@ -70,3 +70,25 @@ Both caps default to unlimited for backward compatibility. **For untrusted input
 ### Reading OCF metadata (header)
 
 The OCF header itself contains a `map<string, bytes>` of arbitrary metadata, parsed *before* any data block — and therefore before any of the block-level caps above can apply. It is bounded only by `MaxByteSliceSize` and `MaxMapAllocSize` from the value-decoder config. `MaxMapAllocSize` defaults to effectively unbounded (`1<<48` on 64-bit platforms), so a hostile header declaring a huge entry count can OOM the decoder before a single block is read. **For untrusted input you must** pass `WithDecoderConfig` a frozen `avro.Config` that sets `MaxMapAllocSize` (and `MaxByteSliceSize`) to sane values, in addition to the OCF-specific caps above.
+
+## Schema registry client
+
+The `registry` client treats subjects as untrusted input and bounds what a registry can make it hold in memory:
+
+| Option | Default | What it bounds |
+| --- | --- | --- |
+| `WithMaxResponseBytes(n)` | 8 MiB | size of any response body; larger success responses fail with an error wrapping `*http.MaxBytesError`, larger error bodies yield a `registry.Error` without a message; `n <= 0` disables the cap |
+| `WithSchemaMissTTL(d)` | 5s | how long a schema ID that returned 404 or failed to parse is remembered, so random IDs in hostile messages do not cause a registry request each; `d <= 0` disables it |
+| `WithSchemaCacheSize(n)` | unbounded | number of schemas cached by ID; arbitrary entries are evicted past the bound |
+
+Every subject is escaped as a single URL path segment, so `/`, `..`, `?` and `#` cannot redirect a request (and its basic-auth credentials) to another endpoint or tenant. Empty, `.`, `..` and control-character subjects are rejected with `registry.ErrInvalidPathSegment` before any request is sent.
+
+A schema registered after a lookup miss becomes visible to `GetSchema` once the miss TTL expires, or at once after `CreateSchema` or `IsRegistered` on the same client.
+
+## Code generation (`avrogen`)
+
+Generated code is built from schema names. `gen` validates every generated Go identifier with `go/token.IsIdentifier` and rejects field names that cannot be placed in a struct tag, regardless of `avro.SkipNameValidation`, so a hostile schema cannot inject Go code. Enum values are emitted with `strconv.Quote`.
+
+## Single object encoding
+
+`resolvers.MemorySchemaStore.AddSchema` returns `resolvers.ErrFingerprintCollision` when a schema with a different canonical form already holds the same CRC-64-AVRO fingerprint. CRC-64 collisions are easy to construct, so do not let untrusted parties add schemas to a store shared with trusted ones.
