@@ -9,21 +9,31 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
-	"path"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/iskorotkov/avro/v2"
+	"github.com/iskorotkov/avro/v2/registry/internal/boundedmap"
 )
 
 const contentType = "application/vnd.schemaregistry.v1+json"
+
+const (
+	// DefaultMaxResponseBytes is the default cap on a registry response body.
+	DefaultMaxResponseBytes = 8 << 20
+
+	// DefaultSchemaMissTTL is how long a schema ID the registry did not return is remembered by default.
+	DefaultSchemaMissTTL = 5 * time.Second
+
+	maxSchemaMisses = 1024
+)
 
 // Registry represents a schema registry.
 type Registry interface {
@@ -164,14 +174,45 @@ func WithBasicAuth(username, password string) ClientFunc {
 	}
 }
 
+// WithMaxResponseBytes caps the size of a registry response body; n <= 0 disables the cap.
+func WithMaxResponseBytes(n int64) ClientFunc {
+	return func(c *Client) {
+		c.maxResponseBytes = n
+	}
+}
+
+// WithSchemaCacheSize bounds the number of schemas cached by ID; n <= 0 means unbounded.
+func WithSchemaCacheSize(n int) ClientFunc {
+	return func(c *Client) {
+		c.cacheSize = n
+	}
+}
+
+// WithSchemaMissTTL sets how long a failed schema ID lookup is remembered; d <= 0 disables it.
+func WithSchemaMissTTL(d time.Duration) ClientFunc {
+	return func(c *Client) {
+		c.missTTL = d
+	}
+}
+
 // Client is an HTTP registry client.
 type Client struct {
 	client *http.Client
 	base   *url.URL
 
-	creds credentials
+	creds            credentials
+	maxResponseBytes int64
+	cacheSize        int
+	missTTL          time.Duration
+	now              func() time.Time
 
-	cache sync.Map // map[int]avro.Schema
+	cache  *boundedmap.Map[int, avro.Schema]
+	misses *boundedmap.Map[int, schemaMiss]
+}
+
+type schemaMiss struct {
+	err     error
+	expires time.Time
 }
 
 // NewClient creates a schema registry Client with the given base url.
@@ -185,13 +226,19 @@ func NewClient(baseURL string, opts ...ClientFunc) (*Client, error) {
 	}
 
 	c := &Client{
-		client: defaultClient,
-		base:   u,
+		client:           defaultClient,
+		base:             u,
+		maxResponseBytes: DefaultMaxResponseBytes,
+		missTTL:          DefaultSchemaMissTTL,
+		now:              time.Now,
 	}
 
 	for _, opt := range opts {
 		opt(c)
 	}
+
+	c.cache = boundedmap.New[int, avro.Schema](c.cacheSize)
+	c.misses = boundedmap.New[int, schemaMiss](maxSchemaMisses)
 
 	return c, nil
 }
@@ -200,19 +247,28 @@ func NewClient(baseURL string, opts ...ClientFunc) (*Client, error) {
 //
 // GetSchema will cache the schema in memory after it is successfully returned,
 // allowing it to be used efficiently in a high load situation.
+// IDs the registry reports as not found, and schemas that fail to parse,
+// are remembered for the miss TTL so repeated lookups do not hit the registry.
 func (c *Client) GetSchema(ctx context.Context, id int) (avro.Schema, error) {
 	if schema, ok := c.cache.Load(id); ok {
-		return schema.(avro.Schema), nil
+		return schema, nil
+	}
+	if err := c.cachedMiss(id); err != nil {
+		return nil, err
 	}
 
 	var resp schemaPayload
-	p := path.Join("schemas", "ids", strconv.Itoa(id))
+	p := []string{"schemas", "ids", strconv.Itoa(id)}
 	if err := c.request(ctx, http.MethodGet, p, nil, &resp); err != nil {
+		if regErr, ok := errors.AsType[Error](err); ok && regErr.StatusCode == http.StatusNotFound {
+			c.storeMiss(id, err)
+		}
 		return nil, err
 	}
 
 	schema, err := avro.Parse(resp.Schema)
 	if err != nil {
+		c.storeMiss(id, err)
 		return nil, err
 	}
 
@@ -221,10 +277,29 @@ func (c *Client) GetSchema(ctx context.Context, id int) (avro.Schema, error) {
 	return schema, nil
 }
 
+func (c *Client) cachedMiss(id int) error {
+	miss, ok := c.misses.Load(id)
+	if !ok {
+		return nil
+	}
+	if c.now().After(miss.expires) {
+		c.misses.Delete(id)
+		return nil
+	}
+	return miss.err
+}
+
+func (c *Client) storeMiss(id int, err error) {
+	if c.missTTL <= 0 {
+		return
+	}
+	c.misses.Store(id, schemaMiss{err: err, expires: c.now().Add(c.missTTL)})
+}
+
 // GetSubjects gets the registry subjects.
 func (c *Client) GetSubjects(ctx context.Context) ([]string, error) {
 	var subjects []string
-	if err := c.request(ctx, http.MethodGet, "subjects", nil, &subjects); err != nil {
+	if err := c.request(ctx, http.MethodGet, []string{"subjects"}, nil, &subjects); err != nil {
 		return nil, err
 	}
 	return subjects, nil
@@ -233,7 +308,7 @@ func (c *Client) GetSubjects(ctx context.Context) ([]string, error) {
 // DeleteSubject delete subject.
 func (c *Client) DeleteSubject(ctx context.Context, subject string) ([]int, error) {
 	var versions []int
-	p := path.Join("subjects", subject)
+	p := []string{"subjects", subject}
 	if err := c.request(ctx, http.MethodDelete, p, nil, &versions); err != nil {
 		return nil, err
 	}
@@ -244,7 +319,7 @@ func (c *Client) DeleteSubject(ctx context.Context, subject string) ([]int, erro
 // GetVersions gets the schema versions for a subject.
 func (c *Client) GetVersions(ctx context.Context, subject string) ([]int, error) {
 	var versions []int
-	p := path.Join("subjects", subject, "versions")
+	p := []string{"subjects", subject, "versions"}
 	if err := c.request(ctx, http.MethodGet, p, nil, &versions); err != nil {
 		return nil, err
 	}
@@ -254,7 +329,7 @@ func (c *Client) GetVersions(ctx context.Context, subject string) ([]int, error)
 // GetSchemaByVersion gets the schema by version.
 func (c *Client) GetSchemaByVersion(ctx context.Context, subject string, version int) (avro.Schema, error) {
 	var resp schemaPayload
-	p := path.Join("subjects", subject, "versions", strconv.Itoa(version))
+	p := []string{"subjects", subject, "versions", strconv.Itoa(version)}
 	if err := c.request(ctx, http.MethodGet, p, nil, &resp); err != nil {
 		return nil, err
 	}
@@ -264,7 +339,7 @@ func (c *Client) GetSchemaByVersion(ctx context.Context, subject string, version
 // GetLatestSchema gets the latest schema for a subject.
 func (c *Client) GetLatestSchema(ctx context.Context, subject string) (avro.Schema, error) {
 	var resp schemaPayload
-	p := path.Join("subjects", subject, "versions", "latest")
+	p := []string{"subjects", subject, "versions", "latest"}
 	if err := c.request(ctx, http.MethodGet, p, nil, &resp); err != nil {
 		return nil, err
 	}
@@ -274,7 +349,7 @@ func (c *Client) GetLatestSchema(ctx context.Context, subject string) (avro.Sche
 // GetSchemaInfo gets the schema and schema metadata for a subject and version.
 func (c *Client) GetSchemaInfo(ctx context.Context, subject string, version int) (SchemaInfo, error) {
 	var resp schemaInfoPayload
-	p := path.Join("subjects", subject, "versions", strconv.Itoa(version))
+	p := []string{"subjects", subject, "versions", strconv.Itoa(version)}
 	if err := c.request(ctx, http.MethodGet, p, nil, &resp); err != nil {
 		return SchemaInfo{}, err
 	}
@@ -284,7 +359,7 @@ func (c *Client) GetSchemaInfo(ctx context.Context, subject string, version int)
 // GetLatestSchemaInfo gets the latest schema and schema metadata for a subject.
 func (c *Client) GetLatestSchemaInfo(ctx context.Context, subject string) (SchemaInfo, error) {
 	var resp schemaInfoPayload
-	p := path.Join("subjects", subject, "versions", "latest")
+	p := []string{"subjects", subject, "versions", "latest"}
 	if err := c.request(ctx, http.MethodGet, p, nil, &resp); err != nil {
 		return SchemaInfo{}, err
 	}
@@ -299,7 +374,7 @@ func (c *Client) CreateSchema(
 ) (int, avro.Schema, error) {
 	var resp idPayload
 	req := schemaPayload{Schema: schema, References: references}
-	p := path.Join("subjects", subject, "versions")
+	p := []string{"subjects", subject, "versions"}
 	if err := c.request(ctx, http.MethodPost, p, req, &resp); err != nil {
 		return 0, nil, err
 	}
@@ -321,7 +396,7 @@ func (c *Client) IsRegisteredWithRefs(
 ) (int, avro.Schema, error) {
 	var resp idPayload
 	req := schemaPayload{Schema: schema, References: references}
-	if err := c.request(ctx, http.MethodPost, path.Join("subjects", subject), req, &resp); err != nil {
+	if err := c.request(ctx, http.MethodPost, []string{"subjects", subject}, req, &resp); err != nil {
 		return 0, nil, err
 	}
 
@@ -347,7 +422,7 @@ func (c *Client) IsCompatibleWithRefs(
 	references ...SchemaReference,
 ) (bool, error) {
 	req := schemaPayload{Schema: schema, References: references}
-	reqPath := path.Join("compatibility", "subjects", subject, "versions")
+	reqPath := []string{"compatibility", "subjects", subject, "versions"}
 	var resp isCompatibleResponse
 	if err := c.request(ctx, http.MethodPost, reqPath, req, &resp); err != nil {
 		return false, err
@@ -386,7 +461,7 @@ func (c *Client) SetGlobalCompatibilityLevel(ctx context.Context, lvl string) er
 	}
 
 	req := compatPayload{Compatibility: lvl}
-	return c.request(ctx, http.MethodPut, "config", req, nil)
+	return c.request(ctx, http.MethodPut, []string{"config"}, req, nil)
 }
 
 // SetCompatibilityLevel sets the compatibility level of a subject.
@@ -396,13 +471,13 @@ func (c *Client) SetCompatibilityLevel(ctx context.Context, subject, lvl string)
 	}
 
 	req := compatPayload{Compatibility: lvl}
-	return c.request(ctx, http.MethodPut, path.Join("config", subject), req, nil)
+	return c.request(ctx, http.MethodPut, []string{"config", subject}, req, nil)
 }
 
 // GetGlobalCompatibilityLevel gets the global compatibility level.
 func (c *Client) GetGlobalCompatibilityLevel(ctx context.Context) (string, error) {
 	var resp compatPayload
-	if err := c.request(ctx, http.MethodGet, "config", nil, &resp); err != nil {
+	if err := c.request(ctx, http.MethodGet, []string{"config"}, nil, &resp); err != nil {
 		return "", err
 	}
 	return resp.Compatibility, nil
@@ -411,22 +486,28 @@ func (c *Client) GetGlobalCompatibilityLevel(ctx context.Context) (string, error
 // GetCompatibilityLevel gets the compatibility level of a subject.
 func (c *Client) GetCompatibilityLevel(ctx context.Context, subject string) (string, error) {
 	var resp compatPayload
-	if err := c.request(ctx, http.MethodGet, path.Join("config", subject), nil, &resp); err != nil {
+	if err := c.request(ctx, http.MethodGet, []string{"config", subject}, nil, &resp); err != nil {
 		return "", err
 	}
 	return resp.Compatibility, nil
 }
 
-func (c *Client) request(ctx context.Context, method, path string, in, out any) error {
+func (c *Client) request(ctx context.Context, method string, segments []string, in, out any) error {
+	u, err := endpoint(c.base, segments...)
+	if err != nil {
+		return err
+	}
+
 	var body io.Reader
 	if in != nil {
 		b, _ := json.Marshal(in)
 		body = bytes.NewReader(b)
 	}
 
-	// These errors are not possible as we have already parse the base URL.
-	u, _ := c.base.Parse(path)
-	req, _ := http.NewRequestWithContext(ctx, method, u.String(), body)
+	req, err := http.NewRequestWithContext(ctx, method, u.String(), body)
+	if err != nil {
+		return err
+	}
 	req.Header.Set("Content-Type", contentType)
 
 	if len(c.creds.username) > 0 || len(c.creds.password) > 0 {
@@ -437,21 +518,29 @@ func (c *Client) request(ctx context.Context, method, path string, in, out any) 
 	if err != nil {
 		return fmt.Errorf("could not perform request: %w", err)
 	}
+	respBody := c.limitBody(resp.Body)
 	defer func() {
-		_, _ = io.Copy(io.Discard, resp.Body)
+		_, _ = io.Copy(io.Discard, respBody)
 		_ = resp.Body.Close()
 	}()
 
 	if resp.StatusCode >= http.StatusBadRequest {
 		err := Error{StatusCode: resp.StatusCode}
-		_ = json.NewDecoder(resp.Body).Decode(&err)
+		_ = json.NewDecoder(respBody).Decode(&err)
 		return err
 	}
 
 	if out != nil {
-		return json.NewDecoder(resp.Body).Decode(out)
+		return json.NewDecoder(respBody).Decode(out)
 	}
 	return nil
+}
+
+func (c *Client) limitBody(body io.ReadCloser) io.ReadCloser {
+	if c.maxResponseBytes <= 0 {
+		return body
+	}
+	return http.MaxBytesReader(nil, body, c.maxResponseBytes)
 }
 
 // Error is returned by the registry when there is an error.
