@@ -51,6 +51,9 @@ type Config struct {
 	// DisallowUnknownFields makes struct codecs fail when a record field has no matching
 	// struct field or an exported struct field has no matching record field.
 	// Writer-only fields removed by schema resolution are still skipped.
+	// Record fields with defaults, including reader defaults from schema resolution, still need a struct field.
+	// The whole Go type is checked when the codec is built, so a mismatch fails even when no data reaches it.
+	// Structs behind interface values or registered union types are checked when reached, and map records are not checked.
 	DisallowUnknownFields bool
 
 	// AliasInput makes Unmarshal return strings and byte slices that share memory with the input

@@ -65,8 +65,8 @@ func MustSchemaFor[T any](opts ...SchemaForOption) Schema
 // SchemaForType is the non-generic form for callers that only have a reflect.Type.
 func SchemaForType(typ reflect.Type, opts ...SchemaForOption) (Schema, error)
 
-// SchemaFor on API honours TagKey and the cache of the given config.
-func (c *frozenConfig) SchemaFor(typ reflect.Type, opts ...SchemaForOption) (Schema, error)
+// SchemaForConfig honours the TagKey of the given API.
+func SchemaForConfig(api API, typ reflect.Type, opts ...SchemaForOption) (Schema, error)
 
 type SchemaForOption func(*schemaForConfig)
 
@@ -90,9 +90,8 @@ type SchemaProvider interface{ Schema() Schema }
 ```
 
 `T` may be a struct, a pointer to a struct, or any other supported type (a top-level `[]Event`
-yields an array schema). `API.SchemaFor` is added to the `API` interface only if we accept a
-minor-version interface extension; otherwise it lives on `frozenConfig` and is reached through
-a package helper `SchemaForConfig(api API, typ reflect.Type, ...)` (decided in review).
+yields an array schema). The `API` interface is not extended; config-specific behaviour is reached
+through the exported helper `SchemaForConfig`, following the `AppendMarshalWith` pattern.
 
 ## Type mapping (Go -> Avro)
 
@@ -140,7 +139,7 @@ rest     = any text to end of tag, parsed as JSON, else taken as a JSON string
 
 - Splitting respects `(...)` and `[...]`, and `default=` must be last because it consumes the rest.
 - `avro:"-"` skips the field; `-,anything` is an error (twmb's exact-match rule).
-- An empty name keeps the Go field name, which is what `describeStruct` already does.
+- An empty name is an error in `SchemaFor`, because `describeStruct` maps it to the field name `""` rather than the Go field name.
 - Unknown options are an error in `SchemaFor` but stay ignored by codecs, as today.
 - `default=` is validated against the field schema by `Parse`; for nullable fields the default
   reorders the union so the default branch comes first, as the spec requires.

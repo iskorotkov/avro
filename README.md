@@ -277,7 +277,14 @@ if errors.Is(err, avro.ErrUnknownField) {
 }
 ```
 
-Fields the writer has but the reader schema dropped during schema resolution are still skipped.
+Notes:
+
+- Fields the writer has but the reader schema dropped during schema resolution are still skipped.
+- Record fields with defaults still need a struct field: on encode the default is not used, and on decode a field filled from a resolved reader default must exist in the struct.
+- A tag with an empty name such as `avro:",omitempty"` maps to the empty field name, so it fails in strict mode.
+- The whole Go type is checked when the codec is built, so a mismatch inside an empty array, empty map or `null` union branch still fails.
+- Structs stored in `any` fields or decoded through registered union types are checked only when such a value is reached.
+- Records encoded from or decoded into `map[string]any` are not checked.
 
 #### Errors
 

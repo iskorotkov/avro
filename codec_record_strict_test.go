@@ -191,3 +191,14 @@ func TestDisallowUnknownFields_DefaultIsLenient(t *testing.T) {
 
 	assert.NoError(t, err)
 }
+
+func TestDisallowUnknownFields_DefaultFieldStillRequired(t *testing.T) {
+	type rec struct {
+		A int64 `avro:"a"`
+	}
+	schema := avro.MustParse(`{"type":"record","name":"test","fields":[{"name":"a","type":"long"},{"name":"b","type":"string","default":"x"}]}`)
+
+	_, err := strictAPI().Marshal(schema, rec{A: 1})
+
+	assert.ErrorIs(t, err, avro.ErrUnknownField)
+}

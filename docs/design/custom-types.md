@@ -1,6 +1,6 @@
 # Custom types on struct fields
 
-Status: proposal (design only, no code yet). Related: hamba/avro#462 (ISSUES.md), iskorotkov/avro#45 (closed, `json` logical type), twmb/avro `custom_type.go`.
+Status: proposal (design only, no code yet). Related: hamba/avro#462 (ISSUES.md), iskorotkov/avro#45 (closed, `json` logical type), twmb/avro `custom_type.go`. See also [schema-for.md](schema-for.md), whose type mapping should consult registered custom types.
 
 ## Problem
 
