@@ -87,11 +87,13 @@ func decoderOfMapUnion(d *decoderContext, union *UnionSchema, typ reflect2.Type)
 	mapType := typ.(*reflect2.UnsafeMapType)
 
 	typeDecs := make([]ValDecoder, len(union.Types()))
+	keys := make([]string, len(union.Types()))
 	for i, s := range union.Types() {
 		if s.Type() == Null {
 			continue
 		}
 		typeDecs[i] = newEfaceDecoder(d, s)
+		keys[i] = schemaTypeName(s)
 	}
 
 	return &mapUnionDecoder{
@@ -100,6 +102,7 @@ func decoderOfMapUnion(d *decoderContext, union *UnionSchema, typ reflect2.Type)
 		mapType:  mapType,
 		elemType: mapType.Elem(),
 		typeDecs: typeDecs,
+		keys:     keys,
 	}
 }
 
@@ -109,6 +112,7 @@ type mapUnionDecoder struct {
 	mapType  *reflect2.UnsafeMapType
 	elemType reflect2.Type
 	typeDecs []ValDecoder
+	keys     []string
 }
 
 func (d *mapUnionDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
@@ -126,13 +130,10 @@ func (d *mapUnionDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 		d.mapType.UnsafeSet(ptr, d.mapType.UnsafeMakeMap(1))
 	}
 
-	key := schemaTypeName(resSchema)
-	keyPtr := reflect2.PtrOf(key)
-
 	elemPtr := d.elemType.UnsafeNew()
 	d.typeDecs[idx].Decode(elemPtr, r)
 
-	d.mapType.UnsafeSetIndex(ptr, keyPtr, elemPtr)
+	d.mapType.UnsafeSetIndex(ptr, unsafe.Pointer(&d.keys[idx]), elemPtr)
 }
 
 func encoderOfMapUnion(e *encoderContext, union *UnionSchema, _ reflect2.Type) ValEncoder {
