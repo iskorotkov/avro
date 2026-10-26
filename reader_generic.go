@@ -8,6 +8,13 @@ import (
 
 // ReadNext reads the next Avro element as a generic interface.
 func (r *Reader) ReadNext(schema Schema) any {
+	r.beginValue()
+	v := r.readNext(schema)
+	r.endValue()
+	return v
+}
+
+func (r *Reader) readNext(schema Schema) any {
 	var ls LogicalSchema
 	lts, ok := schema.(LogicalTypeSchema)
 	if ok {
@@ -15,6 +22,8 @@ func (r *Reader) ReadNext(schema Schema) any {
 	}
 
 	switch schema.Type() {
+	case Null:
+		return nil
 	case Boolean:
 		return r.ReadBool()
 	case Int:
@@ -87,14 +96,18 @@ func (r *Reader) ReadNext(schema Schema) any {
 		}
 		return r.ReadBytes()
 	case Record:
+		if !r.enterNested() {
+			return nil
+		}
 		fields := schema.(*RecordSchema).Fields()
 		obj := make(map[string]any, len(fields))
 		for _, field := range fields {
-			obj[field.Name()] = r.ReadNext(field.Type())
+			obj[field.Name()] = r.readNext(field.Type())
 		}
+		r.leaveNested()
 		return obj
 	case Ref:
-		return r.ReadNext(schema.(*RefSchema).Schema())
+		return r.readNext(schema.(*RefSchema).Schema())
 	case Enum:
 		symbols := schema.(*EnumSchema).Symbols()
 		idx := int(r.ReadInt())
@@ -104,17 +117,19 @@ func (r *Reader) ReadNext(schema Schema) any {
 		}
 		return symbols[idx]
 	case Array:
+		items := schema.(*ArraySchema).Items()
 		arr := []any{}
-		r.ReadArrayCB(func(r *Reader) bool {
-			elem := r.ReadNext(schema.(*ArraySchema).Items())
+		r.readArrayCB(r.cfg.minWireSizeOf(items), func(r *Reader) bool {
+			elem := r.readNext(items)
 			arr = append(arr, elem)
 			return true
 		})
 		return arr
 	case Map:
+		m := schema.(*MapSchema)
 		obj := map[string]any{}
-		r.ReadMapCB(func(r *Reader, field string) bool {
-			elem := r.ReadNext(schema.(*MapSchema).Values())
+		r.readMapCB(minMapEntrySize(m), func(r *Reader, field string) bool {
+			elem := r.readNext(m.Values())
 			obj[field] = elem
 			return true
 		})
@@ -136,7 +151,7 @@ func (r *Reader) ReadNext(schema Schema) any {
 
 		key := schemaTypeName(schema)
 		obj := map[string]any{}
-		obj[key] = r.ReadNext(types[idx])
+		obj[key] = r.readNext(types[idx])
 		return obj
 	case Fixed:
 		size := schema.(*FixedSchema).Size()
@@ -155,9 +170,14 @@ func (r *Reader) ReadNext(schema Schema) any {
 
 // ReadArrayCB reads an array with a callback per item.
 func (r *Reader) ReadArrayCB(fn func(*Reader) bool) {
+	r.readArrayCB(unknownWireSize, fn)
+}
+
+func (r *Reader) readArrayCB(minItemSize int, fn func(*Reader) bool) {
+	r.beginValue()
 	for {
 		l, _ := r.ReadBlockHeader()
-		if l == 0 {
+		if l == 0 || !r.allowArrayBlock(l, minItemSize) {
 			break
 		}
 		for range l {
@@ -167,16 +187,22 @@ func (r *Reader) ReadArrayCB(fn func(*Reader) bool) {
 			}
 		}
 	}
+	r.endValue()
 }
 
-// ReadMapCB reads an array with a callback per item.
+// ReadMapCB reads a map with a callback per entry.
 func (r *Reader) ReadMapCB(fn func(*Reader, string) bool) {
+	// Every entry carries a key of at least one byte.
+	r.readMapCB(1, fn)
+}
+
+func (r *Reader) readMapCB(minEntrySize int, fn func(*Reader, string) bool) {
+	r.beginValue()
 	for {
 		l, _ := r.ReadBlockHeader()
-		if l == 0 {
+		if l == 0 || !r.allowMapBlock(l, minEntrySize) {
 			break
 		}
-
 		for range l {
 			field := r.ReadString()
 			fn(r, field)
@@ -185,6 +211,7 @@ func (r *Reader) ReadMapCB(fn func(*Reader, string) bool) {
 			}
 		}
 	}
+	r.endValue()
 }
 
 var byteType = reflect.TypeFor[byte]()

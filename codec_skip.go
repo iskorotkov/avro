@@ -11,6 +11,9 @@ func createSkipDecoder(schema Schema) ValDecoder {
 
 func createSkipDecoderWithCache(schema Schema, cache map[[32]byte]ValDecoder) ValDecoder {
 	switch schema.Type() {
+	case Null:
+		return &nullCodec{}
+
 	case Boolean:
 		return &boolSkipDecoder{}
 
@@ -40,7 +43,7 @@ func createSkipDecoderWithCache(schema Schema, cache map[[32]byte]ValDecoder) Va
 
 		deferred := &deferDecoder{}
 		cache[fingerprint] = deferred
-		deferred.decoder = skipDecoderOfRecord(schema, cache)
+		deferred.decoder = nestIfRecursive(schema.(*RecordSchema), skipDecoderOfRecord(schema, cache))
 		return deferred.decoder
 
 	case Ref:
@@ -148,12 +151,14 @@ func skipDecoderOfArray(schema Schema, cache map[[32]byte]ValDecoder) ValDecoder
 	decoder := createSkipDecoderWithCache(arr.Items(), cache)
 
 	return &sliceSkipDecoder{
-		decoder: decoder,
+		decoder:     decoder,
+		minItemSize: minWireSize(arr.Items()),
 	}
 }
 
 type sliceSkipDecoder struct {
-	decoder ValDecoder
+	decoder     ValDecoder
+	minItemSize int
 }
 
 func (d *sliceSkipDecoder) Decode(_ unsafe.Pointer, r *Reader) {
@@ -168,10 +173,14 @@ func (d *sliceSkipDecoder) Decode(_ unsafe.Pointer, r *Reader) {
 			continue
 		}
 
+		if !r.allowArrayBlock(l, d.minItemSize) {
+			return
+		}
+
 		for range l {
 			d.decoder.Decode(nil, r)
 			if r.Error != nil {
-				break
+				return
 			}
 		}
 	}
@@ -182,12 +191,14 @@ func skipDecoderOfMap(schema Schema, cache map[[32]byte]ValDecoder) ValDecoder {
 	decoder := createSkipDecoderWithCache(m.Values(), cache)
 
 	return &mapSkipDecoder{
-		decoder: decoder,
+		decoder:      decoder,
+		minEntrySize: minMapEntrySize(m),
 	}
 }
 
 type mapSkipDecoder struct {
-	decoder ValDecoder
+	decoder      ValDecoder
+	minEntrySize int
 }
 
 func (d *mapSkipDecoder) Decode(_ unsafe.Pointer, r *Reader) {
@@ -202,11 +213,15 @@ func (d *mapSkipDecoder) Decode(_ unsafe.Pointer, r *Reader) {
 			continue
 		}
 
+		if !r.allowMapBlock(l, d.minEntrySize) {
+			return
+		}
+
 		for range l {
 			r.SkipString()
 			d.decoder.Decode(nil, r)
 			if r.Error != nil {
-				break
+				return
 			}
 		}
 	}

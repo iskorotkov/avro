@@ -36,3 +36,14 @@ func TestResetReader_ReadReturnsEOF(t *testing.T) {
 	assert.Equal(t, io.EOF, err)
 	assert.Equal(t, 0, n)
 }
+
+func TestResetReader_Len(t *testing.T) {
+	r := bytesx.NewResetReader([]byte("test"))
+
+	_, err := r.Read(make([]byte, 1))
+	require.NoError(t, err)
+	assert.Equal(t, 3, r.Len())
+
+	r.Reset([]byte("hello"))
+	assert.Equal(t, 5, r.Len())
+}

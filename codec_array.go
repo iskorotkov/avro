@@ -40,12 +40,13 @@ func decoderOfArray(d *decoderContext, arr *ArraySchema, typ reflect2.Type) ValD
 	sliceType := typ.(*reflect2.UnsafeSliceType)
 	decoder := decoderOfType(d, arr.Items(), sliceType.Elem())
 
-	return &arrayDecoder{typ: sliceType, decoder: decoder}
+	return &arrayDecoder{typ: sliceType, decoder: decoder, minItemSize: minWireSize(arr.Items())}
 }
 
 type arrayDecoder struct {
-	typ     *reflect2.UnsafeSliceType
-	decoder ValDecoder
+	typ         *reflect2.UnsafeSliceType
+	decoder     ValDecoder
+	minItemSize int
 }
 
 func (d *arrayDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
@@ -62,21 +63,20 @@ func (d *arrayDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 			break
 		}
 
-		start := size
-		if l > r.cfg.getMaxSliceAllocSize()-size {
-			r.ReportError("decode array", "size is greater than `Config.MaxSliceAllocSize`")
+		if !r.allowArrayBlock(l, d.minItemSize) {
 			return
 		}
-		size += l
 
-		sliceType.UnsafeGrow(ptr, size)
-
-		for i := start; i < size; i++ {
-			elemPtr := sliceType.UnsafeGetIndex(ptr, i)
-			d.decoder.Decode(elemPtr, r)
-			if r.Error != nil {
-				r.Error = fmt.Errorf("reading %s: %w", d.typ.String(), r.Error)
-				return
+		// Grow in bounded chunks so a forged count cannot allocate ahead of the input.
+		for end := size + l; size < end; {
+			next := size + min(end-size, maxBlockPrealloc)
+			sliceType.UnsafeGrow(ptr, next)
+			for ; size < next; size++ {
+				d.decoder.Decode(sliceType.UnsafeGetIndex(ptr, size), r)
+				if r.Error != nil {
+					r.Error = fmt.Errorf("reading %s: %w", d.typ.String(), r.Error)
+					return
+				}
 			}
 		}
 	}

@@ -27,10 +27,12 @@ func WithReaderConfig(cfg API) ReaderFunc {
 type Reader struct {
 	cfg    *frozenConfig
 	reader io.Reader
+	sized  lengther
 	slab   []byte
 	buf    []byte
 	head   int
 	tail   int
+	limits readerLimits
 	Error  error
 }
 
@@ -43,6 +45,7 @@ func NewReader(r io.Reader, bufSize int, opts ...ReaderFunc) *Reader {
 	for _, opt := range opts {
 		opt(reader)
 	}
+	reader.sized, _ = r.(lengther)
 	reader.buf = make([]byte, max(0, reader.cfg.getReadBufSize()))
 	return reader
 }
@@ -50,6 +53,8 @@ func NewReader(r io.Reader, bufSize int, opts ...ReaderFunc) *Reader {
 // Reset resets a Reader with a new byte array attached.
 func (r *Reader) Reset(b []byte) *Reader {
 	r.reader = nil
+	r.sized = nil
+	r.limits = readerLimits{}
 	r.buf = b
 	r.head = 0
 	r.tail = len(b)

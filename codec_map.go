@@ -46,20 +46,26 @@ func decoderOfMap(d *decoderContext, m *MapSchema, typ reflect2.Type) ValDecoder
 	decoder := decoderOfType(d, m.Values(), mapType.Elem())
 
 	return &mapDecoder{
-		mapType:  mapType,
-		elemType: mapType.Elem(),
-		decoder:  decoder,
+		mapType:      mapType,
+		elemType:     mapType.Elem(),
+		decoder:      decoder,
+		minEntrySize: minMapEntrySize(m),
 	}
 }
 
+// minMapEntrySize returns the minimum wire size of a map entry, whose key takes at least one byte.
+func minMapEntrySize(m *MapSchema) int {
+	return 1 + minWireSize(m.Values())
+}
+
 type mapDecoder struct {
-	mapType  *reflect2.UnsafeMapType
-	elemType reflect2.Type
-	decoder  ValDecoder
+	mapType      *reflect2.UnsafeMapType
+	elemType     reflect2.Type
+	decoder      ValDecoder
+	minEntrySize int
 }
 
 func (d *mapDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
-	var size int
 	isNil := d.mapType.UnsafeIsNil(ptr)
 
 	for {
@@ -68,14 +74,12 @@ func (d *mapDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 			break
 		}
 
-		if l > r.cfg.getMaxMapAllocSize()-size {
-			r.ReportError("decode map", "size is greater than `Config.MaxMapAllocSize`")
+		if !r.allowMapBlock(l, d.minEntrySize) {
 			return
 		}
-		size += l
 
 		if isNil {
-			d.mapType.UnsafeSet(ptr, d.mapType.UnsafeMakeMap(l))
+			d.mapType.UnsafeSet(ptr, d.mapType.UnsafeMakeMap(min(l, maxBlockPrealloc)))
 			isNil = false
 		}
 
@@ -111,22 +115,23 @@ func decoderOfMapUnmarshaler(d *decoderContext, m *MapSchema, typ reflect2.Type)
 	decoder := decoderOfType(d, m.Values(), mapType.Elem())
 
 	return &mapDecoderUnmarshaler{
-		mapType:  mapType,
-		keyType:  mapType.Key(),
-		elemType: mapType.Elem(),
-		decoder:  decoder,
+		mapType:      mapType,
+		keyType:      mapType.Key(),
+		elemType:     mapType.Elem(),
+		decoder:      decoder,
+		minEntrySize: minMapEntrySize(m),
 	}
 }
 
 type mapDecoderUnmarshaler struct {
-	mapType  *reflect2.UnsafeMapType
-	keyType  reflect2.Type
-	elemType reflect2.Type
-	decoder  ValDecoder
+	mapType      *reflect2.UnsafeMapType
+	keyType      reflect2.Type
+	elemType     reflect2.Type
+	decoder      ValDecoder
+	minEntrySize int
 }
 
 func (d *mapDecoderUnmarshaler) Decode(ptr unsafe.Pointer, r *Reader) {
-	var size int
 	isNil := d.mapType.UnsafeIsNil(ptr)
 
 	for {
@@ -135,14 +140,12 @@ func (d *mapDecoderUnmarshaler) Decode(ptr unsafe.Pointer, r *Reader) {
 			break
 		}
 
-		if l > r.cfg.getMaxMapAllocSize()-size {
-			r.ReportError("decode map", "size is greater than `Config.MaxMapAllocSize`")
+		if !r.allowMapBlock(l, d.minEntrySize) {
 			return
 		}
-		size += l
 
 		if isNil {
-			d.mapType.UnsafeSet(ptr, d.mapType.UnsafeMakeMap(l))
+			d.mapType.UnsafeSet(ptr, d.mapType.UnsafeMakeMap(min(l, maxBlockPrealloc)))
 			isNil = false
 		}
 
@@ -163,6 +166,10 @@ func (d *mapDecoderUnmarshaler) Decode(ptr unsafe.Pointer, r *Reader) {
 
 			elemPtr := d.elemType.UnsafeNew()
 			d.decoder.Decode(elemPtr, r)
+			if r.Error != nil {
+				r.Error = fmt.Errorf("reading %s: %w", d.mapType.String(), r.Error)
+				return
+			}
 
 			d.mapType.UnsafeSetIndex(ptr, keyPtr, elemPtr)
 		}

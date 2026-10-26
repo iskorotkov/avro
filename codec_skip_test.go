@@ -406,7 +406,7 @@ func TestDecoder_SkipArray(t *testing.T) {
 func TestDecoder_SkipArrayEOF(t *testing.T) {
 	defer ConfigTeardown()
 
-	data := avro.EncodeIntToBytes(200999000)
+	data := avro.EncodeIntToBytes(20999000)
 	data = append(data, 0x36, 0x36)
 	schema := `{
 	"type": "record",
@@ -425,7 +425,7 @@ func TestDecoder_SkipArrayEOF(t *testing.T) {
 	err = decodeWithTimeout(t, dec, &got)
 
 	require.ErrorContains(t, err, "unexpected EOF")
-	assert.Less(t, reader.getCallCount(), int64(10), "reader method calls should be much smaller than 200999000")
+	assert.Less(t, reader.getCallCount(), int64(10), "reader method calls should be much smaller than 20999000")
 }
 
 func TestDecoder_SkipArrayBlocks(t *testing.T) {
@@ -477,7 +477,7 @@ func TestDecoder_SkipMap(t *testing.T) {
 func TestDecoder_SkipMapEOF(t *testing.T) {
 	defer ConfigTeardown()
 
-	data := avro.EncodeIntToBytes(200999000)
+	data := avro.EncodeIntToBytes(20999000)
 	data = append(data, 0x02, 0x66)
 	schema := `{
 	"type": "record",
@@ -496,7 +496,7 @@ func TestDecoder_SkipMapEOF(t *testing.T) {
 	err = decodeWithTimeout(t, dec, &got)
 
 	require.ErrorContains(t, err, "unexpected EOF")
-	assert.Less(t, reader.getCallCount(), int64(10), "reader method calls should be much smaller than 200999000")
+	assert.Less(t, reader.getCallCount(), int64(10), "reader method calls should be much smaller than 20999000")
 }
 
 func TestDecoder_SkipMapBlocks(t *testing.T) {

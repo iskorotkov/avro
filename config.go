@@ -8,7 +8,10 @@ import (
 )
 
 const (
-	defaultMaxByteSliceSize = 1_048_576 // 1 MiB
+	defaultMaxByteSliceSize  = 1_048_576  // 1 MiB
+	defaultMaxSliceAllocSize = 67_108_864 // 64 Mi elements
+	defaultMaxMapAllocSize   = 67_108_864 // 64 Mi entries
+	defaultMaxDepth          = 1000
 
 	defaultSlabSize = 1024
 
@@ -56,15 +59,23 @@ type Config struct {
 	// If this size is exceeded, the Reader returns an error. This can be disabled by setting a negative number.
 	MaxByteSliceSize int
 
-	// MaxSliceAllocSize is the maximum size that the decoder will allocate, set to the max heap
-	// allocation size by default.
+	// MaxSliceAllocSize is the maximum total number of array elements the decoder will read for a
+	// single decoded value, summed over all arrays it contains. It defaults to 67,108,864 when set to
+	// zero or a negative value and is capped at the platform allocation limit.
 	// If this size is exceeded, the decoder returns an error.
 	MaxSliceAllocSize int
 
-	// MaxMapAllocSize is the maximum size that the decoder will allocate, set to the max heap
-	// allocation size by default.
+	// MaxMapAllocSize is the maximum total number of map entries the decoder will read for a
+	// single decoded value, summed over all maps it contains. It defaults to 67,108,864 when set to
+	// zero or a negative value and is capped at the platform allocation limit.
 	// If this size is exceeded, the decoder returns an error.
 	MaxMapAllocSize int
+
+	// MaxDepth is the maximum number of nested values of recursive record types (records that can
+	// contain themselves) the decoder and encoder will follow; Reader.ReadNext counts every nested
+	// record. It defaults to 1000 when set to zero or a negative value.
+	// If this depth is exceeded, decoding or encoding returns an error.
+	MaxDepth int
 
 	// SlabSize is the size of the byte slab used by the Reader for small string/bytes allocations.
 	// This defaults to 1024 bytes. Reads up to this size use the slab allocator, avoiding per-read
@@ -146,6 +157,7 @@ type frozenConfig struct {
 
 	decoderCache sync.Map // map[cacheKey]ValDecoder
 	encoderCache sync.Map // map[cacheKey]ValEncoder
+	wireCache    sync.Map // map[[32]byte]int
 
 	readerPool *sync.Pool
 	writerPool *sync.Pool
@@ -286,6 +298,20 @@ func (c *frozenConfig) getEncoderFromCache(fingerprint [32]byte, rtype uintptr) 
 	return nil
 }
 
+// minWireSizeOf returns the cached minWireSize of schema.
+func (c *frozenConfig) minWireSizeOf(schema Schema) int {
+	key := schema.CacheFingerprint()
+	if n, ok := c.wireCache.Load(key); ok {
+		return n.(int)
+	}
+
+	n := minWireSize(schema)
+	if !c.config.DisableCaching {
+		c.wireCache.Store(key, n)
+	}
+	return n
+}
+
 func (c *frozenConfig) getTagKey() string {
 	tagKey := c.config.TagKey
 	if tagKey == "" {
@@ -312,18 +338,26 @@ func (c *frozenConfig) getMaxByteSliceSize() int {
 
 func (c *frozenConfig) getMaxSliceAllocSize() int {
 	size := c.config.MaxSliceAllocSize
-	if size > maxAllocSize || size <= 0 {
-		return maxAllocSize
+	if size <= 0 {
+		return defaultMaxSliceAllocSize
 	}
-	return size
+	return min(size, maxAllocSize)
 }
 
 func (c *frozenConfig) getMaxMapAllocSize() int {
 	size := c.config.MaxMapAllocSize
-	if size > maxAllocSize || size <= 0 {
-		return maxAllocSize
+	if size <= 0 {
+		return defaultMaxMapAllocSize
 	}
-	return size
+	return min(size, maxAllocSize)
+}
+
+func (c *frozenConfig) getMaxDepth() int {
+	depth := c.config.MaxDepth
+	if depth <= 0 {
+		return defaultMaxDepth
+	}
+	return depth
 }
 
 func (c *frozenConfig) getSlabSize() int {
