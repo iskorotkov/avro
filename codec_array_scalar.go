@@ -10,8 +10,6 @@ import (
 	"slices"
 	"strconv"
 	"unsafe"
-
-	"github.com/modern-go/reflect2"
 )
 
 func scalarArrayPrimitive(schema *ArraySchema) (*PrimitiveSchema, bool) {
@@ -23,7 +21,7 @@ func scalarArrayPrimitive(schema *ArraySchema) (*PrimitiveSchema, bool) {
 	return prim, true
 }
 
-func newScalarArrayDecoder(schema *ArraySchema, sliceType *reflect2.UnsafeSliceType) (ValDecoder, bool) {
+func newScalarArrayDecoder(schema *ArraySchema, sliceType reflect.Type) (ValDecoder, bool) {
 	prim, ok := scalarArrayPrimitive(schema)
 	if !ok {
 		return nil, false
@@ -82,16 +80,16 @@ func newScalarArrayDecoder(schema *ArraySchema, sliceType *reflect2.UnsafeSliceT
 	return nil, false
 }
 
+// scalarArrayDecoder decodes into slices whose elements share the memory layout of T.
 type scalarArrayDecoder[T any] struct {
-	sliceType *reflect2.UnsafeSliceType
+	sliceType reflect.Type
 	fill      func(data []T, r *Reader)
 }
 
 func (d *scalarArrayDecoder[T]) Decode(ptr unsafe.Pointer, r *Reader) {
-	sliceType := d.sliceType
-
-	if sliceType.UnsafeIsNil(ptr) {
-		sliceType.UnsafeSet(ptr, sliceType.UnsafeMakeSlice(0, 0))
+	slice := (*[]T)(ptr)
+	if *slice == nil {
+		*slice = []T{}
 	}
 
 	var size int
@@ -107,14 +105,11 @@ func (d *scalarArrayDecoder[T]) Decode(ptr unsafe.Pointer, r *Reader) {
 		}
 
 		newSize := size + l
-		sliceType.UnsafeGrow(ptr, newSize)
+		*slice = slices.Grow((*slice)[:size], l)[:newSize]
 
-		base := sliceType.UnsafeGetIndex(ptr, size)
-		data := unsafe.Slice((*T)(base), l)
-
-		d.fill(data, r)
+		d.fill((*slice)[size:newSize], r)
 		if r.Error != nil {
-			r.Error = fmt.Errorf("reading %s: %w", sliceType.String(), r.Error)
+			r.Error = fmt.Errorf("reading %s: %w", d.sliceType, r.Error)
 			return
 		}
 
@@ -122,7 +117,7 @@ func (d *scalarArrayDecoder[T]) Decode(ptr unsafe.Pointer, r *Reader) {
 	}
 
 	if r.Error != nil && !errors.Is(r.Error, io.EOF) {
-		r.Error = fmt.Errorf("%v: %w", sliceType, r.Error)
+		r.Error = fmt.Errorf("%v: %w", d.sliceType, r.Error)
 	}
 }
 
@@ -281,7 +276,7 @@ func fillStrings(data []string, r *Reader) {
 	}
 }
 
-func newScalarArrayEncoder(e *encoderContext, schema *ArraySchema, sliceType *reflect2.UnsafeSliceType) (ValEncoder, bool) {
+func newScalarArrayEncoder(e *encoderContext, schema *ArraySchema, sliceType reflect.Type) (ValEncoder, bool) {
 	prim, ok := scalarArrayPrimitive(schema)
 	if !ok {
 		return nil, false
@@ -341,19 +336,19 @@ func newScalarArrayEncoder(e *encoderContext, schema *ArraySchema, sliceType *re
 	return nil, false
 }
 
+// scalarArrayEncoder encodes slices whose elements share the memory layout of T.
 type scalarArrayEncoder[T any] struct {
 	blockLength int
-	sliceType   *reflect2.UnsafeSliceType
+	sliceType   reflect.Type
 	drain       func(data []T, w *Writer)
 }
 
 func (e *scalarArrayEncoder[T]) Encode(ptr unsafe.Pointer, w *Writer) {
 	sliceType := e.sliceType
-	length := sliceType.UnsafeLengthOf(ptr)
+	all := *(*[]T)(ptr)
+	length := len(all)
 
 	if length > 0 {
-		base := sliceType.UnsafeGetIndex(ptr, 0)
-		all := unsafe.Slice((*T)(base), length)
 		blockLength := e.blockLength
 
 		for i := 0; i < length; i += blockLength {
