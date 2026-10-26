@@ -120,6 +120,7 @@ const (
 type SchemaCache struct {
 	cache  sync.Map // map[string]Schema
 	parent *SchemaCache
+	merge  sync.Mutex
 }
 
 // NewSchemaCache returns an empty cache that falls back to parent for lookups without ever writing to it.
@@ -155,14 +156,62 @@ func (c *SchemaCache) AddAll(cache *SchemaCache) {
 	})
 }
 
-// addMissing adds the schemas of the given cache whose names this cache cannot resolve yet.
+// addMissing adds the new names of the given cache unless any of its schemas redefines a name this cache resolves.
 func (c *SchemaCache) addMissing(cache *SchemaCache) {
-	cache.cache.Range(func(key, value any) bool {
-		if c.Get(key.(string)) == nil {
-			c.cache.LoadOrStore(key, value)
+	// Compare outside the lock, since cached names are never replaced by parsing.
+	missing, redefined := c.missingNames(cache)
+	if redefined {
+		return
+	}
+
+	c.merge.Lock()
+	defer c.merge.Unlock()
+
+	for name, schema := range missing {
+		if existing := c.Get(name); existing != nil && !sameDefinition(existing, schema) {
+			return
 		}
-		return true
+	}
+	for name, schema := range missing {
+		if c.Get(name) == nil {
+			c.cache.LoadOrStore(name, schema)
+		}
+	}
+}
+
+// missingNames returns the names of the given cache that this cache does not resolve.
+func (c *SchemaCache) missingNames(cache *SchemaCache) (map[string]Schema, bool) {
+	missing := map[string]Schema{}
+	redefined := false
+	cache.cache.Range(func(key, value any) bool {
+		name, schema := key.(string), value.(Schema)
+		existing := c.Get(name)
+		switch {
+		case existing == nil:
+			missing[name] = schema
+		case !sameDefinition(existing, schema):
+			redefined = true
+		}
+		return !redefined
 	})
+	return missing, redefined
+}
+
+// sameDefinition compares full definitions, since canonical fingerprints ignore defaults, aliases and logical types.
+func sameDefinition(a, b Schema) bool {
+	if a.Fingerprint() != b.Fingerprint() {
+		return false
+	}
+	ja, errA := json.Marshal(derefRef(a))
+	jb, errB := json.Marshal(derefRef(b))
+	return errA == nil && errB == nil && bytes.Equal(ja, jb)
+}
+
+func derefRef(s Schema) Schema {
+	if ref, ok := s.(*RefSchema); ok {
+		return ref.Schema()
+	}
+	return s
 }
 
 // Schemas is a slice of Schemas.

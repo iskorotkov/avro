@@ -2336,6 +2336,98 @@ func TestParseWithCache_DoesNotOverwriteCachedNames(t *testing.T) {
 	assert.Equal(t, original.Fingerprint(), got.Fingerprint())
 }
 
+func TestParseWithCache_RedefinitionAddsNoNames(t *testing.T) {
+	cache := &avro.SchemaCache{}
+	_, err := avro.ParseWithCache(`{"type":"record","name":"User","namespace":"cache.mixed","fields":[{"name":"id","type":"long"}]}`, "", cache)
+	require.NoError(t, err)
+
+	_, err = avro.ParseWithCache(`{"type":"record","name":"Account","namespace":"cache.mixed","fields":[
+		{"name":"u","type":{"type":"record","name":"User","fields":[{"name":"name","type":"string"}]}}
+	]}`, "", cache)
+	require.NoError(t, err)
+
+	assert.Nil(t, cache.Get("cache.mixed.Account"))
+}
+
+func TestParseWithCache_RedefinitionOfNonCanonicalAttributesAddsNoNames(t *testing.T) {
+	tests := []struct {
+		name     string
+		cached   string
+		redefine string
+		wantAdd  bool
+	}{
+		{
+			name:     "Logical Type",
+			cached:   `{"type":"fixed","name":"F","namespace":"cache.attr","size":16}`,
+			redefine: `{"type":"fixed","name":"F","size":16,"logicalType":"decimal","precision":4}`,
+		},
+		{
+			name:     "Field Default",
+			cached:   `{"type":"record","name":"F","namespace":"cache.attr","fields":[{"name":"a","type":"int"}]}`,
+			redefine: `{"type":"record","name":"F","fields":[{"name":"a","type":"int","default":1}]}`,
+		},
+		{
+			name:     "Aliases",
+			cached:   `{"type":"enum","name":"F","namespace":"cache.attr","symbols":["A"]}`,
+			redefine: `{"type":"enum","name":"F","aliases":["G"],"symbols":["A"]}`,
+		},
+		{
+			name:     "Identical",
+			cached:   `{"type":"fixed","name":"F","namespace":"cache.attr","size":16}`,
+			redefine: `{"type":"fixed","name":"F","size":16}`,
+			wantAdd:  true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cache := &avro.SchemaCache{}
+			_, err := avro.ParseWithCache(test.cached, "", cache)
+			require.NoError(t, err)
+
+			_, err = avro.ParseWithCache(`{"type":"record","name":"Y","namespace":"cache.attr","fields":[{"name":"f","type":`+test.redefine+`}]}`, "", cache)
+
+			require.NoError(t, err)
+			assert.Equal(t, test.wantAdd, cache.Get("cache.attr.Y") != nil)
+		})
+	}
+}
+
+func TestParseWithCache_IdenticalRedefinitionAddsNewNames(t *testing.T) {
+	cache := &avro.SchemaCache{}
+	user := `{"type":"record","name":"User","namespace":"cache.same","fields":[{"name":"id","type":"long"}]}`
+	_, err := avro.ParseWithCache(user, "", cache)
+	require.NoError(t, err)
+
+	_, err = avro.ParseWithCache(`{"type":"record","name":"Account","namespace":"cache.same","fields":[{"name":"u","type":`+user+`}]}`, "", cache)
+	require.NoError(t, err)
+
+	assert.NotNil(t, cache.Get("cache.same.Account"))
+}
+
+func TestParseWithCache_ConcurrentRedefinitionsDoNotMix(t *testing.T) {
+	versions := []string{
+		`{"type":"record","name":"Account","namespace":"cache.race","fields":[{"name":"u","type":{"type":"record","name":"User","fields":[{"name":"id","type":"long"}]}}]}`,
+		`{"type":"record","name":"Account","namespace":"cache.race","fields":[{"name":"u","type":{"type":"record","name":"User","fields":[{"name":"name","type":"string"}]}}]}`,
+	}
+
+	for range 50 {
+		cache := &avro.SchemaCache{}
+		var wg sync.WaitGroup
+		for i := range 8 {
+			wg.Go(func() {
+				_, err := avro.ParseWithCache(versions[i%2], "", cache)
+				assert.NoError(t, err)
+			})
+		}
+		wg.Wait()
+
+		account := cache.Get("cache.race.Account").(*avro.RefSchema).Schema().(*avro.RecordSchema)
+		user := cache.Get("cache.race.User")
+		assert.Equal(t, user.Fingerprint(), account.Fields()[0].Type().Fingerprint())
+	}
+}
+
 func TestNewSchemaCache_ReadsParentWithoutWritingIt(t *testing.T) {
 	parent := &avro.SchemaCache{}
 	_, err := avro.ParseWithCache(`{"type":"fixed","name":"Hash","namespace":"cache.layer","size":16}`, "", parent)
@@ -2349,4 +2441,52 @@ func TestNewSchemaCache_ReadsParentWithoutWritingIt(t *testing.T) {
 	assert.NotNil(t, child.Get("cache.layer.Doc"))
 	assert.NotNil(t, child.Get("cache.layer.Hash"))
 	assert.Nil(t, parent.Get("cache.layer.Doc"))
+}
+
+func TestParseWithCache_EvolvedSchemaKeepsFirstDefinition(t *testing.T) {
+	cache := &avro.SchemaCache{}
+	v1, err := avro.ParseWithCache(`{"type":"record","name":"User","namespace":"cache.evolve","fields":[{"name":"id","type":"long"}]}`, "", cache)
+	require.NoError(t, err)
+
+	v2, err := avro.ParseWithCache(`{"type":"record","name":"User","namespace":"cache.evolve","fields":[
+		{"name":"id","type":"long"},{"name":"name","type":"string","default":""}
+	]}`, "", cache)
+	require.NoError(t, err)
+	ref, err := avro.ParseWithCache(`{"type":"array","items":"cache.evolve.User"}`, "", cache)
+	require.NoError(t, err)
+
+	assert.Len(t, v2.(*avro.RecordSchema).Fields(), 2)
+	assert.Equal(t, v1.Fingerprint(), cache.Get("cache.evolve.User").Fingerprint())
+	assert.Equal(t, v1.Fingerprint(), ref.(*avro.ArraySchema).Items().Fingerprint())
+}
+
+func TestSchemaCache_AddAllOverwritesExistingNames(t *testing.T) {
+	first, second := &avro.SchemaCache{}, &avro.SchemaCache{}
+	v1, err := avro.ParseWithCache(`{"type":"fixed","name":"Hash","namespace":"cache.addall","size":16}`, "", first)
+	require.NoError(t, err)
+	v2, err := avro.ParseWithCache(`{"type":"fixed","name":"Hash","namespace":"cache.addall","size":32}`, "", second)
+	require.NoError(t, err)
+	_, err = avro.ParseWithCache(`{"type":"enum","name":"Kind","namespace":"cache.addall","symbols":["A"]}`, "", second)
+	require.NoError(t, err)
+
+	first.AddAll(second)
+
+	assert.NotEqual(t, v1.Fingerprint(), v2.Fingerprint())
+	assert.Equal(t, v2.Fingerprint(), first.Get("cache.addall.Hash").Fingerprint())
+	assert.NotNil(t, first.Get("cache.addall.Kind"))
+}
+
+func TestSchemaCache_AddAllCopiesOnlyOwnNames(t *testing.T) {
+	parent := &avro.SchemaCache{}
+	_, err := avro.ParseWithCache(`{"type":"fixed","name":"Hash","namespace":"cache.addall.parent","size":16}`, "", parent)
+	require.NoError(t, err)
+	child := avro.NewSchemaCache(parent)
+	_, err = avro.ParseWithCache(`{"type":"enum","name":"Kind","namespace":"cache.addall.parent","symbols":["A"]}`, "", child)
+	require.NoError(t, err)
+	target := &avro.SchemaCache{}
+
+	target.AddAll(child)
+
+	assert.NotNil(t, target.Get("cache.addall.parent.Kind"))
+	assert.Nil(t, target.Get("cache.addall.parent.Hash"))
 }
