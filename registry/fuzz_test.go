@@ -4,12 +4,16 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 
 	"github.com/iskorotkov/avro/v2/registry"
 )
 
-// FuzzDecoderDecode decodes arbitrary Confluent wire-format payloads against a registry serving schema id 42.
+// fuzzFrame is a valid Confluent wire-format prefix for schema id 42.
+var fuzzFrame = []byte{0x00, 0x00, 0x00, 0x00, 0x2a}
+
+// FuzzDecoderDecode decodes arbitrary payloads framed for a pre-cached registry schema.
 func FuzzDecoderDecode(f *testing.F) {
 	h := http.NewServeMux()
 	h.HandleFunc("/schemas/ids/42", func(rw http.ResponseWriter, _ *http.Request) {
@@ -25,19 +29,27 @@ func FuzzDecoderDecode(f *testing.F) {
 	if err != nil {
 		f.Fatalf("new client: %v", err)
 	}
+	if _, err = client.GetSchema(context.Background(), 42); err != nil {
+		f.Fatalf("pre-cache schema: %v", err)
+	}
 	decoder := registry.NewDecoder(client)
 
-	f.Add([]byte{0x00, 0x00, 0x00, 0x00, 0x2a, 0x02, 0x02, 0x02, 0x61})
-	f.Add([]byte{0x00, 0x00, 0x00, 0x00, 0x2a, 0x02, 0x00})
-	f.Add([]byte{0x00, 0x00, 0x00, 0x00, 0x2a})
-	f.Add([]byte{0x01, 0x00, 0x00, 0x00, 0x2a, 0x00})
-	f.Add([]byte{0x00, 0xff, 0xff, 0xff, 0xff, 0x00})
+	var out any
+	for _, bad := range [][]byte{{0x01, 0x00, 0x00, 0x00, 0x2a, 0x00}, {0x00, 0xff, 0xff, 0xff, 0xff, 0x00}} {
+		if err = decoder.Decode(context.Background(), bad, &out); err == nil {
+			f.Fatalf("decode %x: expected framing error", bad)
+		}
+	}
+
+	f.Add([]byte{0x02, 0x02, 0x02, 0x61})
+	f.Add([]byte{0x02, 0x00})
+	f.Add([]byte{})
 
 	f.Fuzz(func(_ *testing.T, data []byte) {
 		if len(data) > 1<<16 {
 			return
 		}
-		var out any
-		_ = decoder.Decode(context.Background(), data, &out)
+		var v any
+		_ = decoder.Decode(context.Background(), append(slices.Clip(fuzzFrame), data...), &v)
 	})
 }

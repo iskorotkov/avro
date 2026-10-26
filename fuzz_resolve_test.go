@@ -6,7 +6,7 @@ import (
 	"github.com/iskorotkov/avro/v2"
 )
 
-// FuzzSchemaResolve parses a reader and writer schema, resolves them and decodes data with the result.
+// FuzzSchemaResolve resolves fuzzed reader/writer schemas and decodes data, and stays out of fuzz.yml until the unbounded-count OOM fix from fix/decoder-hardening lands.
 func FuzzSchemaResolve(f *testing.F) {
 	type seed struct{ reader, writer, data string }
 	seeds := []seed{
