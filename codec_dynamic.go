@@ -98,6 +98,7 @@ func (e *interfaceEncoder) encoderOf(obj any) ValEncoder {
 		return cached.encoder
 	}
 
+	// The encoder's own config is used on purpose; it equals w.cfg on every public path.
 	enc := e.cfg.EncoderOf(e.schema, reflect2.TypeOf(obj))
 	// First type wins so values of mixed types never thrash the slot.
 	e.cached.CompareAndSwap(nil, &typedEncoder{rtype: rtype, encoder: enc})
