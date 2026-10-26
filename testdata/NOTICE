@@ -1,0 +1,4 @@
+Third-party test data
+
+- avro-schema-tests.txt: copied verbatim from Apache Avro share/test/data/schema-tests.txt
+  (https://github.com/apache/avro), licensed under the Apache License, Version 2.0.
