@@ -1,11 +1,15 @@
 package avro
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
 	"math"
+	"strings"
 	"unsafe"
+
+	"github.com/iskorotkov/avro/v2/internal/bytesx"
 )
 
 const (
@@ -45,9 +49,25 @@ func NewReader(r io.Reader, bufSize int, opts ...ReaderFunc) *Reader {
 	for _, opt := range opts {
 		opt(reader)
 	}
-	reader.sized, _ = r.(lengther)
+	reader.sized = sizedReader(r)
 	reader.buf = make([]byte, max(0, reader.cfg.getReadBufSize()))
 	return reader
+}
+
+// sizedReader returns r when it is a known in-memory reader whose Len reports the unread bytes.
+func sizedReader(r io.Reader) lengther {
+	switch rd := r.(type) {
+	case *bytes.Reader:
+		return rd
+	case *bytes.Buffer:
+		return rd
+	case *strings.Reader:
+		return rd
+	case *bytesx.ResetReader:
+		return rd
+	default:
+		return nil
+	}
 }
 
 // Reset resets a Reader with a new byte array attached.

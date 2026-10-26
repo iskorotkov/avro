@@ -158,7 +158,8 @@ type frozenConfig struct {
 
 	decoderCache sync.Map // map[cacheKey]ValDecoder
 	encoderCache sync.Map // map[cacheKey]ValEncoder
-	wireCache    sync.Map // map[[32]byte]int
+	// TODO: move wireCache onto the bounded codec cache so parsing many schemas cannot grow it forever.
+	wireCache sync.Map // map[[32]byte]int
 
 	readerPool *sync.Pool
 	writerPool *sync.Pool

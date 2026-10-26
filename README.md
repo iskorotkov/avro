@@ -243,7 +243,7 @@ When processing untrusted Avro data, it is important to configure protection aga
 - `Config.MaxMapAllocSize` - Limits the total number of map entries in one decoded value (default: `67,108,864`)
 - `Config.MaxDepth` - Limits how deeply recursive records (such as linked lists and trees) nest when decoding and encoding (default: `1000`)
 
-Independently of these options, array and map counts must fit in the remaining input when it is known (byte slices, `bytes.Reader`, `bytes.Buffer`), allocation grows in chunks as items are decoded, and arrays whose items have no wire representation (such as `null` or empty records) are limited to 1,048,576 items per decoded value.
+Independently of these options, array and map counts must fit in the remaining input when it is known (byte slices, `bytes.Reader`, `bytes.Buffer`, `strings.Reader`), allocation grows in chunks as items are decoded, and arrays whose items have no wire representation (such as `null` or empty records) are limited to 1,048,576 items per decoded value.
 
 When reading Object Container Files, `ocf.WithMaxBlockBytes` and `ocf.WithMaxDecompressedBlockBytes` additionally cap a single data block's compressed and decompressed sizes (default: `64MiB` each).
 

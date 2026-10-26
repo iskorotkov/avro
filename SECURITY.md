@@ -47,10 +47,10 @@ decoder, err := avro.NewDecoder(schema, untrustedReader)
 
 These checks always apply and need no configuration:
 
-- An array or map block count must fit in the remaining input, assuming each item takes the minimum number of bytes its schema allows. The remaining input is known when decoding a byte slice or reading from an `io.Reader` that has a `Len() int` method, such as `bytes.Reader`, `bytes.Buffer` and OCF data blocks.
+- An array or map block count must fit in the remaining input, assuming each item takes the minimum number of bytes its schema allows. The remaining input is known when decoding a byte slice, a `*bytes.Reader`, `*bytes.Buffer` or `*strings.Reader`, or an OCF data block; other readers are treated as streams.
 - Slices and maps are pre-allocated for at most 4096 items and grow as items are actually decoded, so a forged count on a stream cannot allocate ahead of the data.
 - Arrays whose items have no wire representation (such as `null` or empty records) are limited to 1,048,576 items per decoded value.
-- The limits above also apply to fields skipped because the target struct lacks them, and to `Reader.ReadNext`, `Reader.ReadArrayCB` and `Reader.ReadMapCB`.
+- The limits above also apply to fields skipped because the target struct lacks them and to `Reader.ReadNext`. `Reader.ReadArrayCB` and `Reader.ReadMapCB` stream items without allocating, so they apply the nesting and remaining-input checks but not the element totals.
 
 ## Truncated Input
 
