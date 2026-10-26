@@ -75,8 +75,7 @@ func ParseBytesWithCache(schema []byte, namespace string, cache *SchemaCache) (S
 		parsed = string(schema)
 	}
 
-	internalCache := &SchemaCache{}
-	internalCache.AddAll(cache)
+	internalCache := NewSchemaCache(cache)
 
 	seen := seenCache{}
 	s, err := parseType(namespace, parsed, seen, internalCache)
@@ -84,9 +83,11 @@ func ParseBytesWithCache(schema []byte, namespace string, cache *SchemaCache) (S
 		return nil, err
 	}
 
-	cache.AddAll(internalCache)
+	s = derefSchema(s)
+	// Publish only after deref, since it rewrites the parsed schemas in place.
+	cache.addMissing(internalCache)
 
-	return derefSchema(s), nil
+	return s, nil
 }
 
 func parseType(namespace string, v any, seen seenCache, cache *SchemaCache) (Schema, error) {

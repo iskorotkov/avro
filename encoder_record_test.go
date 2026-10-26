@@ -144,7 +144,7 @@ func TestEncoder_RecordStructPartialWithSubRecordDefault(t *testing.T) {
 
 	_, err := avro.Parse(`{
 		"type": "record",
-		"name": "test",
+		"name": "subRecordDefaultStruct",
 		"fields" : [
 			{"name": "a", "type": "long"},
 			{"name": "b", "type": "string"}
@@ -158,7 +158,7 @@ func TestEncoder_RecordStructPartialWithSubRecordDefault(t *testing.T) {
 		"fields" : [
 			{
 				"name": "a",
-				"type": "test",
+				"type": "subRecordDefaultStruct",
 				"default": {"a": 1000, "b": "def b"}
 			},
 			{"name": "b", "type": "string"}
@@ -452,7 +452,7 @@ func TestEncoder_RecordMapWithSubRecordDefault(t *testing.T) {
 
 	_, err := avro.Parse(`{
 		"type": "record",
-		"name": "test",
+		"name": "subRecordDefaultMap",
 		"fields" : [
 			{"name": "a", "type": "long"},
 			{"name": "b", "type": "string"}
@@ -466,7 +466,7 @@ func TestEncoder_RecordMapWithSubRecordDefault(t *testing.T) {
 		"fields" : [
 			{
 				"name": "a",
-				"type": "test",
+				"type": "subRecordDefaultMap",
 				"default": {"a": 1000, "b": "def b"}
 			},
 			{"name": "b", "type": "string"}

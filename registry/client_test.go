@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/iskorotkov/avro/v2"
 	"github.com/iskorotkov/avro/v2/registry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -881,4 +882,102 @@ func TestError_ErrorEmptyMessage(t *testing.T) {
 	str := err.Error()
 
 	assert.Equal(t, "registry error: 404", str)
+}
+
+func TestClient_GetSchemaUsesPrivateSchemaCache(t *testing.T) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"schema":"{\"type\":\"record\",\"name\":\"registry.poison.User\",\"fields\":[]}"}`))
+	}))
+	t.Cleanup(s.Close)
+
+	client, _ := registry.NewClient(s.URL)
+	_, err := client.GetSchema(context.Background(), 5)
+	require.NoError(t, err)
+	assert.Nil(t, avro.DefaultSchemaCache.Get("registry.poison.User"))
+
+	cache := &avro.SchemaCache{}
+	client, _ = registry.NewClient(s.URL, registry.WithNamedSchemaCache(cache))
+	_, err = client.GetSchema(context.Background(), 5)
+	require.NoError(t, err)
+	assert.NotNil(t, cache.Get("registry.poison.User"))
+}
+
+func TestClient_EveryParseKeepsDefaultSchemaCacheClean(t *testing.T) {
+	user := `{"type":"record","name":"User","namespace":"registry.every","fields":[]}`
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		body, _ := json.Marshal(map[string]any{"id": 1, "schema": user})
+		_, _ = w.Write(body)
+	}))
+	t.Cleanup(s.Close)
+	client, err := registry.NewClient(s.URL)
+	require.NoError(t, err)
+	ctx := context.Background()
+
+	calls := map[string]func() error{
+		"GetSchema":          func() error { _, err := client.GetSchema(ctx, 1); return err },
+		"GetSchemaByVersion": func() error { _, err := client.GetSchemaByVersion(ctx, "s", 1); return err },
+		"GetLatestSchema":    func() error { _, err := client.GetLatestSchema(ctx, "s"); return err },
+		"GetSchemaInfo":      func() error { _, err := client.GetSchemaInfo(ctx, "s", 1); return err },
+		"GetLatestSchemaInfo": func() error {
+			_, err := client.GetLatestSchemaInfo(ctx, "s")
+			return err
+		},
+		"CreateSchema": func() error { _, _, err := client.CreateSchema(ctx, "s", user); return err },
+		"IsRegistered": func() error { _, _, err := client.IsRegistered(ctx, "s", user); return err },
+	}
+
+	for name, call := range calls {
+		require.NoError(t, call(), name)
+		assert.Nil(t, avro.DefaultSchemaCache.Get("registry.every.User"), name)
+	}
+}
+
+func TestClient_SharedNamedSchemaCacheKeepsFirstDefinition(t *testing.T) {
+	versions := map[string]string{
+		"/schemas/ids/1": `{"type":"record","name":"User","namespace":"registry.evolve","fields":[{"name":"id","type":"long"}]}`,
+		"/schemas/ids/2": `{"type":"record","name":"User","namespace":"registry.evolve","fields":[{"name":"id","type":"long"},{"name":"name","type":"string","default":""}]}`,
+	}
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := json.Marshal(map[string]any{"schema": versions[r.URL.Path]})
+		_, _ = w.Write(body)
+	}))
+	t.Cleanup(s.Close)
+	cache := &avro.SchemaCache{}
+	client, err := registry.NewClient(s.URL, registry.WithNamedSchemaCache(cache))
+	require.NoError(t, err)
+
+	v1, err := client.GetSchema(context.Background(), 1)
+	require.NoError(t, err)
+	v2, err := client.GetSchema(context.Background(), 2)
+	require.NoError(t, err)
+
+	assert.Len(t, v2.(*avro.RecordSchema).Fields(), 2)
+	assert.Equal(t, v1.Fingerprint(), cache.Get("registry.evolve.User").Fingerprint())
+}
+
+func TestClient_ResponsesDoNotShareNamedTypesByDefault(t *testing.T) {
+	schemas := map[string]string{
+		"/schemas/ids/1": `{"type":"record","name":"Inner","namespace":"registry.refs","fields":[]}`,
+		"/schemas/ids/2": `{"type":"array","items":"registry.refs.Inner"}`,
+	}
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := json.Marshal(map[string]any{"schema": schemas[r.URL.Path]})
+		_, _ = w.Write(body)
+	}))
+	t.Cleanup(s.Close)
+	ctx := context.Background()
+
+	client, err := registry.NewClient(s.URL)
+	require.NoError(t, err)
+	_, err = client.GetSchema(ctx, 1)
+	require.NoError(t, err)
+	_, err = client.GetSchema(ctx, 2)
+	require.EqualError(t, err, "avro: unknown type: registry.refs.Inner")
+
+	shared, err := registry.NewClient(s.URL, registry.WithNamedSchemaCache(&avro.SchemaCache{}))
+	require.NoError(t, err)
+	_, err = shared.GetSchema(ctx, 1)
+	require.NoError(t, err)
+	_, err = shared.GetSchema(ctx, 2)
+	require.NoError(t, err)
 }

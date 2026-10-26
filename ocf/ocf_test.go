@@ -1708,3 +1708,20 @@ func TestDecoder_BlockSizeOutOfRange(t *testing.T) {
 		})
 	}
 }
+
+func TestNewDecoder_DoesNotPolluteDefaultSchemaCache(t *testing.T) {
+	schema := `{"type":"record","name":"User","namespace":"ocf.poison","fields":[{"name":"admin","type":"boolean"}]}`
+	buf := &bytes.Buffer{}
+	enc, err := ocf.NewEncoder(schema, buf, ocf.WithEncoderSchemaCache(&avro.SchemaCache{}))
+	require.NoError(t, err)
+	require.NoError(t, enc.Close())
+
+	_, err = ocf.NewDecoder(bytes.NewReader(buf.Bytes()))
+	require.NoError(t, err)
+	assert.Nil(t, avro.DefaultSchemaCache.Get("ocf.poison.User"))
+
+	cache := &avro.SchemaCache{}
+	_, err = ocf.NewDecoder(bytes.NewReader(buf.Bytes()), ocf.WithDecoderSchemaCache(cache))
+	require.NoError(t, err)
+	assert.NotNil(t, cache.Get("ocf.poison.User"))
+}

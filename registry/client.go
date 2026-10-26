@@ -102,7 +102,7 @@ type schemaMetadata struct {
 
 // Parse converts the string schema registry response into a
 // SchemaInfo object with an avro.Schema schema.
-func (s *schemaInfoPayload) Parse() (info SchemaInfo, err error) {
+func (s *schemaInfoPayload) Parse(cache *avro.SchemaCache) (info SchemaInfo, err error) {
 	info = SchemaInfo{
 		ID:      s.ID,
 		Version: s.Version,
@@ -110,7 +110,7 @@ func (s *schemaInfoPayload) Parse() (info SchemaInfo, err error) {
 			Properties: s.Metadata.Properties,
 		},
 	}
-	info.Schema, err = avro.Parse(s.Schema)
+	info.Schema, err = avro.ParseWithCache(s.Schema, "", cache)
 	return info, err
 }
 
@@ -164,12 +164,23 @@ func WithBasicAuth(username, password string) ClientFunc {
 	}
 }
 
+// WithNamedSchemaCache sets the cache that holds the named types of parsed registry schemas.
+// It is separate from the client's cache of schemas by ID.
+// If not specified, each response is parsed into a fresh cache that only reads from avro.DefaultSchemaCache.
+func WithNamedSchemaCache(cache *avro.SchemaCache) ClientFunc {
+	return func(c *Client) {
+		c.namedCache = cache
+	}
+}
+
 // Client is an HTTP registry client.
 type Client struct {
 	client *http.Client
 	base   *url.URL
 
 	creds credentials
+
+	namedCache *avro.SchemaCache
 
 	cache sync.Map // map[int]avro.Schema
 }
@@ -211,7 +222,7 @@ func (c *Client) GetSchema(ctx context.Context, id int) (avro.Schema, error) {
 		return nil, err
 	}
 
-	schema, err := avro.Parse(resp.Schema)
+	schema, err := c.parse(resp.Schema)
 	if err != nil {
 		return nil, err
 	}
@@ -219,6 +230,17 @@ func (c *Client) GetSchema(ctx context.Context, id int) (avro.Schema, error) {
 	c.cache.Store(id, schema)
 
 	return schema, nil
+}
+
+func (c *Client) parse(schema string) (avro.Schema, error) {
+	return avro.ParseWithCache(schema, "", c.parseCache())
+}
+
+func (c *Client) parseCache() *avro.SchemaCache {
+	if c.namedCache != nil {
+		return c.namedCache
+	}
+	return avro.NewSchemaCache(avro.DefaultSchemaCache)
 }
 
 // GetSubjects gets the registry subjects.
@@ -258,7 +280,7 @@ func (c *Client) GetSchemaByVersion(ctx context.Context, subject string, version
 	if err := c.request(ctx, http.MethodGet, p, nil, &resp); err != nil {
 		return nil, err
 	}
-	return avro.Parse(resp.Schema)
+	return c.parse(resp.Schema)
 }
 
 // GetLatestSchema gets the latest schema for a subject.
@@ -268,7 +290,7 @@ func (c *Client) GetLatestSchema(ctx context.Context, subject string) (avro.Sche
 	if err := c.request(ctx, http.MethodGet, p, nil, &resp); err != nil {
 		return nil, err
 	}
-	return avro.Parse(resp.Schema)
+	return c.parse(resp.Schema)
 }
 
 // GetSchemaInfo gets the schema and schema metadata for a subject and version.
@@ -278,7 +300,7 @@ func (c *Client) GetSchemaInfo(ctx context.Context, subject string, version int)
 	if err := c.request(ctx, http.MethodGet, p, nil, &resp); err != nil {
 		return SchemaInfo{}, err
 	}
-	return resp.Parse()
+	return resp.Parse(c.parseCache())
 }
 
 // GetLatestSchemaInfo gets the latest schema and schema metadata for a subject.
@@ -288,7 +310,7 @@ func (c *Client) GetLatestSchemaInfo(ctx context.Context, subject string) (Schem
 	if err := c.request(ctx, http.MethodGet, p, nil, &resp); err != nil {
 		return SchemaInfo{}, err
 	}
-	return resp.Parse()
+	return resp.Parse(c.parseCache())
 }
 
 // CreateSchema creates a schema in the registry, returning the schema id.
@@ -304,7 +326,7 @@ func (c *Client) CreateSchema(
 		return 0, nil, err
 	}
 
-	sch, err := avro.Parse(schema)
+	sch, err := c.parse(schema)
 	return resp.ID, sch, err
 }
 
@@ -325,7 +347,7 @@ func (c *Client) IsRegisteredWithRefs(
 		return 0, nil, err
 	}
 
-	sch, err := avro.Parse(schema)
+	sch, err := c.parse(schema)
 	return resp.ID, sch, err
 }
 

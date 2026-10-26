@@ -72,8 +72,8 @@ func WithDecoderConfig(wCfg avro.API) DecoderFunc {
 	}
 }
 
-// WithDecoderSchemaCache sets the schema cache for the decoder.
-// If not specified, defaults to avro.DefaultSchemaCache.
+// WithDecoderSchemaCache sets the schema cache the file's schema is parsed into.
+// If not specified, each decoder uses a private cache that only reads from avro.DefaultSchemaCache.
 func WithDecoderSchemaCache(cache *avro.SchemaCache) DecoderFunc {
 	return func(cfg *decoderConfig) {
 		cfg.SchemaCache = cache
@@ -133,7 +133,7 @@ type Decoder struct {
 func NewDecoder(r io.Reader, opts ...DecoderFunc) (*Decoder, error) {
 	cfg := decoderConfig{
 		DecoderConfig: avro.DefaultConfig,
-		SchemaCache:   avro.DefaultSchemaCache,
+		SchemaCache:   avro.NewSchemaCache(avro.DefaultSchemaCache),
 		CodecOptions: codecOptions{
 			DeflateCompressionLevel: flate.DefaultCompression,
 		},

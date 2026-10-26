@@ -117,7 +117,13 @@ const (
 
 // SchemaCache is a cache of schemas.
 type SchemaCache struct {
-	cache sync.Map // map[string]Schema
+	cache  sync.Map // map[string]Schema
+	parent *SchemaCache
+}
+
+// NewSchemaCache returns an empty cache that falls back to parent for lookups without ever writing to it.
+func NewSchemaCache(parent *SchemaCache) *SchemaCache {
+	return &SchemaCache{parent: parent}
 }
 
 // Add adds a schema to the cache with the given name.
@@ -130,6 +136,9 @@ func (c *SchemaCache) Get(name string) Schema {
 	if v, ok := c.cache.Load(name); ok {
 		return v.(Schema)
 	}
+	if c.parent != nil {
+		return c.parent.Get(name)
+	}
 
 	return nil
 }
@@ -141,6 +150,16 @@ func (c *SchemaCache) AddAll(cache *SchemaCache) {
 	}
 	cache.cache.Range(func(key, value any) bool {
 		c.cache.Store(key, value)
+		return true
+	})
+}
+
+// addMissing adds the schemas of the given cache whose names this cache cannot resolve yet.
+func (c *SchemaCache) addMissing(cache *SchemaCache) {
+	cache.cache.Range(func(key, value any) bool {
+		if c.Get(key.(string)) == nil {
+			c.cache.LoadOrStore(key, value)
+		}
 		return true
 	})
 }

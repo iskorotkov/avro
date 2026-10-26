@@ -2307,3 +2307,31 @@ func TestConcurrentParse(t *testing.T) {
 
 	wg.Wait()
 }
+
+func TestParseWithCache_DoesNotOverwriteCachedNames(t *testing.T) {
+	cache := &avro.SchemaCache{}
+	original, err := avro.ParseWithCache(`{"type":"record","name":"User","namespace":"cache.poison","fields":[{"name":"id","type":"long"}]}`, "", cache)
+	require.NoError(t, err)
+
+	redefined, err := avro.ParseWithCache(`{"type":"record","name":"User","namespace":"cache.poison","fields":[{"name":"admin","type":"boolean"}]}`, "", cache)
+	require.NoError(t, err)
+
+	assert.NotEqual(t, original.Fingerprint(), redefined.Fingerprint())
+	got := cache.Get("cache.poison.User").(*avro.RefSchema).Schema()
+	assert.Equal(t, original.Fingerprint(), got.Fingerprint())
+}
+
+func TestNewSchemaCache_ReadsParentWithoutWritingIt(t *testing.T) {
+	parent := &avro.SchemaCache{}
+	_, err := avro.ParseWithCache(`{"type":"fixed","name":"Hash","namespace":"cache.layer","size":16}`, "", parent)
+	require.NoError(t, err)
+	child := avro.NewSchemaCache(parent)
+
+	schema, err := avro.ParseWithCache(`{"type":"record","name":"Doc","namespace":"cache.layer","fields":[{"name":"h","type":"Hash"}]}`, "", child)
+
+	require.NoError(t, err)
+	assert.Equal(t, avro.Record, schema.Type())
+	assert.NotNil(t, child.Get("cache.layer.Doc"))
+	assert.NotNil(t, child.Get("cache.layer.Hash"))
+	assert.Nil(t, parent.Get("cache.layer.Doc"))
+}
