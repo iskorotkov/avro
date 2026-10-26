@@ -1,4 +1,4 @@
-//go:build !(386 || amd64 || amd64p32 || arm || arm64 || loong64 || mipsle || mips64le || mips64p32le || ppc64le || riscv || riscv64 || wasm)
+//go:build !(386 || amd64 || amd64p32 || arm64 || loong64 || ppc64le || wasm)
 
 package avro
 
@@ -7,7 +7,7 @@ import (
 	"math"
 )
 
-// Mirrors reader_endian_le.go: the spec mandates little-endian floats, so big-endian and unknown hosts must decode explicitly; kept as whole-function copies because shared helpers would push ReadFloat/ReadDouble past the inlining budget.
+// Mirrors reader_float_unaligned.go: the spec mandates little-endian floats, so big-endian, strict-alignment and unknown hosts must decode explicitly; kept as whole-function copies because shared helpers would push ReadFloat/ReadDouble past the inlining budget.
 
 // ReadFloat reads a Float from the Reader.
 func (r *Reader) ReadFloat() float32 {

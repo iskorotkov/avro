@@ -1,10 +1,10 @@
-//go:build 386 || amd64 || amd64p32 || arm || arm64 || loong64 || mipsle || mips64le || mips64p32le || ppc64le || riscv || riscv64 || wasm
+//go:build 386 || amd64 || amd64p32 || arm64 || loong64 || ppc64le || wasm
 
 package avro
 
 import "unsafe"
 
-// Mirrors reader_endian_be.go: on little-endian hosts the wire layout matches memory, so reinterpreting in place is correct; do not extract shared helpers — ReadFloat/ReadDouble sit at inline cost 79 of budget 80 and any extra expression de-inlines them.
+// Mirrors reader_float_portable.go: on little-endian hosts that allow unaligned float loads the wire layout matches memory, so reinterpreting in place is correct; do not extract shared helpers — ReadFloat/ReadDouble sit at inline cost 79 of budget 80 and any extra expression de-inlines them.
 
 // ReadFloat reads a Float from the Reader.
 func (r *Reader) ReadFloat() float32 {
