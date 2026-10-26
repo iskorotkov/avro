@@ -31,6 +31,7 @@ type Reader struct {
 	buf    []byte
 	head   int
 	tail   int
+	alias  bool
 	Error  error
 }
 
@@ -319,6 +320,10 @@ func (r *Reader) readBytes(fnName, op string) []byte {
 	}
 
 	size := int(size64)
+
+	if r.alias && size <= r.tail-r.head {
+		return r.readAliased(size)
+	}
 
 	// The bytes are entirely in the buffer and of a reasonable size.
 	// Use the byte slab.

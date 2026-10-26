@@ -53,6 +53,11 @@ type Config struct {
 	// Writer-only fields removed by schema resolution are still skipped.
 	DisallowUnknownFields bool
 
+	// AliasInput makes Unmarshal return strings and byte slices that share memory with the input
+	// instead of copying them. The input must not be modified while decoded values are in use.
+	// It has no effect on decoders reading from an io.Reader.
+	AliasInput bool
+
 	// Disable caching layer for encoders and decoders, forcing them to get rebuilt on every
 	// call to Marshal() and Unmarshal()
 	DisableCaching bool
@@ -197,6 +202,7 @@ func (c *frozenConfig) returnWriter(writer *Writer) {
 
 func (c *frozenConfig) Unmarshal(schema Schema, data []byte, v any) error {
 	reader := c.borrowReader(data)
+	reader.alias = c.config.AliasInput
 	defer c.returnReader(reader)
 
 	reader.ReadVal(schema, v)
@@ -211,6 +217,7 @@ func (c *frozenConfig) borrowReader(data []byte) *Reader {
 
 func (c *frozenConfig) returnReader(reader *Reader) {
 	reader.Error = nil
+	reader.alias = false
 	c.readerPool.Put(reader)
 }
 

@@ -1,6 +1,7 @@
 package avro_test
 
 import (
+	"os"
 	"testing"
 
 	"github.com/iskorotkov/avro/v2"
@@ -33,5 +34,43 @@ func BenchmarkSuperheroAppendMarshal(b *testing.B) {
 
 	for b.Loop() {
 		buf, _ = avro.AppendMarshal(buf[:0], schema, super)
+	}
+}
+
+func BenchmarkSuperheroDecodeAliasInput(b *testing.B) {
+	data, err := os.ReadFile("testdata/superhero.bin")
+	if err != nil {
+		panic(err)
+	}
+	schema, err := avro.ParseFiles("testdata/superhero.avsc")
+	if err != nil {
+		panic(err)
+	}
+	api := avro.Config{AliasInput: true}.Freeze()
+
+	b.ReportAllocs()
+
+	for b.Loop() {
+		super := &Superhero{}
+		_ = api.Unmarshal(schema, data, super)
+	}
+}
+
+func BenchmarkSuperheroDecodeCopyInput(b *testing.B) {
+	data, err := os.ReadFile("testdata/superhero.bin")
+	if err != nil {
+		panic(err)
+	}
+	schema, err := avro.ParseFiles("testdata/superhero.avsc")
+	if err != nil {
+		panic(err)
+	}
+	api := avro.Config{}.Freeze()
+
+	b.ReportAllocs()
+
+	for b.Loop() {
+		super := &Superhero{}
+		_ = api.Unmarshal(schema, data, super)
 	}
 }

@@ -108,6 +108,17 @@ for _, rec := range records {
 }
 ```
 
+### Zero-copy decoding
+
+With `Config.AliasInput`, `Unmarshal` returns strings and byte slices that point into the input instead of copying them.
+The input must stay unmodified while decoded values are in use. Streaming decoders are not affected.
+
+```go
+api := avro.Config{AliasInput: true}.Freeze()
+
+err := api.Unmarshal(schema, data, &out) // out.Name shares memory with data
+```
+
 ### Types Conversions
 
 | Avro                          | Go Struct                                                  | Go Interface             |
