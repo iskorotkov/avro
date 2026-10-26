@@ -25,6 +25,8 @@ func NewEncoderForSchema(schema Schema, w io.Writer) *Encoder {
 }
 
 // Encode writes the Avro encoding of v to the stream.
+//
+// Each call flushes to the underlying io.Writer; wrap an unbuffered writer in a bufio.Writer when encoding many small values.
 func (e *Encoder) Encode(v any) error {
 	e.w.WriteVal(e.s, v)
 	_ = e.w.Flush()
