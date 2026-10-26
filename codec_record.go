@@ -56,11 +56,11 @@ func decoderOfStruct(d *decoderContext, schema Schema, typ reflect.Type) ValDeco
 	rec := schema.(*RecordSchema)
 	structDesc := describeStruct(d.cfg.getTagKey(), typ)
 
-	fields := make([]*structFieldDecoder, 0, len(rec.Fields()))
+	fields := make([]structFieldDecoder, 0, len(rec.Fields()))
 
 	for _, field := range rec.Fields() {
 		if field.action == FieldIgnore {
-			fields = append(fields, &structFieldDecoder{
+			fields = append(fields, structFieldDecoder{
 				decoder: createSkipDecoder(field.Type()),
 			})
 			continue
@@ -86,7 +86,7 @@ func decoderOfStruct(d *decoderContext, schema Schema, typ reflect.Type) ValDeco
 				continue
 			}
 
-			fields = append(fields, &structFieldDecoder{
+			fields = append(fields, structFieldDecoder{
 				decoder: createSkipDecoder(field.Type()),
 			})
 			continue
@@ -94,20 +94,14 @@ func decoderOfStruct(d *decoderContext, schema Schema, typ reflect.Type) ValDeco
 
 		if field.action == FieldSetDefault {
 			if field.hasDef {
-				fields = append(fields, &structFieldDecoder{
-					field:   sf.Field,
-					decoder: createDefaultDecoder(d, field, sf.Field[len(sf.Field)-1].typ),
-				})
+				fields = append(fields, newStructFieldDecoder(sf.Field, createDefaultDecoder(d, field, sf.Field[len(sf.Field)-1].typ)))
 
 				continue
 			}
 		}
 
 		dec := decoderOfType(d, field.Type(), sf.Field[len(sf.Field)-1].typ)
-		fields = append(fields, &structFieldDecoder{
-			field:   sf.Field,
-			decoder: dec,
-		})
+		fields = append(fields, newStructFieldDecoder(sf.Field, dec))
 	}
 
 	return &structDecoder{typ: typ, fields: fields}
@@ -121,48 +115,82 @@ type structFieldStep struct {
 	isPointer bool
 }
 
+// structFieldPath locates a field inside a struct, possibly through embedded structs.
+type structFieldPath []structFieldStep
+
+// direct reports whether the field is reached by a single offset from the struct.
+func (p structFieldPath) direct() bool {
+	return len(p) == 1
+}
+
+// decodePtr returns a pointer to the field, allocating nil embedded pointers on the way.
+func (p structFieldPath) decodePtr(ptr unsafe.Pointer) unsafe.Pointer {
+	for i, step := range p {
+		ptr = unsafe.Add(ptr, step.offset)
+		if i == len(p)-1 || !step.isPointer {
+			continue
+		}
+
+		if *(*unsafe.Pointer)(ptr) == nil {
+			*(*unsafe.Pointer)(ptr) = reflect.New(step.typ.Elem()).UnsafePointer()
+		}
+		ptr = *(*unsafe.Pointer)(ptr)
+	}
+
+	return ptr
+}
+
+// encodePtr returns a pointer to the field, or the name of the nil embedded pointer on the way.
+func (p structFieldPath) encodePtr(ptr unsafe.Pointer) (unsafe.Pointer, string) {
+	for i, step := range p {
+		ptr = unsafe.Add(ptr, step.offset)
+		if i == len(p)-1 || !step.isPointer {
+			continue
+		}
+
+		if *(*unsafe.Pointer)(ptr) == nil {
+			return nil, step.name
+		}
+		ptr = *(*unsafe.Pointer)(ptr)
+	}
+
+	return ptr, ""
+}
+
 type structFieldDecoder struct {
-	field   []structFieldStep
+	field   structFieldPath
+	offset  uintptr
 	decoder ValDecoder
+}
+
+func newStructFieldDecoder(field structFieldPath, decoder ValDecoder) structFieldDecoder {
+	return structFieldDecoder{field: field, offset: field[0].offset, decoder: decoder}
 }
 
 type structDecoder struct {
 	typ    reflect.Type
-	fields []*structFieldDecoder
+	fields []structFieldDecoder
 }
 
 func (d *structDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
-	for _, field := range d.fields {
-		// Skip case
-		if field.field == nil {
+	for i := range d.fields {
+		field := &d.fields[i]
+
+		var fieldPtr unsafe.Pointer
+		switch {
+		case field.field == nil:
 			field.decoder.Decode(nil, r)
 			continue
-		}
-
-		fieldPtr := ptr
-		for i, step := range field.field {
-			fieldPtr = unsafe.Add(fieldPtr, step.offset)
-
-			if i == len(field.field)-1 {
-				break
-			}
-
-			if step.isPointer {
-				if *(*unsafe.Pointer)(fieldPtr) == nil {
-					newPtr := reflect.New(step.typ.Elem()).UnsafePointer()
-					*(*unsafe.Pointer)(fieldPtr) = newPtr
-				}
-
-				fieldPtr = *(*unsafe.Pointer)(fieldPtr)
-			}
+		case field.field.direct():
+			fieldPtr = unsafe.Add(ptr, field.offset)
+		default:
+			fieldPtr = field.field.decodePtr(ptr)
 		}
 		field.decoder.Decode(fieldPtr, r)
 
 		if r.Error != nil && !errors.Is(r.Error, io.EOF) {
-			for _, step := range field.field {
-				r.Error = fmt.Errorf("%s: %w", step.name, r.Error)
-				return
-			}
+			r.Error = fmt.Errorf("%s: %w", field.field[0].name, r.Error)
+			return
 		}
 	}
 }
@@ -170,12 +198,13 @@ func (d *structDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 func encoderOfStruct(e *encoderContext, rec *RecordSchema, typ reflect.Type) ValEncoder {
 	structDesc := describeStruct(e.cfg.getTagKey(), typ)
 
-	fields := make([]*structFieldEncoder, 0, len(rec.Fields()))
+	fields := make([]structFieldEncoder, 0, len(rec.Fields()))
 	for _, field := range rec.Fields() {
 		sf := structDesc.Fields.Get(field.Name())
 		if sf != nil {
-			fields = append(fields, &structFieldEncoder{
+			fields = append(fields, structFieldEncoder{
 				field:   sf.Field,
+				offset:  sf.Field[0].offset,
 				encoder: encoderOfType(e, field.Type(), sf.Field[len(sf.Field)-1].typ),
 			})
 			continue
@@ -196,7 +225,7 @@ func encoderOfStruct(e *encoderContext, rec *RecordSchema, typ reflect.Type) Val
 
 			if field.Type().Type() == Union && field.Type().(*UnionSchema).Nullable() {
 				defaultType := reflect.TypeOf(&def)
-				fields = append(fields, &structFieldEncoder{
+				fields = append(fields, structFieldEncoder{
 					defaultPtr: unsafe.Pointer(&def),
 					encoder:    encoderOfNullableUnion(e, field.Type(), defaultType),
 				})
@@ -209,7 +238,7 @@ func encoderOfStruct(e *encoderContext, rec *RecordSchema, typ reflect.Type) Val
 		if unsafex.IsDirect(defaultType) {
 			defaultEncoder = &onePtrEncoder{defaultEncoder}
 		}
-		fields = append(fields, &structFieldEncoder{
+		fields = append(fields, structFieldEncoder{
 			defaultPtr: unsafex.DataOf(def),
 			encoder:    defaultEncoder,
 		})
@@ -218,48 +247,40 @@ func encoderOfStruct(e *encoderContext, rec *RecordSchema, typ reflect.Type) Val
 }
 
 type structFieldEncoder struct {
-	field      []structFieldStep
+	field      structFieldPath
+	offset     uintptr
 	defaultPtr unsafe.Pointer
 	encoder    ValEncoder
 }
 
 type structEncoder struct {
 	typ    reflect.Type
-	fields []*structFieldEncoder
+	fields []structFieldEncoder
 }
 
 func (e *structEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
-	for _, field := range e.fields {
-		// Default case
-		if field.field == nil {
+	for i := range e.fields {
+		field := &e.fields[i]
+
+		var fieldPtr unsafe.Pointer
+		switch {
+		case field.field == nil:
 			field.encoder.Encode(field.defaultPtr, w)
 			continue
-		}
-
-		fieldPtr := ptr
-		for i, step := range field.field {
-			fieldPtr = unsafe.Add(fieldPtr, step.offset)
-
-			if i == len(field.field)-1 {
-				break
-			}
-
-			if step.isPointer {
-				if *(*unsafe.Pointer)(fieldPtr) == nil {
-					w.Error = fmt.Errorf("embedded field %q is nil", step.name)
-					return
-				}
-
-				fieldPtr = *(*unsafe.Pointer)(fieldPtr)
+		case field.field.direct():
+			fieldPtr = unsafe.Add(ptr, field.offset)
+		default:
+			var nilName string
+			if fieldPtr, nilName = field.field.encodePtr(ptr); fieldPtr == nil {
+				w.Error = fmt.Errorf("embedded field %q is nil", nilName)
+				return
 			}
 		}
 		field.encoder.Encode(fieldPtr, w)
 
 		if w.Error != nil && !errors.Is(w.Error, io.EOF) {
-			for _, step := range field.field {
-				w.Error = fmt.Errorf("%s: %w", step.name, w.Error)
-				return
-			}
+			w.Error = fmt.Errorf("%s: %w", field.field[0].name, w.Error)
+			return
 		}
 	}
 }
@@ -460,7 +481,7 @@ func (sf structFields) Get(name string) *structField {
 
 type structField struct {
 	Name  string
-	Field []structFieldStep
+	Field structFieldPath
 
 	anon reflect.Type
 }
