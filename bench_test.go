@@ -373,3 +373,54 @@ func BenchmarkNullableUnionSliceDecode(b *testing.B) {
 		_ = avro.Unmarshal(schema, data, &got)
 	}
 }
+
+func BenchmarkSkipUnionRecordDecode(b *testing.B) {
+	schema := avro.MustParse(`{"type":"record","name":"R","fields":[
+		{"name":"u","type":["null",{"type":"record","name":"P","fields":[
+			{"name":"a","type":"int"},{"name":"b","type":"string"},{"name":"c","type":{"type":"array","items":"long"}}]}]},
+		{"name":"z","type":"string"}]}`)
+	value := map[string]any{
+		"u": map[string]any{"P": map[string]any{"a": 1, "b": "hello", "c": []int64{1, 2, 3}}},
+		"z": "ok",
+	}
+
+	benchmarkSkipDecode(b, schema, value)
+}
+
+func BenchmarkSkipRecursiveUnionDecode(b *testing.B) {
+	schema := avro.MustParse(`{"type":"record","name":"R","fields":[
+		{"name":"head","type":["null",{"type":"record","name":"N","fields":[
+			{"name":"v","type":"string"},{"name":"next","type":["null","N"]}]}]},
+		{"name":"z","type":"string"}]}`)
+
+	var node any
+	for range 10 {
+		var next any
+		if node != nil {
+			next = map[string]any{"N": node}
+		}
+		node = map[string]any{"v": "x", "next": next}
+	}
+
+	benchmarkSkipDecode(b, schema, map[string]any{"head": map[string]any{"N": node}, "z": "ok"})
+}
+
+func benchmarkSkipDecode(b *testing.B, schema avro.Schema, value any) {
+	b.Helper()
+
+	data, err := avro.Marshal(schema, value)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	var got struct {
+		Z string `avro:"z"`
+	}
+
+	b.ReportAllocs()
+	b.SetBytes(int64(len(data)))
+
+	for b.Loop() {
+		_ = avro.Unmarshal(schema, data, &got)
+	}
+}
