@@ -56,7 +56,7 @@ func (r *Reader) ReadVal(schema Schema, obj any) {
 
 // WriteVal writes the Avro encoding of obj.
 func (w *Writer) WriteVal(schema Schema, val any) {
-	encoder := w.cfg.getEncoderFromCache(schema.Fingerprint(), reflect2.RTypeOf(val))
+	encoder := w.cfg.getEncoderFromCache(schema.CacheFingerprint(), reflect2.RTypeOf(val))
 	if encoder == nil {
 		typ := reflect2.TypeOf(val)
 		encoder = w.cfg.EncoderOf(schema, typ)
@@ -169,7 +169,7 @@ func (c *frozenConfig) EncoderOf(schema Schema, typ reflect2.Type) ValEncoder {
 	}
 
 	rtype := typ.RType()
-	encoder := c.getEncoderFromCache(schema.Fingerprint(), rtype)
+	encoder := c.getEncoderFromCache(schema.CacheFingerprint(), rtype)
 	if encoder != nil {
 		return encoder
 	}
@@ -178,7 +178,7 @@ func (c *frozenConfig) EncoderOf(schema Schema, typ reflect2.Type) ValEncoder {
 	if typ.LikePtr() {
 		encoder = &onePtrEncoder{encoder}
 	}
-	c.addEncoderToCache(schema.Fingerprint(), rtype, encoder)
+	c.addEncoderToCache(schema.CacheFingerprint(), rtype, encoder)
 	return encoder
 }
 
@@ -206,13 +206,13 @@ func encoderOfType(e *encoderContext, schema Schema, typ reflect2.Type) ValEncod
 	case String, Bytes, Int, Long, Float, Double, Boolean:
 		return createEncoderOfNative(schema.(*PrimitiveSchema), typ)
 	case Record:
-		key := cacheKey{fingerprint: schema.Fingerprint(), rtype: typ.RType()}
+		key := cacheKey{fingerprint: schema.CacheFingerprint(), rtype: typ.RType()}
 		defEnc := &deferEncoder{}
 		e.encoders[key] = defEnc
 		defEnc.encoder = createEncoderOfRecord(e, schema.(*RecordSchema), typ)
 		return defEnc.encoder
 	case Ref:
-		key := cacheKey{fingerprint: schema.(*RefSchema).Schema().Fingerprint(), rtype: typ.RType()}
+		key := cacheKey{fingerprint: schema.(*RefSchema).Schema().CacheFingerprint(), rtype: typ.RType()}
 		if enc, f := e.encoders[key]; f {
 			return enc
 		}
