@@ -2,6 +2,7 @@ package avro
 
 import (
 	"encoding/binary"
+	"errors"
 	"io"
 	"math"
 )
@@ -25,6 +26,7 @@ type Writer struct {
 	out     io.Writer
 	buf     []byte
 	scratch []byte
+	depth   int
 	Error   error
 }
 
@@ -45,6 +47,19 @@ func NewWriter(out io.Writer, bufSize int, opts ...WriterFunc) *Writer {
 func (w *Writer) Reset(out io.Writer) {
 	w.out = out
 	w.buf = w.buf[:0]
+	w.depth = 0
+}
+
+// enterNested records one more nesting level, failing once `Config.MaxDepth` is exceeded.
+func (w *Writer) enterNested() bool {
+	if w.depth >= w.cfg.getMaxDepth() {
+		if w.Error == nil {
+			w.Error = errors.New("avro: encode: nesting depth exceeds `Config.MaxDepth`")
+		}
+		return false
+	}
+	w.depth++
+	return true
 }
 
 // Buffered returns the number of buffered bytes.

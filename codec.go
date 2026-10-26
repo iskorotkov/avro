@@ -51,7 +51,9 @@ func (r *Reader) ReadVal(schema Schema, obj any) {
 		return
 	}
 
+	r.beginValue()
 	decoder.Decode(ptr, r)
+	r.endValue()
 }
 
 // WriteVal writes the Avro encoding of obj.
@@ -91,6 +93,48 @@ type deferEncoder struct {
 
 func (d *deferEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 	d.encoder.Encode(ptr, w)
+}
+
+// nestIfRecursive bounds the nesting depth of dec when rec can contain itself, the only way data nests without limit.
+func nestIfRecursive(rec *RecordSchema, dec ValDecoder) ValDecoder {
+	if !isRecursive(rec) {
+		return dec
+	}
+	return &nestedDecoder{decoder: dec}
+}
+
+// nestedDecoder bounds the nesting depth of the value decoded by decoder.
+type nestedDecoder struct {
+	decoder ValDecoder
+}
+
+func (d *nestedDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
+	if !r.enterNested() {
+		return
+	}
+	d.decoder.Decode(ptr, r)
+	r.leaveNested()
+}
+
+// nestEncoderIfRecursive bounds the nesting depth of enc when rec can contain itself, which also stops cyclic values.
+func nestEncoderIfRecursive(rec *RecordSchema, enc ValEncoder) ValEncoder {
+	if !isRecursive(rec) {
+		return enc
+	}
+	return &nestedEncoder{encoder: enc}
+}
+
+// nestedEncoder bounds the nesting depth of the value encoded by encoder.
+type nestedEncoder struct {
+	encoder ValEncoder
+}
+
+func (e *nestedEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
+	if !w.enterNested() {
+		return
+	}
+	e.encoder.Encode(ptr, w)
+	w.depth--
 }
 
 type decoderContext struct {
@@ -139,7 +183,7 @@ func decoderOfType(d *decoderContext, schema Schema, typ reflect2.Type) ValDecod
 		key := cacheKey{fingerprint: schema.CacheFingerprint(), rtype: typ.RType()}
 		defDec := &deferDecoder{}
 		d.decoders[key] = defDec
-		defDec.decoder = createDecoderOfRecord(d, schema.(*RecordSchema), typ)
+		defDec.decoder = nestIfRecursive(schema.(*RecordSchema), createDecoderOfRecord(d, schema.(*RecordSchema), typ))
 		return defDec.decoder
 	case Ref:
 		key := cacheKey{fingerprint: schema.(*RefSchema).Schema().CacheFingerprint(), rtype: typ.RType()}
@@ -209,7 +253,7 @@ func encoderOfType(e *encoderContext, schema Schema, typ reflect2.Type) ValEncod
 		key := cacheKey{fingerprint: schema.CacheFingerprint(), rtype: typ.RType()}
 		defEnc := &deferEncoder{}
 		e.encoders[key] = defEnc
-		defEnc.encoder = createEncoderOfRecord(e, schema.(*RecordSchema), typ)
+		defEnc.encoder = nestEncoderIfRecursive(schema.(*RecordSchema), createEncoderOfRecord(e, schema.(*RecordSchema), typ))
 		return defEnc.encoder
 	case Ref:
 		key := cacheKey{fingerprint: schema.(*RefSchema).Schema().CacheFingerprint(), rtype: typ.RType()}
@@ -250,48 +294,5 @@ type errorEncoder struct {
 func (e *errorEncoder) Encode(_ unsafe.Pointer, w *Writer) {
 	if w.Error == nil {
 		w.Error = e.err
-	}
-}
-
-func minWireSize(schema Schema, depth int) int {
-	if depth > 64 {
-		return 0
-	}
-
-	switch s := schema.(type) {
-	case *PrimitiveSchema:
-		switch s.Type() {
-		case Float:
-			return 4
-		case Double:
-			return 8
-		default:
-			return 1
-		}
-	case *EnumSchema:
-		return 1
-	case *FixedSchema:
-		return s.Size()
-	case *RecordSchema:
-		total := 0
-		for _, f := range s.Fields() {
-			total += minWireSize(f.Type(), depth+1)
-		}
-		return total
-	case *UnionSchema:
-		minBranch := 0
-		for i, t := range s.Types() {
-			m := minWireSize(t, depth+1)
-			if i == 0 || m < minBranch {
-				minBranch = m
-			}
-		}
-		return 1 + minBranch
-	case *ArraySchema, *MapSchema:
-		return 1
-	case *RefSchema:
-		return minWireSize(s.Schema(), depth+1)
-	default:
-		return 0
 	}
 }

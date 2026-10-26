@@ -101,28 +101,24 @@ func (d *scalarArrayDecoder[T]) Decode(ptr unsafe.Pointer, r *Reader) {
 			break
 		}
 
-		if l > r.cfg.getMaxSliceAllocSize()-size {
-			r.ReportError("decode array", "size is greater than `Config.MaxSliceAllocSize`")
-			return
-		}
-		if rem := r.remainingInput(); rem >= 0 && l > rem {
-			r.ReportError("decode array", "block count exceeds remaining input")
+		// Scalar items occupy at least one byte on the wire.
+		if !r.allowArrayBlock(l, 1) {
 			return
 		}
 
-		newSize := size + l
-		sliceType.UnsafeGrow(ptr, newSize)
+		// Grow in bounded chunks so a forged count cannot allocate ahead of the input.
+		for end := size + l; size < end; {
+			n := min(end-size, maxBlockPrealloc)
+			sliceType.UnsafeGrow(ptr, size+n)
 
-		base := sliceType.UnsafeGetIndex(ptr, size)
-		data := unsafe.Slice((*T)(base), l)
-
-		d.fill(data, r)
-		if r.Error != nil {
-			r.Error = fmt.Errorf("reading %s: %w", sliceType.String(), r.Error)
-			return
+			base := sliceType.UnsafeGetIndex(ptr, size)
+			d.fill(unsafe.Slice((*T)(base), n), r)
+			if r.Error != nil {
+				r.Error = fmt.Errorf("reading %s: %w", sliceType.String(), r.Error)
+				return
+			}
+			size += n
 		}
-
-		size = newSize
 	}
 
 	if r.Error != nil && !errors.Is(r.Error, io.EOF) {
