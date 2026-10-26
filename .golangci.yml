@@ -13,7 +13,10 @@ formatters:
     - goimports
   settings:
     gofumpt:
-      extra-rules: true
+      extra:
+        group-params: true
+        clothe-returns: true
+        balance-calls: true
   exclusions:
     generated: lax
 
@@ -65,6 +68,10 @@ linters:
       - linters:
           - gosec
         text: "^G404: .*"
+        path: .*_test\.go$
+      - linters:
+          - gosec
+        text: "^G703: .*"
         path: .*_test\.go$
   settings:
     staticcheck:

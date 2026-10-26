@@ -49,10 +49,10 @@ func (c textMarshalerCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 	if reflect2.IsNil(obj) {
 		ptrType := c.typ.(*reflect2.UnsafePtrType)
 		newPtr := ptrType.Elem().UnsafeNew()
-		*((*unsafe.Pointer)(ptr)) = newPtr
+		*(*unsafe.Pointer)(ptr) = newPtr
 		obj = c.typ.UnsafeIndirect(ptr)
 	}
-	unmarshaler := (obj).(encoding.TextUnmarshaler)
+	unmarshaler := obj.(encoding.TextUnmarshaler)
 	b := r.ReadBytes()
 	err := unmarshaler.UnmarshalText(b)
 	if err != nil {
@@ -66,7 +66,7 @@ func (c textMarshalerCodec) Encode(ptr unsafe.Pointer, w *Writer) {
 		w.WriteBytes(nil)
 		return
 	}
-	marshaler := (obj).(encoding.TextMarshaler)
+	marshaler := obj.(encoding.TextMarshaler)
 	b, err := marshaler.MarshalText()
 	if err != nil {
 		w.Error = err
@@ -86,7 +86,7 @@ func (c textAppenderCodec) Encode(ptr unsafe.Pointer, w *Writer) {
 		return
 	}
 	// AppendText must derive its result from the passed-in buffer, not alias internal state, or w.scratch reuse will corrupt later calls.
-	appender := (obj).(encoding.TextAppender)
+	appender := obj.(encoding.TextAppender)
 	b, err := appender.AppendText(w.scratch[:0])
 	if err != nil {
 		w.Error = err

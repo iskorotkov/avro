@@ -380,12 +380,7 @@ func (g *Generator) resolveEnum(s *avro.EnumSchema) string {
 }
 
 func (g *Generator) hasTypeEnum(name string) bool {
-	for _, e := range g.typeenums {
-		if e.Name == name {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(g.typeenums, func(e typeenum) bool { return e.Name == name })
 }
 
 func (g *Generator) resolveTypeName(s avro.NamedSchema) string {
@@ -455,13 +450,7 @@ func (g *Generator) rawSchema(schema *avro.RecordSchema) string {
 }
 
 func (g *Generator) hasTypeDef(name string) bool {
-	for _, def := range g.typedefs {
-		if def.Name != name {
-			continue
-		}
-		return true
-	}
-	return false
+	return slices.ContainsFunc(g.typedefs, func(def typedef) bool { return def.Name == name })
 }
 
 func (g *Generator) resolveRefSchema(s *avro.RefSchema, metadata any) string {
