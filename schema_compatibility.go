@@ -13,6 +13,18 @@ func (e recursionError) Error() string {
 	return ""
 }
 
+type resolveKey struct {
+	reader *RecordSchema
+	writer *RecordSchema
+}
+
+type resolveEntry struct {
+	record   *RecordSchema
+	resolved bool
+}
+
+type resolveMemo map[resolveKey]*resolveEntry
+
 type compatKey struct {
 	reader [32]byte
 	writer [32]byte
@@ -279,12 +291,12 @@ func (c *SchemaCompatibility) Resolve(reader, writer Schema) (Schema, error) {
 		return nil, err
 	}
 
-	schema, _, err := c.resolve(reader, writer)
+	schema, _, err := c.resolve(reader, writer, resolveMemo{})
 	return schema, err
 }
 
 // resolve requires the reader's schema to be already compatible with the writer's.
-func (c *SchemaCompatibility) resolve(reader, writer Schema) (schema Schema, resolved bool, err error) {
+func (c *SchemaCompatibility) resolve(reader, writer Schema, memo resolveMemo) (schema Schema, resolved bool, err error) {
 	if reader.Type() == Ref {
 		reader = reader.(*RefSchema).Schema()
 	}
@@ -300,7 +312,7 @@ func (c *SchemaCompatibility) resolve(reader, writer Schema) (schema Schema, res
 				if err := c.compatible(schema, writer); err != nil {
 					continue
 				}
-				sch, _, err := c.resolve(schema, writer)
+				sch, _, err := c.resolve(schema, writer, memo)
 				if err != nil {
 					continue
 				}
@@ -313,7 +325,7 @@ func (c *SchemaCompatibility) resolve(reader, writer Schema) (schema Schema, res
 		if writer.Type() == Union {
 			schemas := make([]Schema, 0)
 			for _, schema := range writer.(*UnionSchema).Types() {
-				sch, _, err := c.resolve(reader, schema)
+				sch, _, err := c.resolve(reader, schema, memo)
 				if err != nil {
 					return nil, false, err
 				}
@@ -372,7 +384,7 @@ func (c *SchemaCompatibility) resolve(reader, writer Schema) (schema Schema, res
 	if writer.Type() == Union {
 		schemas := make([]Schema, 0)
 		for _, s := range writer.(*UnionSchema).Types() {
-			sch, resolv, err := c.resolve(reader, s)
+			sch, resolv, err := c.resolve(reader, s, memo)
 			if err != nil {
 				return nil, false, err
 			}
@@ -387,7 +399,7 @@ func (c *SchemaCompatibility) resolve(reader, writer Schema) (schema Schema, res
 	}
 
 	if writer.Type() == Array {
-		schema, resolved, err = c.resolve(reader.(*ArraySchema).Items(), writer.(*ArraySchema).Items())
+		schema, resolved, err = c.resolve(reader.(*ArraySchema).Items(), writer.(*ArraySchema).Items(), memo)
 		if err != nil {
 			return nil, false, err
 		}
@@ -395,7 +407,7 @@ func (c *SchemaCompatibility) resolve(reader, writer Schema) (schema Schema, res
 	}
 
 	if writer.Type() == Map {
-		schema, resolved, err = c.resolve(reader.(*MapSchema).Values(), writer.(*MapSchema).Values())
+		schema, resolved, err = c.resolve(reader.(*MapSchema).Values(), writer.(*MapSchema).Values(), memo)
 		if err != nil {
 			return nil, false, err
 		}
@@ -403,16 +415,42 @@ func (c *SchemaCompatibility) resolve(reader, writer Schema) (schema Schema, res
 	}
 
 	if writer.Type() == Record {
-		return c.resolveRecord(reader, writer)
+		return c.resolveRecordOnce(reader.(*RecordSchema), writer.(*RecordSchema), memo)
 	}
 
 	return nil, false, fmt.Errorf("failed to resolve composite schema for %s and %s", reader.Type(), writer.Type())
 }
 
-func (c *SchemaCompatibility) resolveRecord(reader, writer Schema) (Schema, bool, error) {
-	w := writer.(*RecordSchema)
-	r := reader.(*RecordSchema)
+// resolveRecordOnce resolves each record pair once, returning references on repeated or recursive visits.
+func (c *SchemaCompatibility) resolveRecordOnce(r, w *RecordSchema, memo resolveMemo) (Schema, bool, error) {
+	key := resolveKey{reader: r, writer: w}
+	if entry, ok := memo[key]; ok {
+		return NewRefSchema(entry.record), entry.resolved, nil
+	}
 
+	record, err := NewRecordSchema(r.Name(), r.Namespace(), nil, WithAliases(r.Aliases()))
+	if err != nil {
+		return nil, false, err
+	}
+	// A pair still being resolved is conservatively reported as resolved.
+	entry := &resolveEntry{record: record, resolved: true}
+	memo[key] = entry
+
+	fields, resolved, err := c.resolveRecordFields(r, w, memo)
+	if err != nil {
+		delete(memo, key)
+		return nil, false, err
+	}
+	record.fields = fields
+	if resolved {
+		fp := w.Fingerprint()
+		record.writerFingerprint = &fp
+	}
+	entry.resolved = resolved
+	return record, resolved, nil
+}
+
+func (c *SchemaCompatibility) resolveRecordFields(r, w *RecordSchema, memo resolveMemo) ([]*Field, bool, error) {
 	fields := make([]*Field, 0)
 	seen := make(map[string]struct{})
 
@@ -433,7 +471,7 @@ func (c *SchemaCompatibility) resolveRecord(reader, writer Schema) (Schema, bool
 			continue
 		}
 
-		ft, resolv, err := c.resolve(rf.Type(), wf.Type())
+		ft, resolv, err := c.resolve(rf.Type(), wf.Type(), memo)
 		if err != nil {
 			return nil, false, err
 		}
@@ -464,11 +502,7 @@ func (c *SchemaCompatibility) resolveRecord(reader, writer Schema) (Schema, bool
 		resolved = true
 	}
 
-	schema, err := NewRecordSchema(r.Name(), r.Namespace(), fields,
-		WithAliases(r.Aliases()),
-		withWriterFingerprintIfResolved(writer.Fingerprint(), resolved),
-	)
-	return schema, resolved, err
+	return fields, resolved, nil
 }
 
 func isNative(typ Type) bool {

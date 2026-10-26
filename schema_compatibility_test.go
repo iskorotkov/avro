@@ -1033,3 +1033,60 @@ func TestSchemaCompatibility_ResolveWithEnums(t *testing.T) {
 
 	assert.Equal(t, "D", got)
 }
+
+func TestSchemaCompatibility_ResolveRecursiveSchema(t *testing.T) {
+	r := avro.MustParse(`{"type":"record","name":"Node","namespace":"resolve.recursive","fields":[
+		{"name":"next","type":["null","Node"]}
+	]}`)
+	w := avro.MustParse(`{"type":"record","name":"Node","namespace":"resolve.recursive","fields":[
+		{"name":"next","type":["null","Node"]},
+		{"name":"x","type":"int","default":0}
+	]}`)
+
+	sch, err := avro.NewSchemaCompatibility().Resolve(r, w)
+	require.NoError(t, err)
+
+	type node struct {
+		Next *node `avro:"next"`
+		X    int   `avro:"x"`
+	}
+	data, err := avro.Marshal(w, node{Next: &node{X: 2}, X: 1})
+	require.NoError(t, err)
+
+	var got map[string]any
+	require.NoError(t, avro.Unmarshal(sch, data, &got))
+	want := map[string]any{"next": map[string]any{"resolve.recursive.Node": map[string]any{"next": nil}}}
+	assert.Equal(t, want, got)
+}
+
+func TestSchemaCompatibility_ResolveDAGSchemaSharesRecords(t *testing.T) {
+	const depth = 40
+	r := dagSchema(t, depth, "")
+	w := dagSchema(t, depth, `,{"name":"x","type":"int","default":0}`)
+
+	sch, err := avro.NewSchemaCompatibility().Resolve(r, w)
+	require.NoError(t, err)
+
+	rec := sch.(*avro.RecordSchema)
+	for i := depth; i > 0; i-- {
+		require.Equal(t, "resolve.dag.L"+strconv.Itoa(i), rec.FullName())
+		a := rec.Fields()[0].Type().(*avro.RecordSchema)
+		assert.Same(t, a, rec.Fields()[1].Type().(*avro.RefSchema).Schema())
+		rec = a
+	}
+	assert.Equal(t, "resolve.dag.L0", rec.FullName())
+}
+
+func dagSchema(t *testing.T, depth int, extra string) avro.Schema {
+	t.Helper()
+
+	s := `{"type":"record","name":"L0","fields":[{"name":"v","type":"int"}` + extra + `]}`
+	for i := 1; i <= depth; i++ {
+		prev := "L" + strconv.Itoa(i-1)
+		s = `{"type":"record","name":"L` + strconv.Itoa(i) + `","fields":[{"name":"a","type":` + s + `},{"name":"b","type":"` + prev + `"}]}`
+	}
+
+	sch, err := avro.ParseWithCache(s, "resolve.dag", &avro.SchemaCache{})
+	require.NoError(t, err)
+	return sch
+}
