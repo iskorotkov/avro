@@ -3,6 +3,7 @@ package soe
 import (
 	"bytes"
 	"fmt"
+	"sync"
 
 	"github.com/iskorotkov/avro/v2"
 )
@@ -10,9 +11,10 @@ import (
 // Codec marshals values to/from bytes, with the Avro binary payload wrapped in
 // an SOE frame containing the writer schema fingerprint.
 type Codec struct {
-	api    avro.API
-	schema avro.Schema
-	header []byte
+	api     avro.API
+	schema  avro.Schema
+	header  []byte
+	writers *sync.Pool // nil when api cannot back an avro.Writer
 }
 
 // NewCodec creates a new Codec for a Schema and the default config.
@@ -28,32 +30,63 @@ func NewCodecWithAPI(schema avro.Schema, api avro.API) (*Codec, error) {
 		return nil, err
 	}
 	return &Codec{
-		schema: schema,
-		api:    api,
-		header: header,
+		schema:  schema,
+		api:     api,
+		header:  header,
+		writers: newWriterPool(api),
 	}, nil
+}
+
+// newWriterPool returns nil for APIs that avro.WithWriterConfig rejects, such as custom wrappers.
+func newWriterPool(api avro.API) (pool *sync.Pool) {
+	defer func() {
+		if recover() != nil {
+			pool = nil
+		}
+	}()
+
+	_ = avro.NewWriter(nil, 0, avro.WithWriterConfig(api))
+	return &sync.Pool{New: func() any { return avro.NewWriter(nil, 0, avro.WithWriterConfig(api)) }}
 }
 
 // Encode marshals a value to SOE-encoded Avro binary, in a caller-owned slice.
 func (c *Codec) Encode(v any) ([]byte, error) {
-	data, err := c.api.Marshal(c.schema, v)
-	if err != nil {
-		return nil, err
-	}
-	// Appending to c.header would alias the codec's array across calls.
-	buf := make([]byte, 0, len(c.header)+len(data))
-	buf = append(buf, c.header...)
-	return append(buf, data...), nil
+	return c.encode(v, func(head, body []byte) []byte {
+		buf := make([]byte, 0, len(head)+len(body))
+		buf = append(buf, head...)
+		return append(buf, body...)
+	})
 }
 
 // AppendEncode appends SOE-encoded Avro binary to dst, reusing its capacity.
 func (c *Codec) AppendEncode(dst []byte, v any) ([]byte, error) {
-	data, err := c.api.Marshal(c.schema, v)
-	if err != nil {
-		return nil, err
+	return c.encode(v, func(head, body []byte) []byte {
+		dst = append(dst, head...)
+		return append(dst, body...)
+	})
+}
+
+// encode hands the SOE frame of v, split in two parts valid only during the call, to emit.
+func (c *Codec) encode(v any, emit func(head, body []byte) []byte) ([]byte, error) {
+	if c.writers == nil {
+		data, err := c.api.Marshal(c.schema, v)
+		if err != nil {
+			return nil, err
+		}
+		return emit(c.header, data), nil
 	}
-	dst = append(dst, c.header...)
-	return append(dst, data...), nil
+
+	w := c.writers.Get().(*avro.Writer)
+	defer c.writers.Put(w)
+
+	w.Reset(nil)
+	w.Error = nil
+	_, _ = w.Write(c.header)
+	w.WriteVal(c.schema, v)
+	if w.Error != nil {
+		return nil, w.Error
+	}
+	return emit(w.Buffer(), nil), nil
 }
 
 // Decode unmarshals a value from SOE-encoded Avro binary, and fails if
