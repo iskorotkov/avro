@@ -49,7 +49,11 @@ func createDecoderOfUnion(d *decoderContext, schema *UnionSchema, typ reflect2.T
 			return dec
 		}
 	case reflect.Struct:
-		return createDecoderOfUnion(d, schema, reflect2.PtrTo(typ))
+		ptrTyp := reflect2.PtrTo(typ)
+		if !schema.Nullable() || ptrTyp.Implements(reflect2.Type2(reflect.TypeFor[UnionConverter]())) {
+			return createDecoderOfUnion(d, schema, ptrTyp)
+		}
+		return decoderOfNullableUnion(d, schema, typ)
 	}
 
 	return &errorDecoder{err: fmt.Errorf("avro: %s is unsupported for Avro %s", typ.String(), schema.Type())}
@@ -229,8 +233,8 @@ func decoderOfNullableUnion(d *decoderContext, schema Schema, typ reflect2.Type)
 	case *reflect2.UnsafePtrType:
 		baseTyp = v.Elem()
 		isPtr = true
-	case *reflect2.UnsafeSliceType:
-		baseTyp = v
+	default:
+		baseTyp = typ
 	}
 	decoder := decoderOfType(d, union.Types()[typeIdx], baseTyp)
 
@@ -258,7 +262,7 @@ func (d *unionNullableDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 	}
 
 	if schema.Type() == Null {
-		*(*unsafe.Pointer)(ptr) = nil
+		d.setNull(ptr)
 		return
 	}
 
@@ -314,9 +318,8 @@ func (d *unionNullableDecoder) convert(ptr unsafe.Pointer, r *Reader) {
 
 // store writes a converter result assignable to the target, or boxes one assignable to the pointer target's element.
 func (d *unionNullableDecoder) store(ptr unsafe.Pointer, obj any) error {
-	target := reflect.NewAt(d.target, ptr).Elem()
 	if obj == nil {
-		target.SetZero()
+		d.setNull(ptr)
 		return nil
 	}
 
@@ -330,8 +333,17 @@ func (d *unionNullableDecoder) store(ptr unsafe.Pointer, obj any) error {
 		return fmt.Errorf("avro: type converter returned %s, expected %s", val.Type(), d.target)
 	}
 
-	target.Set(val)
+	reflect.NewAt(d.target, ptr).Elem().Set(val)
 	return nil
+}
+
+// setNull clears the whole target, as slice and struct values are wider than one pointer.
+func (d *unionNullableDecoder) setNull(ptr unsafe.Pointer) {
+	if d.isPtr {
+		*(*unsafe.Pointer)(ptr) = nil
+		return
+	}
+	reflect.NewAt(d.target, ptr).Elem().SetZero()
 }
 
 func encoderOfUnionConverterCodec(_ *encoderContext, schema Schema, typ reflect2.Type) ValEncoder {

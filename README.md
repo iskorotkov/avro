@@ -236,7 +236,7 @@ Converters are matched by Avro type and logical type. Unions follow these rules:
 
 - Encoding a union from `map[string]any`: the converter registered for the selected branch type wins; a converter registered for `avro.Union` runs only when the branch type has none. An error from the branch converter is returned as is, without falling back.
 - Decoding a union into `map[string]any`: only branch-type converters run.
-- Decoding a union into `any` or into a nullable pointer or slice: only the `avro.Union` converter runs.
+- Decoding a union into `any` or into a nullable pointer, slice or struct: only the `avro.Union` converter runs.
 
 #### Untrusted Input
 
