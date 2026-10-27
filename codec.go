@@ -1,6 +1,7 @@
 package avro
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -51,6 +52,8 @@ func (r *Reader) ReadVal(schema Schema, obj any) {
 		return
 	}
 
+	r.beginValue()
+	defer r.endValue()
 	decoder.Decode(ptr, r)
 }
 
@@ -91,6 +94,60 @@ type deferEncoder struct {
 
 func (d *deferEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 	d.encoder.Encode(ptr, w)
+}
+
+// nestIfRecursive bounds the nesting depth of dec when rec can contain itself, the only way data nests without limit.
+func nestIfRecursive(rec *RecordSchema, dec ValDecoder) ValDecoder {
+	if !isRecursive(rec) {
+		return dec
+	}
+	return &nestedDecoder{decoder: dec}
+}
+
+// holdsRecord reports whether typ stores a record itself, while pointers and interfaces delegate to a decoder of the record type.
+func holdsRecord(typ reflect2.Type) bool {
+	kind := typ.Kind()
+	return kind == reflect.Struct || kind == reflect.Map
+}
+
+// nestedDecoder bounds the nesting depth of the value decoded by decoder.
+type nestedDecoder struct {
+	decoder ValDecoder
+}
+
+func (d *nestedDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
+	if !r.enterNested() {
+		return
+	}
+	d.decoder.Decode(ptr, r)
+	r.leaveNested()
+	if r.Error != nil && errors.Is(r.Error, ErrMaxDepth) {
+		r.Error = errDecodeDepth
+	}
+}
+
+// nestEncoderIfRecursive bounds the nesting depth of enc when rec can contain itself, which also stops cyclic values.
+func nestEncoderIfRecursive(rec *RecordSchema, enc ValEncoder) ValEncoder {
+	if !isRecursive(rec) {
+		return enc
+	}
+	return &nestedEncoder{encoder: enc}
+}
+
+// nestedEncoder bounds the nesting depth of the value encoded by encoder.
+type nestedEncoder struct {
+	encoder ValEncoder
+}
+
+func (e *nestedEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
+	if !w.enterNested() {
+		return
+	}
+	defer w.leaveNested()
+	e.encoder.Encode(ptr, w)
+	if w.Error != nil && errors.Is(w.Error, ErrMaxDepth) {
+		w.Error = errEncodeDepth
+	}
 }
 
 type decoderContext struct {
@@ -140,6 +197,9 @@ func decoderOfType(d *decoderContext, schema Schema, typ reflect2.Type) ValDecod
 		defDec := &deferDecoder{}
 		d.decoders[key] = defDec
 		defDec.decoder = createDecoderOfRecord(d, schema.(*RecordSchema), typ)
+		if holdsRecord(typ) {
+			defDec.decoder = nestIfRecursive(schema.(*RecordSchema), defDec.decoder)
+		}
 		return defDec.decoder
 	case Ref:
 		key := cacheKey{fingerprint: schema.(*RefSchema).Schema().CacheFingerprint(), rtype: typ.RType()}
@@ -210,6 +270,9 @@ func encoderOfType(e *encoderContext, schema Schema, typ reflect2.Type) ValEncod
 		defEnc := &deferEncoder{}
 		e.encoders[key] = defEnc
 		defEnc.encoder = createEncoderOfRecord(e, schema.(*RecordSchema), typ)
+		if holdsRecord(typ) {
+			defEnc.encoder = nestEncoderIfRecursive(schema.(*RecordSchema), defEnc.encoder)
+		}
 		return defEnc.encoder
 	case Ref:
 		key := cacheKey{fingerprint: schema.(*RefSchema).Schema().CacheFingerprint(), rtype: typ.RType()}

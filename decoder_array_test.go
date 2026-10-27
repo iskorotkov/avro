@@ -2,6 +2,7 @@ package avro_test
 
 import (
 	"bytes"
+	"io"
 	"math"
 	"testing"
 
@@ -301,4 +302,70 @@ func TestUnmarshal_HugeMapBlockDoesNotPanic(t *testing.T) {
 
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "Config.MaxMapAllocSize")
+}
+
+func TestUnmarshal_ScalarArrayBlockCountExceedsRemainingInput(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := avro.MustParse(`{"type":"array","items":"int"}`)
+	input := avro.EncodeIntToBytes(1000)
+
+	var out []int
+	err := avro.Unmarshal(schema, input, &out)
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, avro.ErrBlockCountExceedsInput)
+}
+
+func TestUnmarshal_GenericArrayBlockCountExceedsRemainingInput(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := avro.MustParse(`{"type":"array","items":{"type":"array","items":"int"}}`)
+	input := avro.EncodeIntToBytes(1000)
+
+	var out [][]int
+	err := avro.Unmarshal(schema, input, &out)
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, avro.ErrBlockCountExceedsInput)
+}
+
+func TestUnmarshal_BytesLengthExceedsRemainingInput(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := avro.MustParse(`"bytes"`)
+	input := avro.EncodeIntToBytes(1000)
+
+	var out []byte
+	err := avro.Unmarshal(schema, input, &out)
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, io.ErrUnexpectedEOF)
+}
+
+func TestUnmarshal_ValidArrayNotRejectedByAdaptiveGuard(t *testing.T) {
+	defer ConfigTeardown()
+
+	schema := avro.MustParse(`{"type":"array","items":"int"}`)
+	data := []byte{0x06, 0x00, 0x02, 0x04, 0x00}
+
+	var got []int
+	err := avro.Unmarshal(schema, data, &got)
+
+	require.NoError(t, err)
+	assert.Equal(t, []int{0, 1, 2}, got)
+}
+
+func TestReader_StreamingArrayNotRejectedByAdaptiveGuard(t *testing.T) {
+	defer ConfigTeardown()
+
+	data := []byte{0x06, 0x00, 0x02, 0x04, 0x00}
+	r := avro.NewReader(bytes.NewReader(data), 1)
+	schema := avro.MustParse(`{"type":"array","items":"int"}`)
+
+	var got []int
+	r.ReadVal(schema, &got)
+
+	require.NoError(t, r.Error)
+	assert.Equal(t, []int{0, 1, 2}, got)
 }

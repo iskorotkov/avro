@@ -30,6 +30,11 @@ func (r *ResetReader) Read(p []byte) (int, error) {
 	return n, nil
 }
 
+// Len returns the number of unread bytes.
+func (r *ResetReader) Len() int {
+	return r.tail - r.head
+}
+
 // Reset resets the byte slice being read from.
 func (r *ResetReader) Reset(b []byte) {
 	r.buf = b

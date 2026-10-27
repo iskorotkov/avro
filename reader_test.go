@@ -724,7 +724,7 @@ func TestReader_ReadBytes(t *testing.T) {
 		},
 		{
 			data:    []byte{0x08, 0xFF}, // io.EOF length greater then data
-			want:    []byte{0xFF, 0x0, 0x0, 0x0},
+			want:    nil,
 			wantErr: require.Error,
 		},
 	}
@@ -854,7 +854,7 @@ func TestReader_ReadString(t *testing.T) {
 		},
 		{
 			data:    []byte{0x08, 0x66}, // io.EOF length greater then data
-			want:    "\x66\x00\x00\x00",
+			want:    "",
 			wantErr: require.Error,
 		},
 	}

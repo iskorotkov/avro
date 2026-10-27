@@ -7,7 +7,32 @@ import (
 )
 
 // ReadNext reads the next Avro element as a generic interface.
+// Input that ends inside the element is reported as an error wrapping io.ErrUnexpectedEOF.
 func (r *Reader) ReadNext(schema Schema) any {
+	outermost := r.limits.open == 0
+	if outermost && r.atCleanEnd(schema) {
+		return nil
+	}
+
+	v := r.readValue(schema)
+	if outermost {
+		r.Error = valueError(r.Error)
+	}
+	return v
+}
+
+func (r *Reader) readValue(schema Schema) any {
+	r.beginValue()
+	defer r.endValue()
+	return r.readNext(schema)
+}
+
+// atCleanEnd reports whether the input ends before an element that needs at least one byte, leaving io.EOF set.
+func (r *Reader) atCleanEnd(schema Schema) bool {
+	return r.Error == nil && r.head == r.tail && r.cfg.minWireSizeOf(schema) > 0 && !r.loadMore()
+}
+
+func (r *Reader) readNext(schema Schema) any {
 	var ls LogicalSchema
 	lts, ok := schema.(LogicalTypeSchema)
 	if ok {
@@ -15,6 +40,8 @@ func (r *Reader) ReadNext(schema Schema) any {
 	}
 
 	switch schema.Type() {
+	case Null:
+		return nil
 	case Boolean:
 		return r.ReadBool()
 	case Int:
@@ -87,14 +114,18 @@ func (r *Reader) ReadNext(schema Schema) any {
 		}
 		return r.ReadBytes()
 	case Record:
+		if !r.enterNested() {
+			return nil
+		}
 		fields := schema.(*RecordSchema).Fields()
 		obj := make(map[string]any, len(fields))
 		for _, field := range fields {
-			obj[field.Name()] = r.ReadNext(field.Type())
+			obj[field.Name()] = r.readNext(field.Type())
 		}
+		r.leaveNested()
 		return obj
 	case Ref:
-		return r.ReadNext(schema.(*RefSchema).Schema())
+		return r.readNext(schema.(*RefSchema).Schema())
 	case Enum:
 		symbols := schema.(*EnumSchema).Symbols()
 		idx := int(r.ReadInt())
@@ -104,17 +135,22 @@ func (r *Reader) ReadNext(schema Schema) any {
 		}
 		return symbols[idx]
 	case Array:
+		items := schema.(*ArraySchema).Items()
 		arr := []any{}
-		r.ReadArrayCB(func(r *Reader) bool {
-			elem := r.ReadNext(schema.(*ArraySchema).Items())
+		minItemSize := r.cfg.minWireSizeOf(items)
+		r.readArrayCB(func(n int) bool { return r.allowArrayBlock(n, minItemSize) }, func(r *Reader) bool {
+			elem := r.readNext(items)
 			arr = append(arr, elem)
 			return true
 		})
 		return arr
 	case Map:
+		m := schema.(*MapSchema)
 		obj := map[string]any{}
-		r.ReadMapCB(func(r *Reader, field string) bool {
-			elem := r.ReadNext(schema.(*MapSchema).Values())
+		// Map keys take at least one byte.
+		minEntrySize := 1 + r.cfg.minWireSizeOf(m.Values())
+		r.readMapCB(func(n int) bool { return r.allowMapBlock(n, minEntrySize) }, func(r *Reader, field string) bool {
+			elem := r.readNext(m.Values())
 			obj[field] = elem
 			return true
 		})
@@ -136,7 +172,7 @@ func (r *Reader) ReadNext(schema Schema) any {
 
 		key := schemaTypeName(schema)
 		obj := map[string]any{}
-		obj[key] = r.ReadNext(types[idx])
+		obj[key] = r.readNext(types[idx])
 		return obj
 	case Fixed:
 		size := schema.(*FixedSchema).Size()
@@ -155,9 +191,16 @@ func (r *Reader) ReadNext(schema Schema) any {
 
 // ReadArrayCB reads an array with a callback per item.
 func (r *Reader) ReadArrayCB(fn func(*Reader) bool) {
+	// Callbacks stream items without allocating, so only ReadNext charges the element budget.
+	r.readArrayCB(func(int) bool { return true }, fn)
+}
+
+func (r *Reader) readArrayCB(allow func(n int) bool, fn func(*Reader) bool) {
+	r.beginValue()
+	defer r.endValue()
 	for {
 		l, _ := r.ReadBlockHeader()
-		if l == 0 {
+		if l == 0 || !allow(l) {
 			break
 		}
 		for range l {
@@ -169,14 +212,20 @@ func (r *Reader) ReadArrayCB(fn func(*Reader) bool) {
 	}
 }
 
-// ReadMapCB reads an array with a callback per item.
+// ReadMapCB reads a map with a callback per entry.
 func (r *Reader) ReadMapCB(fn func(*Reader, string) bool) {
+	// Every entry carries a key of at least one byte; the element budget is left to ReadNext.
+	r.readMapCB(func(n int) bool { return r.allowBlock("decode map", n, 1) }, fn)
+}
+
+func (r *Reader) readMapCB(allow func(n int) bool, fn func(*Reader, string) bool) {
+	r.beginValue()
+	defer r.endValue()
 	for {
 		l, _ := r.ReadBlockHeader()
-		if l == 0 {
+		if l == 0 || !allow(l) {
 			break
 		}
-
 		for range l {
 			field := r.ReadString()
 			fn(r, field)

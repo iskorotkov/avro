@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math/big"
 	"testing"
+	"testing/iotest"
 	"time"
 
 	"github.com/iskorotkov/avro/v2"
@@ -248,7 +249,8 @@ func TestReader_ReadNextUnsupportedType(t *testing.T) {
 }
 
 func TestReader_ReadMapCB_StopsOnError(t *testing.T) {
-	r := avro.NewReader(bytes.NewReader([]byte{0x72}), 10) // Block count = 57
+	// OneByteReader hides the input length so the remaining-input guard does not fire first.
+	r := avro.NewReader(iotest.OneByteReader(bytes.NewReader([]byte{0x72})), 10) // Block count = 57
 
 	callbackCalls := 0
 

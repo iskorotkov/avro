@@ -1,11 +1,15 @@
 package avro
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
 	"math"
+	"strings"
 	"unsafe"
+
+	"github.com/iskorotkov/avro/v2/internal/bytesx"
 )
 
 const (
@@ -27,10 +31,12 @@ func WithReaderConfig(cfg API) ReaderFunc {
 type Reader struct {
 	cfg    *frozenConfig
 	reader io.Reader
+	sized  lengther
 	slab   []byte
 	buf    []byte
 	head   int
 	tail   int
+	limits readerLimits
 	Error  error
 }
 
@@ -43,13 +49,32 @@ func NewReader(r io.Reader, bufSize int, opts ...ReaderFunc) *Reader {
 	for _, opt := range opts {
 		opt(reader)
 	}
+	reader.sized = sizedReader(r)
 	reader.buf = make([]byte, max(0, reader.cfg.getReadBufSize()))
 	return reader
+}
+
+// sizedReader returns r when it is a known in-memory reader whose Len reports the unread bytes.
+func sizedReader(r io.Reader) lengther {
+	switch rd := r.(type) {
+	case *bytes.Reader:
+		return rd
+	case *bytes.Buffer:
+		return rd
+	case *strings.Reader:
+		return rd
+	case *bytesx.ResetReader:
+		return rd
+	default:
+		return nil
+	}
 }
 
 // Reset resets a Reader with a new byte array attached.
 func (r *Reader) Reset(b []byte) *Reader {
 	r.reader = nil
+	r.sized = nil
+	r.limits = readerLimits{}
 	r.buf = b
 	r.head = 0
 	r.tail = len(b)
@@ -307,7 +332,7 @@ func (r *Reader) readBytes(fnName, op string) []byte {
 		return []byte{}
 	}
 	if maxSize := r.cfg.getMaxByteSliceSize(); maxSize > 0 && size64 > int64(maxSize) {
-		r.ReportError(fnName, "size is greater than `Config.MaxByteSliceSize`")
+		r.reportErr(fnName, ErrMaxByteSliceSize)
 		return nil
 	}
 	// MaxByteSliceSize defaults to MaxInt, so the cap above usually catches
@@ -336,8 +361,16 @@ func (r *Reader) readBytes(fnName, op string) []byte {
 		return dst
 	}
 
+	if rem := r.remainingInput(); rem >= 0 && size64 > int64(rem) {
+		r.reportTruncated(fnName, op+" length exceeds remaining input")
+		return nil
+	}
+
 	buf := make([]byte, size)
 	r.Read(buf)
+	if r.Error != nil {
+		return nil
+	}
 	return buf
 }
 
