@@ -7,6 +7,7 @@ import (
 	"github.com/iskorotkov/avro/bench/formats/hamba"
 	"github.com/iskorotkov/avro/bench/formats/protobuf"
 	"github.com/iskorotkov/avro/bench/formats/stdjson"
+	"github.com/iskorotkov/avro/bench/formats/twmb"
 )
 
 // All returns every format, the baseline first.
@@ -14,6 +15,7 @@ func All() []format.Format {
 	return []format.Format{
 		avro.Format{},
 		hamba.Format{},
+		twmb.Format{},
 		stdjson.Format{},
 		protobuf.Format{},
 	}
