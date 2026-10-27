@@ -230,7 +230,8 @@ func (d *unionNullableDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 	if r.cfg.typeConverters.HasAny() {
 		defer func() {
 			if !d.isPtr {
-				obj := d.box.Box(ptr)
+				// Converters may retain their input, so they get a copy rather than an alias of ptr.
+				obj := reflect.NewAt(d.typ, ptr).Elem().Interface()
 				obj, err := r.cfg.typeConverters.DecodeTypeConvert(obj, d.schema)
 				if errors.Is(err, errNoTypeConverter) {
 					return

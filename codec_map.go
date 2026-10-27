@@ -109,9 +109,9 @@ func decoderOfMap(d *decoderContext, m *MapSchema, typ reflect.Type) ValDecoder 
 	case reflect.TypeFor[map[string]bool]():
 		return &nativeMapDecoder[bool]{typ: typ, decoder: decoder}
 	case reflect.TypeFor[map[string]any]():
-		return &nativeMapDecoder[any]{typ: typ, decoder: decoder}
+		return &nativeMapDecoder[any]{typ: typ, decoder: decoder, merge: true}
 	default:
-		return &mapDecoder{typ: typ, decoder: decoder}
+		return &mapDecoder{typ: typ, decoder: decoder, elem: newMapElem(typ.Elem())}
 	}
 }
 
@@ -119,11 +119,12 @@ func decoderOfMap(d *decoderContext, m *MapSchema, typ reflect.Type) ValDecoder 
 type nativeMapDecoder[V any] struct {
 	typ     reflect.Type
 	decoder ValDecoder
+	merge   bool
 }
 
 func (d *nativeMapDecoder[V]) Decode(ptr unsafe.Pointer, r *Reader) {
 	m := (*map[string]V)(ptr)
-	existing := len(*m) > 0
+	merge := d.merge || len(*m) > 0
 	var size int
 
 	for {
@@ -143,7 +144,7 @@ func (d *nativeMapDecoder[V]) Decode(ptr unsafe.Pointer, r *Reader) {
 			key := r.ReadString()
 
 			var elem V
-			if existing {
+			if merge {
 				elem = (*m)[key]
 			}
 
@@ -164,18 +165,54 @@ func (d *nativeMapDecoder[V]) Decode(ptr unsafe.Pointer, r *Reader) {
 	wrapMapDecodeError(r, d.typ)
 }
 
+// mapElem prepares storage for decoding map elements of a type.
+type mapElem struct {
+	typ   reflect.Type
+	fresh bool
+	merge bool
+}
+
+func newMapElem(typ reflect.Type) mapElem {
+	return mapElem{typ: typ, fresh: exposesAddress(typ), merge: accumulates(typ)}
+}
+
+// scratch returns reusable storage for elements, or an invalid value when each element gets fresh storage.
+func (e mapElem) scratch() reflect.Value {
+	if e.fresh {
+		return reflect.Value{}
+	}
+	return reflect.New(e.typ)
+}
+
+// next returns storage holding the current element under key, reusing scratch unless user code may retain its address.
+func (e mapElem) next(scratch, m, key reflect.Value, existing bool) reflect.Value {
+	if e.fresh {
+		scratch = reflect.New(e.typ)
+	} else {
+		scratch.Elem().SetZero()
+	}
+
+	if e.merge || existing {
+		if v := m.MapIndex(key); v.IsValid() {
+			scratch.Elem().Set(v)
+		}
+	}
+
+	return scratch
+}
+
 // mapDecoder decodes into maps with string-kinded keys through reflection.
 type mapDecoder struct {
 	typ     reflect.Type
 	decoder ValDecoder
+	elem    mapElem
 }
 
 func (d *mapDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 	m := unsafex.MapOf(d.typ, ptr)
 	existing := m.Len() > 0
 	key := reflect.New(d.typ.Key()).Elem()
-	elemPtr := reflect.New(d.typ.Elem())
-	elem := elemPtr.Elem()
+	elemPtr := d.elem.scratch()
 	var size int
 
 	for {
@@ -193,13 +230,7 @@ func (d *mapDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 
 		for range l {
 			key.SetString(r.ReadString())
-
-			elem.SetZero()
-			if existing {
-				if v := m.MapIndex(key); v.IsValid() {
-					elem.Set(v)
-				}
-			}
+			elemPtr = d.elem.next(elemPtr, m, key, existing)
 
 			d.decoder.Decode(elemPtr.UnsafePointer(), r)
 			if r.Error != nil {
@@ -207,7 +238,7 @@ func (d *mapDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 				return
 			}
 
-			m.SetMapIndex(key, elem)
+			m.SetMapIndex(key, elemPtr.Elem())
 		}
 	}
 
@@ -225,6 +256,7 @@ func decoderOfMapUnmarshaler(d *decoderContext, m *MapSchema, typ reflect.Type) 
 		typ:     typ,
 		keyBox:  unsafex.NewBoxer(typ.Key()),
 		decoder: decoder,
+		elem:    mapElem{typ: typ.Elem(), fresh: exposesAddress(typ.Elem())},
 	}
 }
 
@@ -233,6 +265,7 @@ type mapDecoderUnmarshaler struct {
 	typ     reflect.Type
 	keyBox  unsafex.Boxer
 	decoder ValDecoder
+	elem    mapElem
 }
 
 func (d *mapDecoderUnmarshaler) Decode(ptr unsafe.Pointer, r *Reader) {
@@ -240,8 +273,7 @@ func (d *mapDecoderUnmarshaler) Decode(ptr unsafe.Pointer, r *Reader) {
 	keyType := d.typ.Key()
 	keyPtr := reflect.New(keyType)
 	key := keyPtr.Elem()
-	elemPtr := reflect.New(d.typ.Elem())
-	elem := elemPtr.Elem()
+	elemPtr := d.elem.scratch()
 	var size int
 
 	for {
@@ -270,10 +302,10 @@ func (d *mapDecoderUnmarshaler) Decode(ptr unsafe.Pointer, r *Reader) {
 				return
 			}
 
-			elem.SetZero()
+			elemPtr = d.elem.next(elemPtr, m, key, false)
 			d.decoder.Decode(elemPtr.UnsafePointer(), r)
 
-			m.SetMapIndex(key, elem)
+			m.SetMapIndex(key, elemPtr.Elem())
 		}
 	}
 
@@ -320,34 +352,46 @@ func encoderOfMap(e *encoderContext, m *MapSchema, typ reflect.Type, keys mapKey
 // nativeMapEncoderOf returns an encoder iterating the map as a map[K]V of the same memory layout, or nil if V has no such layout.
 func nativeMapEncoderOf[K comparable](base mapEncoderBase) ValEncoder {
 	elemType := base.typ.Elem()
+	if exposesAddress(elemType) {
+		return nil
+	}
+
 	switch elemType.Kind() {
 	case reflect.String:
-		return &nativeMapEncoder[K, string]{base}
+		return newNativeMapEncoder[K, string](base)
 	case reflect.Slice:
-		return &nativeMapEncoder[K, []byte]{base}
+		return newNativeMapEncoder[K, []byte](base)
 	case reflect.Pointer, reflect.Map, reflect.Chan, reflect.Func, reflect.UnsafePointer:
-		return &nativeMapEncoder[K, unsafe.Pointer]{base}
+		return newNativeMapEncoder[K, unsafe.Pointer](base)
 	case reflect.Interface:
 		if elemType.NumMethod() == 0 {
-			return &nativeMapEncoder[K, any]{base}
+			return newNativeMapEncoder[K, any](base)
 		}
 	case reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
 		reflect.Float32, reflect.Float64:
 		switch elemType.Size() {
 		case 1:
-			return &nativeMapEncoder[K, uint8]{base}
+			return newNativeMapEncoder[K, uint8](base)
 		case 2:
-			return &nativeMapEncoder[K, uint16]{base}
+			return newNativeMapEncoder[K, uint16](base)
 		case 4:
-			return &nativeMapEncoder[K, uint32]{base}
+			return newNativeMapEncoder[K, uint32](base)
 		case 8:
-			return &nativeMapEncoder[K, uint64]{base}
+			return newNativeMapEncoder[K, uint64](base)
 		}
 	default:
 	}
 
 	return nil
+}
+
+// newNativeMapEncoder returns a nativeMapEncoder, or nil when K or V differ in layout from the map's key or element.
+func newNativeMapEncoder[K comparable, V any](base mapEncoderBase) ValEncoder {
+	if !sameLayout(base.typ.Key(), reflect.TypeFor[K]()) || !sameLayout(base.typ.Elem(), reflect.TypeFor[V]()) {
+		return nil
+	}
+	return &nativeMapEncoder[K, V]{base}
 }
 
 // mapEncoderBase holds what every map encoder needs to write a map.
@@ -450,7 +494,7 @@ func (k textAppenderKey) writeKey(ptr unsafe.Pointer, w *Writer) {
 }
 
 func newReflectMapEncoder(base mapEncoderBase) ValEncoder {
-	enc := &mapEncoder{mapEncoderBase: base}
+	enc := &mapEncoder{mapEncoderBase: base, fresh: exposesAddress(base.typ.Elem())}
 	enc.iters.New = func() any {
 		return newMapIterator(base.typ)
 	}
@@ -489,6 +533,7 @@ func (it *mapIterator) release() {
 // mapEncoder encodes maps of any type through reflection.
 type mapEncoder struct {
 	mapEncoderBase
+	fresh bool
 	iters sync.Pool
 }
 
@@ -508,13 +553,20 @@ func (e *mapEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 		}
 
 		it.key.SetIterKey(&it.iter)
-		it.elem.SetIterValue(&it.iter)
+		elemPtr := it.elemPtr
+		if e.fresh {
+			elem := reflect.New(e.typ.Elem())
+			elem.Elem().SetIterValue(&it.iter)
+			elemPtr = elem.UnsafePointer()
+		} else {
+			it.elem.SetIterValue(&it.iter)
+		}
 
 		e.keys.writeKey(it.keyPtr, w)
 		if w.Error != nil {
 			break
 		}
-		e.encoder.Encode(it.elemPtr, w)
+		e.encoder.Encode(elemPtr, w)
 		if w.Error != nil {
 			break
 		}
