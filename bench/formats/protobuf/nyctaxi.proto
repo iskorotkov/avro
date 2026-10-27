@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package bench;
+
+option go_package = "github.com/iskorotkov/avro/bench/formats/protobuf";
+
+// Trip stores times as Unix microseconds, matching Avro timestamp-micros on the wire.
+message Trip {
+  int32 vendor_id = 1;
+  int64 pickup_time = 2;
+  int64 dropoff_time = 3;
+  optional int64 passenger_count = 4;
+  double trip_distance = 5;
+  optional int64 ratecode_id = 6;
+  optional string store_and_fwd_flag = 7;
+  int32 pickup_location_id = 8;
+  int32 dropoff_location_id = 9;
+  int64 payment_type = 10;
+  double fare_amount = 11;
+  double extra = 12;
+  double mta_tax = 13;
+  double tip_amount = 14;
+  double tolls_amount = 15;
+  double improvement_surcharge = 16;
+  double total_amount = 17;
+  optional double congestion_surcharge = 18;
+  optional double airport_fee = 19;
+}

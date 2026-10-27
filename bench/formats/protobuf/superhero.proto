@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package bench;
+
+option go_package = "github.com/iskorotkov/avro/bench/formats/protobuf";
+
+message Superhero {
+  int32 id = 1;
+  int32 affiliation_id = 2;
+  string name = 3;
+  float life = 4;
+  float energy = 5;
+  repeated Superpower powers = 6;
+}
+
+message Superpower {
+  int32 id = 1;
+  string name = 2;
+  float damage = 3;
+  float energy = 4;
+  bool passive = 5;
+}
