@@ -114,7 +114,7 @@ func decoderOfMap(d *decoderContext, m *MapSchema, typ reflect.Type) ValDecoder 
 		if native := nativeMapDecoderOf(typ, decoder); native != nil {
 			return native
 		}
-		return &mapDecoder{typ: typ, decoder: decoder, elem: newMapElem(typ.Elem())}
+		return newMapDecoder(typ, decoder)
 	}
 }
 
@@ -249,18 +249,45 @@ func (e mapElem) next(scratch, m, key reflect.Value, existing bool) reflect.Valu
 	return scratch
 }
 
+// mapSlots holds reusable key and element storage for decoding a map type.
+type mapSlots struct {
+	key  reflect.Value
+	elem reflect.Value
+}
+
+// release zeroes the slots so pooled slots do not retain decoded data.
+func (s *mapSlots) release() {
+	s.key.SetZero()
+	if s.elem.IsValid() {
+		s.elem.Elem().SetZero()
+	}
+}
+
+func newMapDecoder(typ reflect.Type, decoder ValDecoder) *mapDecoder {
+	dec := &mapDecoder{typ: typ, decoder: decoder, elem: newMapElem(typ.Elem())}
+	dec.slots.New = func() any {
+		return &mapSlots{key: reflect.New(typ.Key()).Elem(), elem: dec.elem.scratch()}
+	}
+
+	return dec
+}
+
 // mapDecoder decodes into maps with string-kinded keys through reflection.
 type mapDecoder struct {
 	typ     reflect.Type
 	decoder ValDecoder
 	elem    mapElem
+	slots   sync.Pool
 }
 
 func (d *mapDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
+	slots := d.slots.Get().(*mapSlots)
+	defer d.slots.Put(slots)
+	defer slots.release()
+
 	m := unsafex.MapOf(d.typ, ptr)
 	existing := m.Len() > 0
-	key := reflect.New(d.typ.Key()).Elem()
-	elemPtr := d.elem.scratch()
+	key, elemPtr := slots.key, slots.elem
 	var size int
 
 	for {
