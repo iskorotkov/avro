@@ -4,9 +4,12 @@ package formats
 import (
 	"github.com/iskorotkov/avro/bench/format"
 	"github.com/iskorotkov/avro/bench/formats/avro"
+	"github.com/iskorotkov/avro/bench/formats/cbor"
 	"github.com/iskorotkov/avro/bench/formats/goccy"
 	"github.com/iskorotkov/avro/bench/formats/hamba"
 	"github.com/iskorotkov/avro/bench/formats/jsonexp"
+	"github.com/iskorotkov/avro/bench/formats/msgp"
+	"github.com/iskorotkov/avro/bench/formats/msgpack"
 	"github.com/iskorotkov/avro/bench/formats/protobuf"
 	"github.com/iskorotkov/avro/bench/formats/sonic"
 	"github.com/iskorotkov/avro/bench/formats/stdjson"
@@ -22,5 +25,8 @@ func All() []format.Format {
 		goccy.Format{},
 		sonic.Format{},
 		protobuf.Format{},
+		msgp.Format{},
+		msgpack.Format{},
+		cbor.Format{},
 	}, tagged()...)
 }

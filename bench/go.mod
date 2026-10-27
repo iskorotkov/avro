@@ -6,6 +6,7 @@ replace github.com/iskorotkov/avro/v2 => ../
 
 require (
 	github.com/bytedance/sonic v1.15.5
+	github.com/fxamacker/cbor/v2 v2.9.6
 	github.com/go-json-experiment/json v0.0.0-20260820222146-c27c302e5fc3
 	github.com/goccy/go-json v0.11.2
 	github.com/google/go-cmp v0.7.0
@@ -13,6 +14,8 @@ require (
 	github.com/iskorotkov/avro/v2 v2.35.0
 	github.com/klauspost/compress v1.20.3
 	github.com/parquet-go/parquet-go v0.32.0
+	github.com/tinylib/msgp v1.6.5
+	github.com/vmihailenco/msgpack/v5 v5.4.1
 	golang.org/x/perf v0.0.0-20261009192801-be2c69fb417e
 	google.golang.org/protobuf v1.36.12
 )
@@ -81,6 +84,7 @@ require (
 	github.com/parquet-go/bitpack v1.0.0 // indirect
 	github.com/parquet-go/jsonlite v1.0.0 // indirect
 	github.com/petermattis/goid v0.0.0-20260918085751-abfca077860b // indirect
+	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/quic-go v0.63.0 // indirect
@@ -96,6 +100,8 @@ require (
 	github.com/tidwall/btree v1.8.2 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/twpayne/go-geom v1.6.1 // indirect
+	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
+	github.com/x448/float16 v0.8.4 // indirect
 	go.lsp.dev/jsonrpc2 v0.10.0 // indirect
 	go.lsp.dev/pkg v0.0.0-20210717090340-384b27a52fb2 // indirect
 	go.lsp.dev/protocol v0.12.0 // indirect
@@ -118,6 +124,7 @@ require (
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/term v0.47.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
+	golang.org/x/tools v0.52.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20261005182115-fad411399dd8 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20261005182115-fad411399dd8 // indirect
 	mvdan.cc/xurls/v2 v2.6.0 // indirect
@@ -126,5 +133,6 @@ require (
 
 tool (
 	github.com/bufbuild/buf/cmd/buf
+	github.com/tinylib/msgp
 	google.golang.org/protobuf/cmd/protoc-gen-go
 )
