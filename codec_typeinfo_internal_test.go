@@ -18,15 +18,44 @@ type textValInt int
 
 func (textValInt) MarshalText() ([]byte, error) { return nil, nil }
 
-func TestExposesAddress(t *testing.T) {
-	assert.False(t, exposesAddress(reflect.TypeFor[int]()))
-	assert.False(t, exposesAddress(reflect.TypeFor[textValInt]()))
-	assert.False(t, exposesAddress(reflect.TypeFor[*textPtrInt]()))
-	assert.False(t, exposesAddress(reflect.TypeFor[[]textPtrInt]()))
-	assert.False(t, exposesAddress(reflect.TypeFor[encoding.TextMarshaler]()))
-	assert.True(t, exposesAddress(reflect.TypeFor[textPtrInt]()))
-	assert.True(t, exposesAddress(reflect.TypeFor[[2]textPtrInt]()))
-	assert.True(t, exposesAddress(reflect.TypeFor[struct{ A textPtrInt }]()))
+type textPtrUnmarshalInt int
+
+func (*textPtrUnmarshalInt) UnmarshalText([]byte) error { return nil }
+
+type ptrMethodInt int
+
+func (*ptrMethodInt) Reset() {}
+
+type ptrUnionConverter struct{}
+
+func (*ptrUnionConverter) FromAny(any) error   { return nil }
+func (*ptrUnionConverter) ToAny() (any, error) { return nil, nil }
+
+func TestEncodeExposesAddress(t *testing.T) {
+	assert.False(t, encodeExposesAddress(reflect.TypeFor[int]()))
+	assert.False(t, encodeExposesAddress(reflect.TypeFor[textValInt]()))
+	assert.False(t, encodeExposesAddress(reflect.TypeFor[*textPtrInt]()))
+	assert.False(t, encodeExposesAddress(reflect.TypeFor[[]textPtrInt]()))
+	assert.False(t, encodeExposesAddress(reflect.TypeFor[encoding.TextMarshaler]()))
+	assert.False(t, encodeExposesAddress(reflect.TypeFor[ptrMethodInt]()))
+	assert.False(t, encodeExposesAddress(reflect.TypeFor[textPtrUnmarshalInt]()))
+	assert.False(t, encodeExposesAddress(reflect.TypeFor[time.Time]()))
+	assert.False(t, encodeExposesAddress(reflect.TypeFor[struct{ T time.Time }]()))
+	assert.True(t, encodeExposesAddress(reflect.TypeFor[textPtrInt]()))
+	assert.True(t, encodeExposesAddress(reflect.TypeFor[[2]textPtrInt]()))
+	assert.True(t, encodeExposesAddress(reflect.TypeFor[struct{ A textPtrInt }]()))
+	assert.True(t, encodeExposesAddress(reflect.TypeFor[ptrUnionConverter]()))
+}
+
+func TestDecodeExposesAddress(t *testing.T) {
+	assert.False(t, decodeExposesAddress(reflect.TypeFor[int]()))
+	assert.False(t, decodeExposesAddress(reflect.TypeFor[textPtrInt]()))
+	assert.False(t, decodeExposesAddress(reflect.TypeFor[ptrMethodInt]()))
+	assert.False(t, decodeExposesAddress(reflect.TypeFor[*textPtrUnmarshalInt]()))
+	assert.True(t, decodeExposesAddress(reflect.TypeFor[textPtrUnmarshalInt]()))
+	assert.True(t, decodeExposesAddress(reflect.TypeFor[struct{ A [1]textPtrUnmarshalInt }]()))
+	assert.True(t, decodeExposesAddress(reflect.TypeFor[time.Time]()))
+	assert.True(t, decodeExposesAddress(reflect.TypeFor[ptrUnionConverter]()))
 }
 
 func TestAccumulates(t *testing.T) {

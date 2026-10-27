@@ -1,11 +1,31 @@
 package avro
 
-import "reflect"
+import (
+	"reflect"
+	"slices"
+)
 
-// exposesAddress reports whether codecs may pass the address of a typ value, or of a value stored inline in it, to a user method.
-func exposesAddress(typ reflect.Type) bool {
+// encodeExposesAddress reports whether encoders may pass the address of a typ value, or of a value stored inline in it, to a user method.
+func encodeExposesAddress(typ reflect.Type) bool {
+	return exposesAddressTo(typ, textMarshalerType, textAppenderType, unionConverterType)
+}
+
+// decodeExposesAddress reports whether decoders may pass the address of a typ value, or of a value stored inline in it, to a user method.
+func decodeExposesAddress(typ reflect.Type) bool {
+	return exposesAddressTo(typ, textUnmarshalerType, unionConverterType)
+}
+
+// exposesAddressTo reports whether typ stores inline a value implementing one of ifaces only through its address.
+func exposesAddressTo(typ reflect.Type, ifaces ...reflect.Type) bool {
 	return hasComponent(typ, false, map[reflect.Type]bool{}, func(t reflect.Type) bool {
-		return t.Kind() != reflect.Interface && reflect.PointerTo(t).NumMethod() > t.NumMethod()
+		if t.Kind() == reflect.Interface {
+			return false
+		}
+
+		ptr := reflect.PointerTo(t)
+		return slices.ContainsFunc(ifaces, func(iface reflect.Type) bool {
+			return !t.Implements(iface) && ptr.Implements(iface)
+		})
 	})
 }
 

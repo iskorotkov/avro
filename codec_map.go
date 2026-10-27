@@ -172,7 +172,7 @@ type mapElem struct {
 }
 
 func newMapElem(typ reflect.Type) mapElem {
-	return mapElem{typ: typ, fresh: exposesAddress(typ), merge: accumulates(typ)}
+	return mapElem{typ: typ, fresh: decodeExposesAddress(typ), merge: accumulates(typ)}
 }
 
 // scratch returns reusable storage for elements, or an invalid value when each element gets fresh storage.
@@ -255,7 +255,7 @@ func decoderOfMapUnmarshaler(d *decoderContext, m *MapSchema, typ reflect.Type) 
 		typ:     typ,
 		keyBox:  unsafex.NewBoxer(typ.Key()),
 		decoder: decoder,
-		elem:    mapElem{typ: typ.Elem(), fresh: exposesAddress(typ.Elem())},
+		elem:    mapElem{typ: typ.Elem(), fresh: decodeExposesAddress(typ.Elem())},
 	}
 }
 
@@ -351,7 +351,7 @@ func encoderOfMap(e *encoderContext, m *MapSchema, typ reflect.Type, keys mapKey
 // nativeMapEncoderOf returns an encoder iterating the map as a map[K]V of the same memory layout, or nil if V has no such layout.
 func nativeMapEncoderOf[K comparable](base mapEncoderBase) ValEncoder {
 	elemType := base.typ.Elem()
-	if exposesAddress(elemType) {
+	if encodeExposesAddress(elemType) {
 		return nil
 	}
 
@@ -493,7 +493,7 @@ func (k textAppenderKey) writeKey(ptr unsafe.Pointer, w *Writer) {
 }
 
 func newReflectMapEncoder(base mapEncoderBase) ValEncoder {
-	enc := &mapEncoder{mapEncoderBase: base, fresh: exposesAddress(base.typ.Elem())}
+	enc := &mapEncoder{mapEncoderBase: base, fresh: encodeExposesAddress(base.typ.Elem())}
 	enc.iters.New = func() any {
 		return newMapIterator(base.typ)
 	}

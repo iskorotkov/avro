@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/iskorotkov/avro/v2"
 	"github.com/stretchr/testify/assert"
@@ -173,4 +174,46 @@ func TestDecoder_AnyMapDuplicateKeysReplaceValues(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, map[string]any{"k": map[string]any{"y": int64(1)}}, got)
+}
+
+// retainedAppender keeps every receiver its text appender sees.
+type retainedAppender int
+
+var retainedAppenders []*retainedAppender
+
+func (e *retainedAppender) AppendText(b []byte) ([]byte, error) {
+	retainedAppenders = append(retainedAppenders, e)
+	return append(b, "s"+strconv.Itoa(int(*e))...), nil
+}
+
+func TestEncoder_MapKeepsRetainedAppenderReceiversValid(t *testing.T) {
+	t.Cleanup(func() { retainedAppenders = nil })
+	retainedAppenders = nil
+	schema := avro.MustParse(retainedEnumMapSchema)
+
+	_, err := avro.Marshal(schema, map[string]retainedAppender{"a": 1, "b": 2, "c": 3})
+	require.NoError(t, err)
+
+	var got []int
+	for _, e := range retainedAppenders {
+		got = append(got, int(*e))
+	}
+	slices.Sort(got)
+	assert.Equal(t, []int{1, 2, 3}, got)
+}
+
+func TestMap_RoundTripsTimeValues(t *testing.T) {
+	schema := avro.MustParse(`{"type":"map","values":{"type":"long","logicalType":"timestamp-micros"}}`)
+	in := map[string]time.Time{}
+	for i := range 20 {
+		in[strconv.Itoa(i)] = time.Date(2020, 1, 1, 0, 0, i, 1000, time.UTC)
+	}
+
+	b, err := avro.Marshal(schema, in)
+	require.NoError(t, err)
+	var got map[string]time.Time
+	err = avro.Unmarshal(schema, b, &got)
+
+	require.NoError(t, err)
+	assert.Equal(t, in, got)
 }

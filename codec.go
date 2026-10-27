@@ -186,7 +186,7 @@ func directEncoder(typ reflect.Type, enc ValEncoder) ValEncoder {
 	switch {
 	case !unsafex.IsDirect(typ):
 		return enc
-	case exposesAddress(typ):
+	case encodeExposesAddress(typ):
 		return &heapPtrEncoder{enc}
 	default:
 		return &onePtrEncoder{enc}

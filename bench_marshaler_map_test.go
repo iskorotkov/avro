@@ -104,3 +104,35 @@ func BenchmarkMapTimeKeyEncode(b *testing.B) {
 		})
 	}
 }
+
+type benchTimeRecord struct {
+	At time.Time `avro:"at"`
+}
+
+func BenchmarkMapTimeValueEncode(b *testing.B) {
+	const timeSchema = `{"type":"long","logicalType":"timestamp-micros"}`
+	times := make(map[string]time.Time, 100)
+	records := make(map[string]benchTimeRecord, 100)
+	for i := range 100 {
+		times[strconv.Itoa(i)] = time.Unix(int64(i), 0).UTC()
+		records[strconv.Itoa(i)] = benchTimeRecord{At: times[strconv.Itoa(i)]}
+	}
+
+	b.Run("time", func(b *testing.B) {
+		benchMarshal(b, `{"type":"map","values":`+timeSchema+`}`, times)
+	})
+	b.Run("record", func(b *testing.B) {
+		benchMarshal(b, `{"type":"map","values":{"type":"record","name":"r","fields":[{"name":"at","type":`+timeSchema+`}]}}`, records)
+	})
+}
+
+func benchMarshal(b *testing.B, schema string, in any) {
+	b.Helper()
+	s := avro.MustParse(schema)
+	b.ReportAllocs()
+	for b.Loop() {
+		if _, err := avro.Marshal(s, in); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
