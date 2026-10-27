@@ -469,6 +469,16 @@ func TestDecoder_UnionNullableStructField(t *testing.T) {
 	assert.Equal(t, parent{S: "foo"}, got)
 }
 
+func TestDecoder_UnionNotNullableStructUnsupported(t *testing.T) {
+	schema := avro.MustParse(`["int", {"type": "record", "name": "test", "fields" : [{"name": "a", "type": "long"}, {"name": "b", "type": "string"}]}]`)
+	got := TestRecord{A: 5, B: "hello"}
+
+	err := avro.Unmarshal(schema, []byte{0x00, 0x02}, &got)
+
+	assert.EqualError(t, err, "avro: *avro_test.TestRecord is unsupported for Avro union")
+	assert.Equal(t, TestRecord{A: 5, B: "hello"}, got)
+}
+
 func TestDecoder_UnionNullableUnsupportedValueTargets(t *testing.T) {
 	t.Run("string", func(t *testing.T) {
 		got := "keep"
@@ -742,6 +752,20 @@ func TestDecoder_UnionConverterFromAnyInterface(t *testing.T) {
 	rec := got.Test
 	assert.Equal(t, int64(27), rec.A)
 	assert.Equal(t, "foo", rec.B)
+}
+
+func TestDecoder_UnionConverterFromAnyValue(t *testing.T) {
+	defer ConfigTeardown()
+
+	avro.Register("test", TestRecord{})
+	schema := avro.MustParse(`["null", "int", {"type": "record", "name": "test", "fields" : [{"name": "a", "type": "long"}, {"name": "b", "type": "string"}]}]`)
+
+	var got UnionRecord
+	err := avro.Unmarshal(schema, []byte{0x04, 0x36, 0x06, 0x66, 0x6F, 0x6F}, &got)
+
+	require.NoError(t, err)
+	assert.Nil(t, got.Int)
+	assert.Equal(t, &TestRecord{A: 27, B: "foo"}, got.Test)
 }
 
 func TestDecoder_NullableUnionConverterFromAnyInterface(t *testing.T) {

@@ -236,6 +236,43 @@ func TestDecoderTypeConverter_UnionNullablePtrOwnsConvertedValue(t *testing.T) {
 	assert.Equal(t, int64(5), five)
 }
 
+func TestDecoderTypeConverter_UnionNullableStruct(t *testing.T) {
+	schema := avro.MustParse(`["null", {"type": "record", "name": "test", "fields" : [{"name": "a", "type": "long"}, {"name": "b", "type": "string"}]}]`)
+	data := []byte{0x02, 0x36, 0x06, 0x66, 0x6F, 0x6F}
+
+	tests := []struct {
+		name    string
+		result  any
+		want    TestRecord
+		wantErr string
+	}{
+		{name: "value", result: TestRecord{A: 1, B: "converted"}, want: TestRecord{A: 1, B: "converted"}},
+		{name: "pointer", result: &TestRecord{A: 1}, want: TestRecord{A: 27, B: "foo"}, wantErr: "avro: type converter returned *avro_test.TestRecord, expected avro_test.TestRecord"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			api := avro.Config{}.Freeze()
+			api.RegisterTypeConverters(avro.TypeConversionFuncs{
+				AvroType: avro.Union,
+				DecoderTypeConversion: func(any, avro.Schema) (any, error) {
+					return test.result, nil
+				},
+			})
+
+			var got TestRecord
+			err := api.Unmarshal(schema, data, &got)
+
+			if test.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.EqualError(t, err, test.wantErr)
+			}
+			assert.Equal(t, test.want, got)
+		})
+	}
+}
+
 func TestDecoderTypeConverter_GenericPrimitives(t *testing.T) {
 	schema := avro.MustParse(`{"type":"record","name":"prims","fields":[
 		{"name":"b","type":"boolean"},{"name":"i","type":"int"},{"name":"l","type":"long"},

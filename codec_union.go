@@ -50,7 +50,12 @@ func createDecoderOfUnion(d *decoderContext, schema *UnionSchema, typ reflect2.T
 		}
 	case reflect.Struct:
 		ptrTyp := reflect2.PtrTo(typ)
-		if !schema.Nullable() || ptrTyp.Implements(reflect2.Type2(reflect.TypeFor[UnionConverter]())) {
+		if ptrTyp.Implements(reflect2.Type2(reflect.TypeFor[UnionConverter]())) {
+			dec := decoderOfUnionConverterCodec(d, schema, ptrTyp)
+			dec.inPlace = true
+			return dec
+		}
+		if !schema.Nullable() {
 			return createDecoderOfUnion(d, schema, ptrTyp)
 		}
 		return decoderOfNullableUnion(d, schema, typ)
@@ -555,7 +560,7 @@ func (d *unionResolvedDecoder) decodeBranch(i int, schema Schema, pObj *any, r *
 	*pObj = typ.UnsafeIndirect(newPtr)
 }
 
-func decoderOfUnionConverterCodec(d *decoderContext, schema *UnionSchema, typ reflect2.Type) ValDecoder {
+func decoderOfUnionConverterCodec(d *decoderContext, schema *UnionSchema, typ reflect2.Type) *unionConverterFromAnyCodec {
 	anyDecoder := createDecoderOfUnion(d, schema, reflect2.Type2(reflect.TypeFor[any]()))
 	nullable := slices.ContainsFunc(schema.Types(), func(schema Schema) bool {
 		return schema.Type() == Null
@@ -574,6 +579,8 @@ type unionConverterFromAnyCodec struct {
 	schema   *UnionSchema
 	nullable bool
 	typ      reflect2.Type
+	// inPlace marks a struct value target, decoded through its address instead of a pointer slot.
+	inPlace bool
 }
 
 func (d *unionConverterFromAnyCodec) Decode(ptr unsafe.Pointer, r *Reader) {
@@ -590,14 +597,14 @@ func (d *unionConverterFromAnyCodec) Decode(ptr unsafe.Pointer, r *Reader) {
 		return
 	}
 
-	if d.typ.Kind() == reflect.Pointer {
-		ptrType := d.typ.(*reflect2.UnsafePtrType).Elem()
-		elemPtr := ptrType.UnsafeNew()
+	elemType := d.typ.(*reflect2.UnsafePtrType).Elem()
+	if !d.inPlace {
+		elemPtr := elemType.UnsafeNew()
 		*(*unsafe.Pointer)(ptr) = elemPtr
+		ptr = elemPtr
 	}
-	target := d.typ.UnsafeIndirect(ptr)
 
-	unionConverter := target.(UnionConverter)
+	unionConverter := elemType.PackEFace(ptr).(UnionConverter)
 	if err := unionConverter.FromAny(*obj); err != nil {
 		r.ReportError("Union", err.Error())
 		return
