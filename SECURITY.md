@@ -63,9 +63,22 @@ Both caps default to unlimited for backward compatibility. **For untrusted input
 ### Codec coverage
 
 - **`null`** — no compression, no amplification. The decompressed cap is implicitly enforced by the compressed cap.
-- **`deflate`** — the cap is enforced by a `LimitReader` wrapping `io.ReadAll`. Streams that would expand past the cap error out without growing the buffer further.
+- **`deflate`** — the cap is enforced by reading the inflater through an `io.LimitReader` of `n+1` bytes. Streams that would expand past the cap error out without growing the buffer further.
 - **`snappy`** — the cap is checked against the varint length header *before* `snappy.Decode` allocates the destination buffer. A header claiming N bytes of decoded data is rejected when N exceeds the cap.
-- **`zstandard`** — for a decoder the library constructs itself, the cap is installed as `zstd.WithDecoderMaxMemory` at construction time, so an oversized frame is rejected *during* decoding before it is fully materialized. **A shared decoder supplied via `WithZStandardDecoder` does not get this protection:** the library cannot install `WithDecoderMaxMemory` on a decoder it does not own, so `DecodeAll` materializes the *entire* decompressed frame in memory and the OCF-level cap only rejects it afterwards. That post-decode check stops the oversized data from being *used*, but it does **not** prevent the allocation — a small block can still OOM the process. If you process untrusted input with a shared decoder, you **must** construct that decoder yourself with `zstd.WithDecoderMaxMemory` set, or simply not share a decoder.
+- **`zstandard`** — for a decoder the library constructs itself, `zstd.WithDecoderMaxMemory` is installed at construction time with `max(n, 8 MiB)`, so an oversized frame is rejected *during* decoding once it passes that bound, and the exact cap `n` is checked on the output. The 8 MiB floor exists because the zstd memory limit also caps the frame window, and RFC 8878 asks decoders to accept 8 MiB windows (streaming writers such as zstd-jni declare windows of several MiB even for small blocks); a hostile block can therefore make the decoder allocate on the order of `2 × max(n, 8 MiB)` before it is rejected, because output of unknown size is grown by appending and checked once per 128 KiB zstd block. **A shared decoder supplied via `WithZStandardDecoder` does not get this protection:** the library cannot install `WithDecoderMaxMemory` on a decoder it does not own, so `DecodeAll` materializes the *entire* decompressed frame in memory and the OCF-level cap only rejects it afterwards. That post-decode check stops the oversized data from being *used*, but it does **not** prevent the allocation — a small block can still OOM the process. If you process untrusted input with a shared decoder, you **must** construct that decoder yourself with `zstd.WithDecoderMaxMemory` set, or simply not share a decoder.
+
+Every codec rejects an oversized block with an error wrapping `ocf.ErrDecompressedBlockTooLarge`, so callers can match it with `errors.Is`.
+
+### Block structure checks
+
+The decoder also rejects blocks that are internally inconsistent, independent of the caps above:
+
+- a negative record count or block size, or a missing or mismatched sync marker;
+- a record count that cannot fit in the decompressed bytes, given the smallest possible encoding of the schema;
+- for schemas that encode to zero bytes (such as `"null"` or an empty record), a record count above `WithMaxZeroWidthBlockCount(n)` (default `ocf.DefaultMaxZeroWidthBlockCount`, 2^24);
+- a block that ends in the middle of a value (`io.ErrUnexpectedEOF`), or that still holds bytes after its declared number of values.
+
+Blocks with a record count of zero are skipped without being decompressed.
 
 ### Reading OCF metadata (header)
 
