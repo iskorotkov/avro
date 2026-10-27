@@ -3,6 +3,7 @@ package datasets
 
 import (
 	"github.com/iskorotkov/avro/bench/dataset"
+	"github.com/iskorotkov/avro/bench/datasets/earthquakes"
 	"github.com/iskorotkov/avro/bench/datasets/nyctaxi"
 	"github.com/iskorotkov/avro/bench/datasets/superhero"
 )
@@ -12,5 +13,6 @@ func All() []dataset.Provider {
 	return []dataset.Provider{
 		superhero.Provider{},
 		nyctaxi.Provider{},
+		earthquakes.Provider{},
 	}
 }

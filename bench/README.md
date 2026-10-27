@@ -61,6 +61,7 @@ Metrics: `ns/op`, `MB/s` (encoded bytes), `B/op`, `allocs/op`, plus `ns/rec`,
 |---|---|---|---|
 | `superhero` | synthetic | 1 000 | nested records and arrays, schema from `testdata/superhero.avsc` |
 | `nyctaxi` | real | 20 032 | NYC TLC yellow taxi trips (Jan 2024), flat, numeric, nullable fields, timestamps |
+| `earthquakes` | real | 1 707 | USGS weekly earthquake feed (Feb 2018, full snapshot), nullable numbers, timestamps, string arrays |
 
 Samples are committed as zstd-compressed JSON Lines (`sample.jsonl.zst`,
 best compression, no Git LFS) and decompressed once in memory, outside timing.

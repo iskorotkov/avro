@@ -1,0 +1,28 @@
+USGS "All Earthquakes, Past Week" GeoJSON feed, snapshot of February 2018
+
+Source:  https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php
+Feed:    https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson
+File:    https://cdn.jsdelivr.net/npm/vega-datasets@2.11.0/data/earthquakes.json
+SHA-256: a42702a83ffbae679f95d1fa53e2cae0bae13b21e599a68cdd50a44fc52129f7
+Owner:   U.S. Geological Survey (USGS)
+
+Licence: U.S. Public Domain. USGS policy
+(https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits):
+"USGS-authored or produced data and information are considered to be in the
+U.S. Public Domain". The vega-datasets package (BSD-3-Clause) lists the
+earthquakes licence as "other-pd | U.S. Public Domain". The feed is the USGS
+ComCat catalogue, which also carries solutions contributed by partner seismic
+networks (net ci, nc, nn, ...) that USGS redistributes in the same public feed.
+
+Attribution: Earthquake data: U.S. Geological Survey (public domain), via
+vega-datasets.
+
+The file is a frozen snapshot of 1707 events (generated 2018-02-07). It is
+small, so sample.jsonl.zst holds all of them, not a subset. Each GeoJSON
+feature becomes one record: the constant feature "type" is dropped, time and
+updated are read as UTC timestamp-millis, magType is renamed mag_type, and the
+comma-delimited ids, sources and types strings (",ci,us,") become string
+arrays. Regenerate it with:
+
+    go run ./cmd/fetch -dataset earthquakes
+    go test ./datasets/earthquakes -update "$PWD/data/earthquakes/earthquakes.json"

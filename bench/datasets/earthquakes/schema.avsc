@@ -1,0 +1,45 @@
+{
+    "type": "record",
+    "name": "Quake",
+    "namespace": "gov.usgs.earthquake",
+    "fields": [
+        {"name": "id", "type": "string"},
+        {"name": "mag", "type": "double"},
+        {"name": "place", "type": "string"},
+        {"name": "time", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+        {"name": "updated", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+        {"name": "tz", "type": "int"},
+        {"name": "url", "type": "string"},
+        {"name": "detail", "type": "string"},
+        {"name": "felt", "type": ["null", "int"]},
+        {"name": "cdi", "type": ["null", "double"]},
+        {"name": "mmi", "type": ["null", "double"]},
+        {"name": "alert", "type": ["null", "string"]},
+        {"name": "status", "type": "string"},
+        {"name": "tsunami", "type": "int"},
+        {"name": "sig", "type": "int"},
+        {"name": "net", "type": "string"},
+        {"name": "code", "type": "string"},
+        {"name": "ids", "type": {"type": "array", "items": "string"}},
+        {"name": "sources", "type": {"type": "array", "items": "string"}},
+        {"name": "types", "type": {"type": "array", "items": "string"}},
+        {"name": "nst", "type": ["null", "int"]},
+        {"name": "dmin", "type": ["null", "double"]},
+        {"name": "rms", "type": ["null", "double"]},
+        {"name": "gap", "type": ["null", "double"]},
+        {"name": "mag_type", "type": "string"},
+        {"name": "type", "type": "string"},
+        {"name": "title", "type": "string"},
+        {
+            "name": "geometry",
+            "type": {
+                "type": "record",
+                "name": "Point",
+                "fields": [
+                    {"name": "type", "type": "string"},
+                    {"name": "coordinates", "type": {"type": "array", "items": "double"}}
+                ]
+            }
+        }
+    ]
+}
