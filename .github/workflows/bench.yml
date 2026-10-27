@@ -2,8 +2,9 @@ on:
   pull_request:
     paths:
       - "**.go"
-      - "go.mod"
-      - "go.sum"
+      - "**/go.mod"
+      - "**/go.sum"
+      - "bench/**"
       - ".github/workflows/bench.yml"
   workflow_dispatch:
 
@@ -11,247 +12,43 @@ name: bench
 
 permissions:
   contents: read
-  pull-requests: write
 
 concurrency:
   group: bench-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  bench:
+  # Timing comparisons are too noisy on shared runners; run `go run ./cmd/report` locally instead.
+  smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      GO_VERSION: "1.26"
-      BENCH_COUNT: "20"
-      BENCH_TIME: "50ms"
-      BENCH_PATTERN: "."
-      BENCH_PACKAGES: "./..."
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: bench
 
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 1
 
       - name: Install Go
-        id: install-go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version-file: bench/go.mod
+          cache-dependency-path: bench/go.sum
 
-      - name: Download dependencies
-        run: go mod download
-        if: steps.install-go.outputs.cache-hit != 'true'
-
-      - name: Resolve base and head SHAs
-        id: shas
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        env:
-          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
-        with:
-          script: |
-            const head = process.env.PR_HEAD_SHA || context.sha;
-            const base = process.env.PR_BASE_REF || 'main';
-            const { owner, repo } = context.repo;
-            const { data } = await github.rest.repos.compareCommits({
-              owner, repo, base, head,
-            });
-            const mergeBase = data.merge_base_commit.sha;
-            core.setOutput('head', head);
-            core.setOutput('base', mergeBase);
-            core.info(`Base (merge-base): ${mergeBase}`);
-            core.info(`Head: ${head}`);
-
-      - name: Fetch base and head commits
-        env:
-          BASE_SHA: ${{ steps.shas.outputs.base }}
-          HEAD_SHA: ${{ steps.shas.outputs.head }}
+      - name: Build and vet
         run: |
-          set -euo pipefail
-          git fetch --no-tags --depth=1 origin "$BASE_SHA" "$HEAD_SHA"
+          go build ./...
+          go vet ./...
 
-      - name: Benchmark base
-        env:
-          BASE_SHA: ${{ steps.shas.outputs.base }}
-          GOGC: "off"
-          GOMEMLIMIT: "1GiB"
+      - name: Lint
         run: |
-          set -euo pipefail
-          git checkout --detach "$BASE_SHA"
-          go test -run='^$' -bench="$BENCH_PATTERN" -benchmem \
-            -count="$BENCH_COUNT" -benchtime="$BENCH_TIME" \
-            $BENCH_PACKAGES | tee base.txt
+          go -C .. build -o "$RUNNER_TEMP/golangci-lint" github.com/golangci/golangci-lint/v2/cmd/golangci-lint
+          "$RUNNER_TEMP/golangci-lint" run ./...
+          "$RUNNER_TEMP/golangci-lint" fmt --diff ./...
 
-      - name: Benchmark head
-        env:
-          HEAD_SHA: ${{ steps.shas.outputs.head }}
-          GOGC: "off"
-          GOMEMLIMIT: "1GiB"
-        run: |
-          set -euo pipefail
-          git checkout --detach "$HEAD_SHA"
-          go test -run='^$' -bench="$BENCH_PATTERN" -benchmem \
-            -count="$BENCH_COUNT" -benchtime="$BENCH_TIME" \
-            $BENCH_PACKAGES | tee head.txt
+      - name: Test
+        run: go test ./...
 
-      - name: Compare with benchstat
-        run: go tool benchstat base.txt head.txt | tee result.txt
-
-      - name: Build comment body
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        env:
-          BASE_SHA: ${{ steps.shas.outputs.base }}
-          HEAD_SHA: ${{ steps.shas.outputs.head }}
-          BENCH_COUNT: ${{ env.BENCH_COUNT }}
-          BENCH_TIME: ${{ env.BENCH_TIME }}
-          RESULT_FILE: result.txt
-          OUTPUT_FILE: comment.md
-        with:
-          script: |
-            const fs = require('fs');
-            const { BASE_SHA, HEAD_SHA, BENCH_COUNT, BENCH_TIME, RESULT_FILE, OUTPUT_FILE } = process.env;
-
-            const UNITS = { '': 1, n: 1e-9, 'µ': 1e-6, 'μ': 1e-6, m: 1e-3, k: 1e3, M: 1e6, G: 1e9, Ki: 1024, Mi: 1024 ** 2, Gi: 1024 ** 3 };
-            function parseValue(s) {
-              const m = s.match(/^([\d.]+)([a-zA-Zµμ]*)$/);
-              if (!m) return NaN;
-              const u = UNITS[m[2]];
-              return u === undefined ? NaN : parseFloat(m[1]) * u;
-            }
-
-            function parseBenchstat(text) {
-              const lines = text.split('\n');
-              const records = [];
-              let pkg = '';
-              let metric = null;
-              const re = /^(\S+)\s+(\S+)\s+±\s*(\d+(?:\.\d+)?)%\s+(\S+)\s+±\s*(\d+(?:\.\d+)?)%\s+(?:(~)|([+-]?\d+(?:\.\d+)?)%)\s+\(p=([\d.]+|nan)\s+n=(\d+)\)/;
-              for (const line of lines) {
-                if (line.startsWith('pkg:')) { pkg = line.slice(4).trim(); metric = null; continue; }
-                const mh = line.match(/│\s*(sec\/op|B\/s|B\/op|allocs\/op)\s*│/);
-                if (mh) { metric = mh[1]; continue; }
-                if (!metric) continue;
-                const t = line.trim();
-                if (!t || t.startsWith('geomean') || t.startsWith('¹') || t.startsWith('²')) continue;
-                const m = line.match(re);
-                if (!m) continue;
-                const baseVal = parseValue(m[2]);
-                const headVal = parseValue(m[4]);
-                const delta = m[7] !== undefined
-                  ? parseFloat(m[7])
-                  : (baseVal === 0 ? null : ((headVal - baseVal) / baseVal) * 100);
-                const p = m[8] === 'nan' ? NaN : parseFloat(m[8]);
-                records.push({ pkg, name: m[1], metric, delta, p });
-              }
-              return records;
-            }
-
-            function fmtDelta(d) {
-              const sign = d >= 0 ? '+' : '−';
-              return `${sign}${Math.abs(d).toFixed(2)}%`;
-            }
-
-            function fmtBench(b) {
-              return `\`${b.name}\` ${fmtDelta(b.delta)} (p=${b.p.toFixed(3)})`;
-            }
-
-            const THRESHOLDS = { 'sec/op': 5, 'B/op': 0.5, 'allocs/op': 0.5 };
-
-            function summariseMetric(records, metric) {
-              const forMetric = records.filter(r => r.metric === metric);
-              const total = new Set(forMetric.map(r => `${r.pkg}|${r.name}`)).size;
-              const tracked = forMetric.filter(r => r.delta !== null);
-              const sorted = [...tracked].sort((a, b) => a.delta - b.delta);
-              const minDelta = sorted[0];
-              const maxDelta = sorted[sorted.length - 1];
-              const t = THRESHOLDS[metric];
-              const changed = tracked.filter(r => Math.abs(r.delta) > t).length;
-              return {
-                bestImprovement: minDelta && minDelta.delta < 0 ? minDelta : null,
-                worstRegression: maxDelta && maxDelta.delta > 0 ? maxDelta : null,
-                changed,
-                total,
-                threshold: t,
-              };
-            }
-
-            let result = '';
-            try {
-              result = fs.readFileSync(RESULT_FILE, 'utf8').trim();
-            } catch (e) {
-              core.warning(`Could not read ${RESULT_FILE}: ${e.message}`);
-            }
-
-            const baseShort = BASE_SHA.slice(0, 7);
-            const headShort = HEAD_SHA.slice(0, 7);
-
-            let body;
-            if (!result) {
-              body = [
-                '## Benchmark report',
-                '',
-                `\`${baseShort}\` (base) vs \`${headShort}\` (head).`,
-                '',
-                'No benchmark output to compare.',
-              ].join('\n');
-            } else {
-              const records = parseBenchstat(result);
-              const summaryLines = [
-                '**Summary**',
-                '',
-                '| Metric | Worst regression | Best improvement | Changed |',
-                '|---|---|---|--:|',
-              ];
-              for (const metric of ['sec/op', 'B/op', 'allocs/op']) {
-                const s = summariseMetric(records, metric);
-                const wr = s.worstRegression ? fmtBench(s.worstRegression) : 'none';
-                const bi = s.bestImprovement ? fmtBench(s.bestImprovement) : 'none';
-                summaryLines.push(`| \`${metric}\` (>${s.threshold}%) | ${wr} | ${bi} | **${s.changed}** of ${s.total} |`);
-              }
-              body = [
-                '## Benchmark report',
-                '',
-                `\`${baseShort}\` (base, merge-base) vs \`${headShort}\` (head)`,
-                `Configuration: \`-count=${BENCH_COUNT} -benchtime=${BENCH_TIME}\` on \`ubuntu-latest\` (\`GOGC=off GOMEMLIMIT=1GiB\`)`,
-                '',
-                ...summaryLines,
-                '',
-                '<details>',
-                '<summary><code>benchstat</code> output</summary>',
-                '',
-                '```',
-                result,
-                '```',
-                '',
-                '</details>',
-                '',
-                '> Numbers from `ubuntu-latest` are noisy (typical ±1–4% with `GOGC=off`). Treat',
-                "> this report as advisory: a flagged regression isn't always real, and an",
-                "> unflagged change isn't always safe. Re-run the workflow to confirm a",
-                '> suspicious result, and profile locally on a quiet machine before acting.',
-              ].join('\n');
-            }
-
-            fs.writeFileSync(OUTPUT_FILE, body);
-            core.info(`Wrote comment body to ${OUTPUT_FILE}`);
-
-      - name: Post sticky comment
-        if: github.event_name == 'pull_request'
-        # Forks can't write to the PR; skip rather than fail the run.
-        continue-on-error: true
-        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
-        with:
-          header: bench-report
-          path: comment.md
-
-      - name: Upload raw bench output
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: bench-results
-          path: |
-            base.txt
-            head.txt
-            result.txt
-            comment.md
+      - name: Run each benchmark once to check round trips
+        run: go test -run='^$' -bench=. -benchtime=1x ./...
