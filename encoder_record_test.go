@@ -640,3 +640,23 @@ func TestEncoder_RecordWithSinglePointerShapedFieldByValue(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, record{M: map[string]int64{"a": 1}}, got)
 }
+
+func TestEncoder_RecordWithZeroSizeAndPointerFieldsByValue(t *testing.T) {
+	defer ConfigTeardown()
+
+	type record struct {
+		_ struct{}
+		A *int64 `avro:"a"`
+	}
+	schema := avro.MustParse(`{"type":"record","name":"test","fields":[{"name":"a","type":["null","long"]}]}`)
+	a := int64(7)
+
+	b, err := avro.Marshal(schema, record{A: &a})
+	require.NoError(t, err)
+	var got record
+	err = avro.Unmarshal(schema, b, &got)
+
+	require.NoError(t, err)
+	require.NotNil(t, got.A)
+	assert.Equal(t, a, *got.A)
+}

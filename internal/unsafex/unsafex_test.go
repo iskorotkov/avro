@@ -51,6 +51,14 @@ func TestIsDirect_MatchesInterfaceLayout(t *testing.T) {
 		[]int{},
 		struct{ A, B *int }{p, p},
 		[2]*int{p, p},
+		struct {
+			_ [0]func()
+			P *int
+		}{P: p},
+		struct {
+			_ struct{}
+			p *int
+		}{p: p},
 	}
 
 	for _, v := range values {
