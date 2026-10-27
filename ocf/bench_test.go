@@ -72,3 +72,17 @@ func BenchmarkDecoder(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkEncoder_Reset(b *testing.B) {
+	rec := benchRecord()
+	buf := &bytes.Buffer{}
+	enc, err := ocf.NewEncoder(schema, buf)
+	require.NoError(b, err)
+	b.ReportAllocs()
+	for b.Loop() {
+		buf.Reset()
+		_ = enc.Reset(buf)
+		_ = enc.Encode(rec)
+		_ = enc.Flush()
+	}
+}
