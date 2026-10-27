@@ -20,6 +20,14 @@ var compressions = map[string]ocf.CodecName{
 	"zstd":    ocf.ZStandard,
 }
 
+// Both reflection adapters set these explicitly to the same values so they run with equivalent options.
+const (
+	blockLength      = 100
+	maxByteSliceSize = 1 << 20
+)
+
+var api = avro.Config{TagKey: "avro", BlockLength: blockLength, MaxByteSliceSize: maxByteSliceSize}.Freeze()
+
 // Format binds any dataset through reflection on its canonical records.
 type Format struct{}
 
@@ -33,34 +41,43 @@ func (Format) Bind(ds dataset.Dataset) (*format.Subject, error) {
 		return nil, err
 	}
 
+	return Subject(schema, ds.Records(), ds.New), nil
+}
+
+// Subject binds values of any Go type the library can map onto schema.
+func Subject(schema avro.Schema, values []any, newValue func() any) *format.Subject {
 	return &format.Subject{
 		Codec: codec{schema: schema},
 		Batch: &format.StreamBatch{
-			NewEncoder: func(w io.Writer) format.Encoder { return avro.NewEncoderForSchema(schema, w) },
-			NewDecoder: func(r io.Reader) format.Decoder { return avro.NewDecoderForSchema(schema, r) },
+			NewEncoder: func(w io.Writer) format.Encoder { return api.NewEncoder(schema, w) },
+			NewDecoder: func(r io.Reader) format.Decoder { return api.NewDecoder(schema, r) },
 		},
 		Container: &format.StreamContainer{
 			Codecs: []string{"null", "deflate", "snappy", "zstd"},
 			NewEncoder: func(w io.Writer, compression string) (format.EncodeCloser, error) {
-				return ocf.NewEncoderWithSchema(schema, w, ocf.WithCodec(compressions[compression]))
+				return ocf.NewEncoderWithSchema(schema, w,
+					ocf.WithCodec(compressions[compression]),
+					ocf.WithBlockLength(blockLength),
+					ocf.WithEncodingConfig(api),
+				)
 			},
 			NewDecoder: func(r io.Reader) (format.Decoder, error) {
-				dec, err := ocf.NewDecoder(r)
+				dec, err := ocf.NewDecoder(r, ocf.WithDecoderConfig(api))
 				return ocfDecoder{dec}, err
 			},
 		},
-		Values: ds.Records(),
-		New:    ds.New,
-	}, nil
+		Values: values,
+		New:    newValue,
+	}
 }
 
 type codec struct {
 	schema avro.Schema
 }
 
-func (c codec) Marshal(v any) ([]byte, error) { return avro.Marshal(c.schema, v) }
+func (c codec) Marshal(v any) ([]byte, error) { return api.Marshal(c.schema, v) }
 
-func (c codec) Unmarshal(data []byte, v any) error { return avro.Unmarshal(c.schema, data, v) }
+func (c codec) Unmarshal(data []byte, v any) error { return api.Unmarshal(c.schema, data, v) }
 
 type ocfDecoder struct {
 	dec *ocf.Decoder
