@@ -8,6 +8,7 @@ import (
 	"io"
 
 	"github.com/iskorotkov/avro/bench/dataset"
+	"github.com/iskorotkov/avro/bench/datasets/earthquakes"
 	"github.com/iskorotkov/avro/bench/datasets/nyctaxi"
 	"github.com/iskorotkov/avro/bench/datasets/superhero"
 	"github.com/iskorotkov/avro/bench/format"
@@ -31,6 +32,8 @@ func (Format) Bind(ds dataset.Dataset) (*format.Subject, error) {
 		return bind(ds, fromSuperhero)
 	case nyctaxi.Name:
 		return bind(ds, fromTrip)
+	case earthquakes.Name:
+		return bind(ds, fromQuake)
 	default:
 		return nil, format.ErrUnsupported
 	}

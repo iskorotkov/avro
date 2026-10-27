@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package bench;
+
+option go_package = "github.com/iskorotkov/avro/bench/formats/protobuf";
+
+// Quake stores time and updated as Unix milliseconds, matching Avro timestamp-millis on the wire.
+message Quake {
+  string id = 1;
+  double mag = 2;
+  string place = 3;
+  int64 time = 4;
+  int64 updated = 5;
+  int32 tz = 6;
+  string url = 7;
+  string detail = 8;
+  optional int32 felt = 9;
+  optional double cdi = 10;
+  optional double mmi = 11;
+  optional string alert = 12;
+  string status = 13;
+  int32 tsunami = 14;
+  int32 sig = 15;
+  string net = 16;
+  string code = 17;
+  repeated string ids = 18;
+  repeated string sources = 19;
+  repeated string types = 20;
+  optional int32 nst = 21;
+  optional double dmin = 22;
+  optional double rms = 23;
+  optional double gap = 24;
+  string mag_type = 25;
+  string type = 26;
+  string title = 27;
+  QuakePoint geometry = 28;
+}
+
+message QuakePoint {
+  string type = 1;
+  repeated double coordinates = 2;
+}
