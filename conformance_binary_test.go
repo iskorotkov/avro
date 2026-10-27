@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/iskorotkov/avro/v2"
+	"github.com/iskorotkov/avro/v2/internal/xfail"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -34,6 +35,10 @@ type matrixUnionRecord struct {
 type matrixOuter struct {
 	Inner matrixRecord `avro:"inner"`
 	Tags  []string     `avro:"tags"`
+}
+
+type matrixNull struct {
+	N any `avro:"n"`
 }
 
 type matrixLinked struct {
@@ -65,9 +70,17 @@ func primitiveVectors() []binaryVector {
 		{"long/max", `"long"`, int64(math.MaxInt64), "feffffffffffffffff01"},
 		{"long/min", `"long"`, int64(math.MinInt64), "ffffffffffffffffff01"},
 		{"float/1.5", `"float"`, float32(1.5), "0000c03f"},
+		{"float/+inf", `"float"`, float32(math.Inf(1)), "0000807f"},
 		{"float/-inf", `"float"`, float32(math.Inf(-1)), "000080ff"},
+		{"float/nan", `"float"`, math.Float32frombits(0x7fc00000), "0000c07f"},
+		{"float/nan-payload", `"float"`, math.Float32frombits(0x7fc00001), "0100c07f"},
+		{"float/-0", `"float"`, float32(math.Copysign(0, -1)), "00000080"},
 		{"double/-2", `"double"`, float64(-2), "00000000000000c0"},
 		{"double/+inf", `"double"`, math.Inf(1), "000000000000f07f"},
+		{"double/-inf", `"double"`, math.Inf(-1), "000000000000f0ff"},
+		{"double/nan", `"double"`, math.Float64frombits(0x7ff8000000000000), "000000000000f87f"},
+		{"double/nan-payload", `"double"`, math.Float64frombits(0x7ff8000000000001), "010000000000f87f"},
+		{"double/-0", `"double"`, math.Copysign(0, -1), "0000000000000080"},
 		{"bytes/empty", `"bytes"`, []byte{}, "00"},
 		{"bytes/00ff", `"bytes"`, []byte{0x00, 0xff}, "0400ff"},
 		{"string/empty", `"string"`, "", "00"},
@@ -116,6 +129,7 @@ func unionVectors() []binaryVector {
 
 func nestedVectors() []binaryVector {
 	return []binaryVector{
+		{"record/null-field", `{"type":"record","name":"N","fields":[{"name":"n","type":"null"}]}`, matrixNull{}, ""},
 		{"record/spec", matrixRecordSchema, matrixRecord{A: 27, B: "foo"}, "36" + "06666f6f"},
 		{"array/empty", `{"type":"array","items":"long"}`, []int64{}, "00"},
 		{"array/spec", `{"type":"array","items":"long"}`, []int64{3, 27}, "04063600"},
@@ -139,23 +153,37 @@ func nestedVectors() []binaryVector {
 	}
 }
 
-func TestConformance_BinaryMatrix(t *testing.T) {
-	groups := map[string][]binaryVector{
-		"primitive": primitiveVectors(),
-		"logical":   logicalVectors(),
-		"union":     unionVectors(),
-		"nested":    nestedVectors(),
+// binaryVectors returns every matrix vector with its group as a name prefix.
+func binaryVectors() []binaryVector {
+	groups := []struct {
+		name    string
+		vectors []binaryVector
+	}{
+		{"primitive", primitiveVectors()},
+		{"logical", logicalVectors()},
+		{"union", unionVectors()},
+		{"nested", nestedVectors()},
 	}
-	for group, vectors := range groups {
-		for _, v := range vectors {
-			t.Run(group+"/"+v.name, func(t *testing.T) {
-				assertBinaryVector(t, v)
-			})
+	var all []binaryVector
+	for _, g := range groups {
+		for _, v := range g.vectors {
+			v.name = g.name + "/" + v.name
+			all = append(all, v)
 		}
+	}
+	return all
+}
+
+func TestConformance_BinaryMatrix(t *testing.T) {
+	xf := loadExpectedFailures(t)
+	for _, v := range binaryVectors() {
+		t.Run(v.name, func(t *testing.T) {
+			xf.Run(t, "binary/"+v.name, func(t xfail.T) { assertBinaryVector(t, v) })
+		})
 	}
 }
 
-func assertBinaryVector(t *testing.T, v binaryVector) {
+func assertBinaryVector(t xfail.T, v binaryVector) {
 	t.Helper()
 
 	schema, err := avro.Parse(v.schema)
@@ -176,19 +204,6 @@ func assertBinaryVector(t *testing.T, v binaryVector) {
 	regot, err := specAPI.Marshal(schema, generic)
 	require.NoError(t, err)
 	assert.Equal(t, want, regot, "generic re-encode")
-}
-
-func assertSameValue(t *testing.T, want, got any) {
-	t.Helper()
-
-	switch w := want.(type) {
-	case *big.Rat:
-		assert.Zero(t, w.Cmp(got.(*big.Rat)), "want %s, got %s", w, got)
-	case time.Time:
-		assert.True(t, w.Equal(got.(time.Time)), "want %s, got %s", w, got)
-	default:
-		assert.Equal(t, want, got)
-	}
 }
 
 func TestConformance_BinaryBlockEncodings(t *testing.T) {
