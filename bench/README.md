@@ -70,6 +70,11 @@ Samples are committed as zstd-compressed JSON Lines (`sample.jsonl.zst`,
 best compression, no Git LFS) and decompressed once in memory, outside timing.
 Licences and provenance live in each dataset's `NOTICE`.
 
+Sources left out for licence reasons: GH Archive (no data licence, personal
+data), Wikimedia EventStreams (no data licence, no immutable archive; `wikirc`
+is generated from its schema instead) and the classic `twitter.json` (tweets),
+`citm_catalog.json` and `canada.json` (no documented origin or licence).
+
 Full datasets are optional and never committed:
 
 ```sh
