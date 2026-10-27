@@ -13,6 +13,8 @@ const (
 	defaultMaxMapAllocSize   = 67_108_864 // 64 Mi entries
 	defaultMaxDepth          = 1000
 
+	defaultBlockLength = 100
+
 	defaultSlabSize = 1024
 
 	defaultWriteBufSize = 512
@@ -29,7 +31,7 @@ type Config struct {
 	TagKey string
 
 	// BlockLength is the length of blocks for maps and arrays.
-	// This defaults to 100.
+	// This defaults to 100 when set to zero or a negative value.
 	BlockLength int
 
 	// DisableBlockSizeHeader disables encoding of an array/map size in bytes.
@@ -79,16 +81,16 @@ type Config struct {
 	MaxDepth int
 
 	// SlabSize is the size of the byte slab used by the Reader for small string/bytes allocations.
-	// This defaults to 1024 bytes. Reads up to this size use the slab allocator, avoiding per-read
+	// This defaults to 1024 bytes when set to zero or a negative value. Reads up to this size use the slab allocator, avoiding per-read
 	// heap allocations. Larger values reduce allocations but may retain more memory.
 	SlabSize int
 
 	// WriteBufSize is the initial capacity of the Writer buffer.
-	// This defaults to 512 bytes.
+	// This defaults to 512 bytes when set to zero or a negative value.
 	WriteBufSize int
 
 	// ReadBufSize is the size of the Reader buffer used when reading from an io.Reader.
-	// This defaults to 512 bytes.
+	// This defaults to 512 bytes when set to zero or a negative value.
 	ReadBufSize int
 }
 
@@ -325,7 +327,7 @@ func (c *frozenConfig) getTagKey() string {
 func (c *frozenConfig) getBlockLength() int {
 	blockSize := c.config.BlockLength
 	if blockSize <= 0 {
-		return 100
+		return defaultBlockLength
 	}
 	return blockSize
 }

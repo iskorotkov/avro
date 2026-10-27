@@ -30,7 +30,7 @@ type Writer struct {
 	Error   error
 }
 
-// NewWriter creates a new Writer.
+// NewWriter creates a new Writer; bufSize is ignored and the buffer capacity comes from `Config.WriteBufSize`.
 func NewWriter(out io.Writer, bufSize int, opts ...WriterFunc) *Writer {
 	writer := &Writer{
 		cfg: DefaultConfig.(*frozenConfig),

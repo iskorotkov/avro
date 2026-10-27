@@ -40,7 +40,7 @@ type Reader struct {
 	Error  error
 }
 
-// NewReader creates a new Reader.
+// NewReader creates a new Reader; bufSize is ignored and the buffer size comes from `Config.ReadBufSize`.
 func NewReader(r io.Reader, bufSize int, opts ...ReaderFunc) *Reader {
 	reader := &Reader{
 		cfg:    DefaultConfig.(*frozenConfig),

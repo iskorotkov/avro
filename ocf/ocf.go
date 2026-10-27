@@ -25,6 +25,7 @@ const (
 
 	defaultMaxBlockBytes             = 64 * 1024 * 1024 // 64 MiB
 	defaultMaxDecompressedBlockBytes = 64 * 1024 * 1024 // 64 MiB
+	defaultBlockLength               = 100
 )
 
 var (
@@ -325,7 +326,8 @@ type encoderConfig struct {
 // EncoderFunc represents a configuration function for Encoder.
 type EncoderFunc func(cfg *encoderConfig)
 
-// WithBlockLength sets the block length on the encoder.
+// WithBlockLength sets the maximum number of records in a block written by the encoder.
+// It defaults to 100 when set to zero or a negative value.
 func WithBlockLength(length int) EncoderFunc {
 	return func(cfg *encoderConfig) {
 		cfg.BlockLength = length
@@ -334,6 +336,7 @@ func WithBlockLength(length int) EncoderFunc {
 
 // WithBlockSize sets the maximum uncompressed size of a buffered block before
 // it is written and flushed to the underlying io.Writer (after compression).
+// Zero or a negative value selects the default, which bounds blocks by WithBlockLength only.
 func WithBlockSize(size int) EncoderFunc {
 	return func(cfg *encoderConfig) {
 		cfg.BlockSize = size
@@ -538,8 +541,7 @@ func newEncoder(schema avro.Schema, w io.Writer, cfg encoderConfig) (*Encoder, e
 
 func computeEncoderConfig(opts []EncoderFunc) encoderConfig {
 	cfg := encoderConfig{
-		BlockLength: 100,
-		CodecName:   Null,
+		CodecName: Null,
 		CodecOptions: codecOptions{
 			DeflateCompressionLevel: flate.DefaultCompression,
 		},
@@ -551,12 +553,15 @@ func computeEncoderConfig(opts []EncoderFunc) encoderConfig {
 	for _, opt := range opts {
 		opt(&cfg)
 	}
+	if cfg.BlockLength <= 0 {
+		cfg.BlockLength = defaultBlockLength
+	}
 	return cfg
 }
 
 func (e *Encoder) shouldWriteDataBlock() bool {
-	blockLengthReached := e.blockLength != 0 && e.count >= e.blockLength
-	blockSizeReached := e.blockSize != 0 && e.buf.Len() >= e.blockSize
+	blockLengthReached := e.count >= e.blockLength
+	blockSizeReached := e.blockSize > 0 && e.buf.Len() >= e.blockSize
 	return blockLengthReached || blockSizeReached
 }
 
