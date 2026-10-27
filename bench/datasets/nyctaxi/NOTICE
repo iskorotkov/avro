@@ -1,0 +1,23 @@
+NYC TLC Yellow Taxi Trip Records, January 2024
+
+Source:  https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page
+File:    https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2024-01.parquet
+SHA-256: c4d59da7bbc8abaeeeb1727947ee93d9891a71acb42854bd80db1571b2030510
+Owner:   City of New York, Taxi and Limousine Commission (TLC)
+
+Terms: public data published under the NYC Open Data Law (Local Law 11 of 2012)
+and the NYC.gov Terms of Use (https://www.nyc.gov/main/terms-of-use), which is
+also the licence listed by the AWS Open Data Registry
+(https://registry.opendata.aws/nyc-tlc-trip-records-pds/). No formal open
+licence and no attribution requirement is stated. The records contain no
+personal data: only times, TLC zone IDs and fares.
+
+Disclaimer from TLC: "The trip data was not created by the TLC, and TLC makes
+no representations as to the accuracy of these data."
+
+sample.jsonl.zst holds every 148th row (20 032 trips) of the file above,
+with columns renamed to snake_case and parquet timestamps read as UTC.
+Regenerate it with:
+
+    go run ./cmd/fetch -dataset nyctaxi
+    go test ./datasets/nyctaxi -update "$PWD/data/nyctaxi/yellow_tripdata_2024-01.parquet"

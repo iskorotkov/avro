@@ -1,0 +1,26 @@
+{
+    "type": "record",
+    "name": "Trip",
+    "namespace": "nyc.tlc.yellow",
+    "fields": [
+        {"name": "vendor_id", "type": "int"},
+        {"name": "pickup_time", "type": {"type": "long", "logicalType": "timestamp-micros"}},
+        {"name": "dropoff_time", "type": {"type": "long", "logicalType": "timestamp-micros"}},
+        {"name": "passenger_count", "type": ["null", "long"]},
+        {"name": "trip_distance", "type": "double"},
+        {"name": "ratecode_id", "type": ["null", "long"]},
+        {"name": "store_and_fwd_flag", "type": ["null", "string"]},
+        {"name": "pickup_location_id", "type": "int"},
+        {"name": "dropoff_location_id", "type": "int"},
+        {"name": "payment_type", "type": "long"},
+        {"name": "fare_amount", "type": "double"},
+        {"name": "extra", "type": "double"},
+        {"name": "mta_tax", "type": "double"},
+        {"name": "tip_amount", "type": "double"},
+        {"name": "tolls_amount", "type": "double"},
+        {"name": "improvement_surcharge", "type": "double"},
+        {"name": "total_amount", "type": "double"},
+        {"name": "congestion_surcharge", "type": ["null", "double"]},
+        {"name": "airport_fee", "type": ["null", "double"]}
+    ]
+}

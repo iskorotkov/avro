@@ -1,0 +1,6 @@
+# Full datasets downloaded by cmd/fetch.
+/data/
+# Raw results except the latest run, and CPU profiles.
+/results/*.txt
+!/results/latest.txt
+/results/profiles/
