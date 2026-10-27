@@ -12,6 +12,7 @@ require (
 	github.com/parquet-go/parquet-go v0.32.0
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10
 	golang.org/x/perf v0.0.0-20261009192801-be2c69fb417e
+	google.golang.org/grpc v1.83.1
 	google.golang.org/protobuf v1.36.12
 )
 

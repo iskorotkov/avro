@@ -19,9 +19,9 @@ type Format interface {
 	Bind(ds dataset.Dataset) (*Subject, error)
 }
 
-// Codec encodes and decodes single native values.
+// Codec encodes and decodes single native values and is safe for concurrent use.
 type Codec interface {
-	// Marshal encodes v; the result is valid until the next call.
+	// Marshal encodes v into a new slice owned by the caller.
 	Marshal(v any) ([]byte, error)
 	// Unmarshal decodes data into v, a value returned by Subject.New.
 	Unmarshal(data []byte, v any) error

@@ -32,6 +32,18 @@ BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=avro-4	100	4525731
 BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=hamba-4	100	3424238 ns/op	87.61 MB/s	1320000 B/op	13200 allocs/op	684.85 ns/rec	1460179 rec/s	60.0 wire-B/rec
 BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=json-4	100	13933371 ns/op	73.21 MB/s	5500000 B/op	55000 allocs/op	2786.67 ns/rec	358851 rec/s	204.0 wire-B/rec
 BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=protobuf-4	100	2389451 ns/op	138.11 MB/s	660000 B/op	6600 allocs/op	477.89 ns/rec	2092531 rec/s	66.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=grpc-unary/format=avro-4	10	40000000 ns/op	9.00 MB/s	200000 B/op	3000 allocs/op	40000.00 ns/rec	25000 rec/s	380.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=grpc-unary/format=protobuf-4	10	36000000 ns/op	9.00 MB/s	180000 B/op	2700 allocs/op	36000.00 ns/rec	27778 rec/s	380.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=grpc-stream/format=avro-4	10	3000000 ns/op	9.00 MB/s	200000 B/op	3000 allocs/op	3000.00 ns/rec	333333 rec/s	380.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=grpc-stream/format=protobuf-4	10	2700000 ns/op	9.00 MB/s	180000 B/op	2700 allocs/op	2700.00 ns/rec	370370 rec/s	380.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=grpc-unary/format=avro-4	10	40800000 ns/op	9.00 MB/s	200000 B/op	3000 allocs/op	40800.00 ns/rec	24510 rec/s	380.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=grpc-unary/format=protobuf-4	10	36720000 ns/op	9.00 MB/s	180000 B/op	2700 allocs/op	36720.00 ns/rec	27233 rec/s	380.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=grpc-stream/format=avro-4	10	3060000 ns/op	9.00 MB/s	200000 B/op	3000 allocs/op	3060.00 ns/rec	326797 rec/s	380.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=grpc-stream/format=protobuf-4	10	2754000 ns/op	9.00 MB/s	180000 B/op	2700 allocs/op	2754.00 ns/rec	363108 rec/s	380.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=grpc-unary/format=avro-4	10	39200000 ns/op	9.00 MB/s	200000 B/op	3000 allocs/op	39200.00 ns/rec	25510 rec/s	380.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=grpc-unary/format=protobuf-4	10	35280000 ns/op	9.00 MB/s	180000 B/op	2700 allocs/op	35280.00 ns/rec	28345 rec/s	380.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=grpc-stream/format=avro-4	10	2940000 ns/op	9.00 MB/s	200000 B/op	3000 allocs/op	2940.00 ns/rec	340136 rec/s	380.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=grpc-stream/format=protobuf-4	10	2646000 ns/op	9.00 MB/s	180000 B/op	2700 allocs/op	2646.00 ns/rec	377929 rec/s	380.0 wire-B/rec
 PASS
 
 goos: linux

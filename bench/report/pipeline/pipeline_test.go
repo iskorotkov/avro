@@ -36,6 +36,7 @@ func TestGenerate(t *testing.T) {
 		"![Summary](results/charts/summary.svg)",
 		"## nyctaxi",
 		"### container-write-zstd",
+		"### grpc-unary",
 		"![superhero encode](results/charts/superhero-encode.svg)",
 		"| **avro** |",
 		"java-avro",
@@ -49,6 +50,10 @@ func TestGenerate(t *testing.T) {
 	if strings.Index(md, "### encode") > strings.Index(md, "### decode") {
 		t.Error("encode must precede decode")
 	}
+	_, hero, _ := strings.Cut(md, "## superhero")
+	if i, j := strings.Index(hero, "### decode"), strings.Index(hero, "### grpc-stream"); i < 0 || i > j {
+		t.Error("extension ops must follow built-in ops")
+	}
 	// batch-encode on nyctaxi has no baseline: relative columns are dashes and no chart is embedded.
 	if strings.Contains(md, "nyctaxi-batch-encode.svg") {
 		t.Error("op without baseline must not embed a chart")
@@ -61,7 +66,7 @@ func TestGenerate(t *testing.T) {
 			t.Errorf("%s is not a themed svg", f.Name)
 		}
 	}
-	for _, want := range []string{"summary.svg", "superhero-encode.svg", "nyctaxi-container-write-zstd.svg"} {
+	for _, want := range []string{"summary.svg", "superhero-encode.svg", "nyctaxi-container-write-zstd.svg", "superhero-grpc-unary.svg"} {
 		if !names[want] {
 			t.Errorf("missing chart %s", want)
 		}

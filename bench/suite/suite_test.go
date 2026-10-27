@@ -8,6 +8,7 @@ import (
 
 	"github.com/iskorotkov/avro/bench/dataset"
 	"github.com/iskorotkov/avro/bench/datasets"
+	"github.com/iskorotkov/avro/bench/extensions"
 	"github.com/iskorotkov/avro/bench/format"
 	"github.com/iskorotkov/avro/bench/formats"
 	"github.com/iskorotkov/avro/bench/suite"
@@ -18,12 +19,14 @@ var (
 	dataDir = flag.String("suite.data", "", "load full datasets from `dir` instead of the committed samples")
 	dsMatch = flag.String("suite.dataset", "", "load only datasets matching `regexp`")
 	fmMatch = flag.String("suite.format", "", "bind only formats matching `regexp`")
+
+	exts = extensions.All()
 )
 
 func TestRoundTrip(t *testing.T) {
 	for _, c := range load(t) {
 		t.Run(c.Dataset+"/"+c.Format, func(t *testing.T) {
-			if err := format.Verify(c.Subject); err != nil {
+			if err := suite.Verify(c, exts); err != nil {
 				t.Fatal(err)
 			}
 		})
@@ -33,7 +36,7 @@ func TestRoundTrip(t *testing.T) {
 func BenchmarkSuite(b *testing.B) {
 	cases := load(b)
 	for _, c := range cases {
-		if err := format.Verify(c.Subject); err != nil {
+		if err := suite.Verify(c, exts); err != nil {
 			b.Fatalf("%s/%s: %v", c.Dataset, c.Format, err)
 		}
 	}
@@ -49,7 +52,7 @@ func benchDataset(b *testing.B, cases []suite.Case) {
 	for _, op := range opNames(cases) {
 		b.Run("op="+op, func(b *testing.B) {
 			for _, c := range cases {
-				if run := find(c.Subject, op); run != nil {
+				if run := find(c, op); run != nil {
 					b.Run("format="+c.Format, func(b *testing.B) { run(b, c.Subject) })
 				}
 			}
@@ -100,7 +103,7 @@ func filter(cases []suite.Case, ds string) []suite.Case {
 func opNames(cases []suite.Case) []string {
 	var names []string
 	for _, c := range cases {
-		for _, op := range suite.Ops(c.Subject) {
+		for _, op := range suite.CaseOps(c, exts) {
 			if !slices.Contains(names, op.Name) {
 				names = append(names, op.Name)
 			}
@@ -111,8 +114,8 @@ func opNames(cases []suite.Case) []string {
 	return names
 }
 
-func find(s *format.Subject, name string) func(*testing.B, *format.Subject) {
-	for _, op := range suite.Ops(s) {
+func find(c suite.Case, name string) func(*testing.B, *format.Subject) {
+	for _, op := range suite.CaseOps(c, exts) {
 		if op.Name == name {
 			return op.Run
 		}
