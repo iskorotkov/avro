@@ -43,3 +43,15 @@ func TestTyped(t *testing.T) {
 		t.Fatalf("New() = %T", ds.New())
 	}
 }
+
+func TestConvert(t *testing.T) {
+	ds := dataset.New("test", "{}", []rec{{ID: 1}, {ID: 2}})
+
+	got, err := dataset.Convert(ds, func(r *rec) int { return r.ID * 10 })
+	if err != nil || len(got) != 2 || got[0] != 10 || got[1] != 20 {
+		t.Fatalf("Convert() = %v, %v", got, err)
+	}
+	if _, err := dataset.Convert(ds, func(r *int) int { return *r }); err == nil {
+		t.Fatal("Convert[int]() expected error")
+	}
+}
