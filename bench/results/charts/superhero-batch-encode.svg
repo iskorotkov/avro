@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="236" viewBox="0 0 720 236" role="img">
+<title>superhero / batch-encode: time per op relative to avro (lower is better)</title>
+<desc>Horizontal bars of median time per op for batch-encode on superhero, as a percentage of avro.</desc>
+<style>
+:root{--bg:#fcfcfb;--fg:#0b0b0b;--muted:#52514e;--grid:#e3e2de;--other:#85847e;--base:#2a78d6;--alt:#eb6834}
+@media (prefers-color-scheme: dark){:root{--bg:#1a1a19;--fg:#f0efec;--muted:#c3c2b7;--grid:#3a3a38;--other:#8f8e86;--base:#3987e5;--alt:#d95926}}
+text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:12px;fill:var(--fg)}
+.title{font-size:14px;font-weight:600}
+.muted{fill:var(--muted)}
+.bold{font-weight:600}
+.grid{stroke:var(--grid);stroke-width:1}
+.ref{stroke:var(--muted);stroke-width:1.5;stroke-dasharray:4 3}
+.whisker{stroke:var(--fg);stroke-width:1.5;fill:none}
+.bg{fill:var(--bg)}
+.other{fill:var(--other)}
+.base{fill:var(--base)}
+.alt{fill:var(--alt)}
+</style>
+<rect class="bg" width="720" height="236" rx="6"/>
+<text x="16.0" y="24.0" text-anchor="start" class="title">superhero / batch-encode: time per op relative to avro (lower is better)</text>
+<line x1="150.0" y1="56.0" x2="150.0" y2="176.0" class="grid"/>
+<line x1="272.5" y1="56.0" x2="272.5" y2="176.0" class="grid"/>
+<line x1="395.0" y1="56.0" x2="395.0" y2="176.0" class="grid"/>
+<line x1="517.5" y1="56.0" x2="517.5" y2="176.0" class="grid"/>
+<line x1="640.0" y1="56.0" x2="640.0" y2="176.0" class="grid"/>
+<line x1="211.2" y1="52.0" x2="211.2" y2="176.0" class="ref"/>
+<text x="140.0" y="75.0" text-anchor="end" class="bold">avro</text>
+<rect x="150.0" y="63.0" width="61.2" height="16.0" rx="3" class="base"/>
+<path d="M204.7 71.0H243.3M204.7 68.0V74.0M243.3 68.0V74.0" class="whisker"/>
+<text x="249.3" y="75.0" text-anchor="start" class="">100%</text>
+<text x="140.0" y="105.0" text-anchor="end" class="">hamba</text>
+<rect x="150.0" y="93.0" width="66.4" height="16.0" rx="3" class="other"/>
+<path d="M208.1 101.0H247.2M208.1 98.0V104.0M247.2 98.0V104.0" class="whisker"/>
+<text x="253.2" y="105.0" text-anchor="start" class="">108%</text>
+<text x="140.0" y="135.0" text-anchor="end" class="">protobuf</text>
+<rect x="150.0" y="123.0" width="148.0" height="16.0" rx="3" class="other"/>
+<path d="M289.4 131.0H332.1M289.4 128.0V134.0M332.1 128.0V134.0" class="whisker"/>
+<text x="338.1" y="135.0" text-anchor="start" class="">242%</text>
+<text x="140.0" y="165.0" text-anchor="end" class="">json</text>
+<rect x="150.0" y="153.0" width="430.4" height="16.0" rx="3" class="other"/>
+<path d="M520.4 161.0H628.0M520.4 158.0V164.0M628.0 158.0V164.0" class="whisker"/>
+<text x="634.0" y="165.0" text-anchor="start" class="">703%</text>
+<text x="150.0" y="192.0" text-anchor="middle" class="muted">0%</text>
+<text x="272.5" y="192.0" text-anchor="middle" class="muted">200%</text>
+<text x="395.0" y="192.0" text-anchor="middle" class="muted">400%</text>
+<text x="517.5" y="192.0" text-anchor="middle" class="muted">600%</text>
+<text x="640.0" y="192.0" text-anchor="middle" class="muted">800%</text>
+<rect x="150.0" y="206.0" width="12.0" height="12.0" rx="3" class="base"/>
+<text x="168.0" y="216.0" text-anchor="start" class="muted">avro (baseline)</text>
+<rect x="300.0" y="206.0" width="12.0" height="12.0" rx="3" class="other"/>
+<text x="318.0" y="216.0" text-anchor="start" class="muted">other formats</text>
+<text x="440.0" y="216.0" text-anchor="start" class="muted">whiskers: format 95% CI only; dashed: 100%</text>
+</svg>

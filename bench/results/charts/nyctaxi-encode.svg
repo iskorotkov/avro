@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="236" viewBox="0 0 720 236" role="img">
+<title>nyctaxi / encode: time per op relative to avro (lower is better)</title>
+<desc>Horizontal bars of median time per op for encode on nyctaxi, as a percentage of avro.</desc>
+<style>
+:root{--bg:#fcfcfb;--fg:#0b0b0b;--muted:#52514e;--grid:#e3e2de;--other:#85847e;--base:#2a78d6;--alt:#eb6834}
+@media (prefers-color-scheme: dark){:root{--bg:#1a1a19;--fg:#f0efec;--muted:#c3c2b7;--grid:#3a3a38;--other:#8f8e86;--base:#3987e5;--alt:#d95926}}
+text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:12px;fill:var(--fg)}
+.title{font-size:14px;font-weight:600}
+.muted{fill:var(--muted)}
+.bold{font-weight:600}
+.grid{stroke:var(--grid);stroke-width:1}
+.ref{stroke:var(--muted);stroke-width:1.5;stroke-dasharray:4 3}
+.whisker{stroke:var(--fg);stroke-width:1.5;fill:none}
+.bg{fill:var(--bg)}
+.other{fill:var(--other)}
+.base{fill:var(--base)}
+.alt{fill:var(--alt)}
+</style>
+<rect class="bg" width="720" height="236" rx="6"/>
+<text x="16.0" y="24.0" text-anchor="start" class="title">nyctaxi / encode: time per op relative to avro (lower is better)</text>
+<line x1="150.0" y1="56.0" x2="150.0" y2="176.0" class="grid"/>
+<line x1="248.0" y1="56.0" x2="248.0" y2="176.0" class="grid"/>
+<line x1="346.0" y1="56.0" x2="346.0" y2="176.0" class="grid"/>
+<line x1="444.0" y1="56.0" x2="444.0" y2="176.0" class="grid"/>
+<line x1="542.0" y1="56.0" x2="542.0" y2="176.0" class="grid"/>
+<line x1="640.0" y1="56.0" x2="640.0" y2="176.0" class="grid"/>
+<line x1="189.2" y1="52.0" x2="189.2" y2="176.0" class="ref"/>
+<text x="140.0" y="75.0" text-anchor="end" class="bold">avro</text>
+<rect x="150.0" y="63.0" width="39.2" height="16.0" rx="3" class="base"/>
+<path d="M185.7 71.0H193.6M185.7 68.0V74.0M193.6 68.0V74.0" class="whisker"/>
+<text x="199.6" y="75.0" text-anchor="start" class="">100%</text>
+<text x="140.0" y="105.0" text-anchor="end" class="">hamba</text>
+<rect x="150.0" y="93.0" width="45.6" height="16.0" rx="3" class="other"/>
+<path d="M189.0 101.0H199.8M189.0 98.0V104.0M199.8 98.0V104.0" class="whisker"/>
+<text x="205.8" y="105.0" text-anchor="start" class="">116%</text>
+<text x="140.0" y="135.0" text-anchor="end" class="">protobuf</text>
+<rect x="150.0" y="123.0" width="57.4" height="16.0" rx="3" class="other"/>
+<path d="M201.3 131.0H239.0M201.3 128.0V134.0M239.0 128.0V134.0" class="whisker"/>
+<text x="245.0" y="135.0" text-anchor="start" class="">146%</text>
+<text x="140.0" y="165.0" text-anchor="end" class="">json</text>
+<rect x="150.0" y="153.0" width="276.0" height="16.0" rx="3" class="other"/>
+<path d="M419.7 161.0H581.3M419.7 158.0V164.0M581.3 158.0V164.0" class="whisker"/>
+<text x="587.3" y="165.0" text-anchor="start" class="">704%</text>
+<text x="150.0" y="192.0" text-anchor="middle" class="muted">0%</text>
+<text x="248.0" y="192.0" text-anchor="middle" class="muted">250%</text>
+<text x="346.0" y="192.0" text-anchor="middle" class="muted">500%</text>
+<text x="444.0" y="192.0" text-anchor="middle" class="muted">750%</text>
+<text x="542.0" y="192.0" text-anchor="middle" class="muted">1000%</text>
+<text x="640.0" y="192.0" text-anchor="middle" class="muted">1250%</text>
+<rect x="150.0" y="206.0" width="12.0" height="12.0" rx="3" class="base"/>
+<text x="168.0" y="216.0" text-anchor="start" class="muted">avro (baseline)</text>
+<rect x="300.0" y="206.0" width="12.0" height="12.0" rx="3" class="other"/>
+<text x="318.0" y="216.0" text-anchor="start" class="muted">other formats</text>
+<text x="440.0" y="216.0" text-anchor="start" class="muted">whiskers: format 95% CI only; dashed: 100%</text>
+</svg>

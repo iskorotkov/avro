@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="310" viewBox="0 0 720 310" role="img">
+<title>Geometric mean over datasets: time per op relative to avro (lower is better)</title>
+<desc>Grouped horizontal bars of geometric-mean relative encode and decode time per format versus avro.</desc>
+<style>
+:root{--bg:#fcfcfb;--fg:#0b0b0b;--muted:#52514e;--grid:#e3e2de;--other:#85847e;--base:#2a78d6;--alt:#eb6834}
+@media (prefers-color-scheme: dark){:root{--bg:#1a1a19;--fg:#f0efec;--muted:#c3c2b7;--grid:#3a3a38;--other:#8f8e86;--base:#3987e5;--alt:#d95926}}
+text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:12px;fill:var(--fg)}
+.title{font-size:14px;font-weight:600}
+.muted{fill:var(--muted)}
+.bold{font-weight:600}
+.grid{stroke:var(--grid);stroke-width:1}
+.ref{stroke:var(--muted);stroke-width:1.5;stroke-dasharray:4 3}
+.whisker{stroke:var(--fg);stroke-width:1.5;fill:none}
+.bg{fill:var(--bg)}
+.other{fill:var(--other)}
+.base{fill:var(--base)}
+.alt{fill:var(--alt)}
+</style>
+<rect class="bg" width="720" height="310" rx="6"/>
+<text x="16.0" y="24.0" text-anchor="start" class="title">Geometric mean over datasets: time per op relative to avro (lower is better)</text>
+<rect x="150.0" y="36.0" width="12.0" height="12.0" rx="3" class="base"/>
+<text x="168.0" y="46.0" text-anchor="start" class="muted">encode</text>
+<rect x="240.0" y="36.0" width="12.0" height="12.0" rx="3" class="alt"/>
+<text x="258.0" y="46.0" text-anchor="start" class="muted">decode</text>
+<text x="340.0" y="46.0" text-anchor="start" class="muted">whiskers: format 95% CI only; dashed: 100%</text>
+<line x1="150.0" y1="66.0" x2="150.0" y2="274.0" class="grid"/>
+<line x1="272.5" y1="66.0" x2="272.5" y2="274.0" class="grid"/>
+<line x1="395.0" y1="66.0" x2="395.0" y2="274.0" class="grid"/>
+<line x1="517.5" y1="66.0" x2="517.5" y2="274.0" class="grid"/>
+<line x1="640.0" y1="66.0" x2="640.0" y2="274.0" class="grid"/>
+<line x1="174.5" y1="62.0" x2="174.5" y2="274.0" class="ref"/>
+<text x="140.0" y="96.0" text-anchor="end" class="bold">avro</text>
+<rect x="150.0" y="74.0" width="24.5" height="14.0" rx="3" class="base"/>
+<path d="M172.7 81.0H179.3M172.7 78.0V84.0M179.3 78.0V84.0" class="whisker"/>
+<text x="185.3" y="85.0" text-anchor="start" class="">100%</text>
+<rect x="150.0" y="91.0" width="24.5" height="14.0" rx="3" class="alt"/>
+<path d="M172.8 98.0H180.4M172.8 95.0V101.0M180.4 95.0V101.0" class="whisker"/>
+<text x="186.4" y="102.0" text-anchor="start" class="">100%</text>
+<text x="140.0" y="148.0" text-anchor="end" class="">hamba</text>
+<rect x="150.0" y="126.0" width="27.8" height="14.0" rx="3" class="base"/>
+<path d="M173.8 133.0H180.1M173.8 130.0V136.0M180.1 130.0V136.0" class="whisker"/>
+<text x="186.1" y="137.0" text-anchor="start" class="">113%</text>
+<rect x="150.0" y="143.0" width="33.4" height="14.0" rx="3" class="alt"/>
+<path d="M179.8 150.0H194.5M179.8 147.0V153.0M194.5 147.0V153.0" class="whisker"/>
+<text x="200.5" y="154.0" text-anchor="start" class="">136%</text>
+<text x="140.0" y="200.0" text-anchor="end" class="">protobuf</text>
+<rect x="150.0" y="178.0" width="39.3" height="14.0" rx="3" class="base"/>
+<path d="M186.0 185.0H202.1M186.0 182.0V188.0M202.1 182.0V188.0" class="whisker"/>
+<text x="208.1" y="189.0" text-anchor="start" class="">161%</text>
+<rect x="150.0" y="195.0" width="34.4" height="14.0" rx="3" class="alt"/>
+<path d="M181.7 202.0H188.3M181.7 199.0V205.0M188.3 199.0V205.0" class="whisker"/>
+<text x="194.3" y="206.0" text-anchor="start" class="">140%</text>
+<text x="140.0" y="252.0" text-anchor="end" class="">json</text>
+<rect x="150.0" y="230.0" width="156.6" height="14.0" rx="3" class="base"/>
+<path d="M296.8 237.0H383.1M296.8 234.0V240.0M383.1 234.0V240.0" class="whisker"/>
+<text x="389.1" y="241.0" text-anchor="start" class="">639%</text>
+<rect x="150.0" y="247.0" width="301.9" height="14.0" rx="3" class="alt"/>
+<path d="M425.9 254.0H520.8M425.9 251.0V257.0M520.8 251.0V257.0" class="whisker"/>
+<text x="526.8" y="258.0" text-anchor="start" class="">1232%</text>
+<text x="150.0" y="290.0" text-anchor="middle" class="muted">0%</text>
+<text x="272.5" y="290.0" text-anchor="middle" class="muted">500%</text>
+<text x="395.0" y="290.0" text-anchor="middle" class="muted">1000%</text>
+<text x="517.5" y="290.0" text-anchor="middle" class="muted">1500%</text>
+<text x="640.0" y="290.0" text-anchor="middle" class="muted">2000%</text>
+</svg>

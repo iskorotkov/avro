@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="176" viewBox="0 0 720 176" role="img">
+<title>superhero / container-read-snappy: time per op relative to avro (lower is better)</title>
+<desc>Horizontal bars of median time per op for container-read-snappy on superhero, as a percentage of avro.</desc>
+<style>
+:root{--bg:#fcfcfb;--fg:#0b0b0b;--muted:#52514e;--grid:#e3e2de;--other:#85847e;--base:#2a78d6;--alt:#eb6834}
+@media (prefers-color-scheme: dark){:root{--bg:#1a1a19;--fg:#f0efec;--muted:#c3c2b7;--grid:#3a3a38;--other:#8f8e86;--base:#3987e5;--alt:#d95926}}
+text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:12px;fill:var(--fg)}
+.title{font-size:14px;font-weight:600}
+.muted{fill:var(--muted)}
+.bold{font-weight:600}
+.grid{stroke:var(--grid);stroke-width:1}
+.ref{stroke:var(--muted);stroke-width:1.5;stroke-dasharray:4 3}
+.whisker{stroke:var(--fg);stroke-width:1.5;fill:none}
+.bg{fill:var(--bg)}
+.other{fill:var(--other)}
+.base{fill:var(--base)}
+.alt{fill:var(--alt)}
+</style>
+<rect class="bg" width="720" height="176" rx="6"/>
+<text x="16.0" y="24.0" text-anchor="start" class="title">superhero / container-read-snappy: time per op relative to avro (lower is better)</text>
+<line x1="150.0" y1="56.0" x2="150.0" y2="116.0" class="grid"/>
+<line x1="313.3" y1="56.0" x2="313.3" y2="116.0" class="grid"/>
+<line x1="476.7" y1="56.0" x2="476.7" y2="116.0" class="grid"/>
+<line x1="640.0" y1="56.0" x2="640.0" y2="116.0" class="grid"/>
+<line x1="476.7" y1="52.0" x2="476.7" y2="116.0" class="ref"/>
+<text x="140.0" y="75.0" text-anchor="end" class="bold">avro</text>
+<rect x="150.0" y="63.0" width="326.7" height="16.0" rx="3" class="base"/>
+<path d="M463.1 71.0H604.9M463.1 68.0V74.0M604.9 68.0V74.0" class="whisker"/>
+<text x="610.9" y="75.0" text-anchor="start" class="">100%</text>
+<text x="140.0" y="105.0" text-anchor="end" class="">hamba</text>
+<rect x="150.0" y="93.0" width="339.1" height="16.0" rx="3" class="other"/>
+<path d="M478.2 101.0H599.5M478.2 98.0V104.0M599.5 98.0V104.0" class="whisker"/>
+<text x="605.5" y="105.0" text-anchor="start" class="">104%</text>
+<text x="150.0" y="132.0" text-anchor="middle" class="muted">0%</text>
+<text x="313.3" y="132.0" text-anchor="middle" class="muted">50%</text>
+<text x="476.7" y="132.0" text-anchor="middle" class="muted">100%</text>
+<text x="640.0" y="132.0" text-anchor="middle" class="muted">150%</text>
+<rect x="150.0" y="146.0" width="12.0" height="12.0" rx="3" class="base"/>
+<text x="168.0" y="156.0" text-anchor="start" class="muted">avro (baseline)</text>
+<rect x="300.0" y="146.0" width="12.0" height="12.0" rx="3" class="other"/>
+<text x="318.0" y="156.0" text-anchor="start" class="muted">other formats</text>
+<text x="440.0" y="156.0" text-anchor="start" class="muted">whiskers: format 95% CI only; dashed: 100%</text>
+</svg>
