@@ -744,3 +744,18 @@ func TestDecoder_UnknownLenReaderIsTreatedAsStream(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []int{1, 2}, got)
 }
+
+func TestUnmarshal_DefaultSliceLimitBoundary(t *testing.T) {
+	defer ConfigTeardown()
+
+	const limit = 64 << 20
+	schema := avro.MustParse(`{"type":"record","name":"R","fields":[{"name":"a","type":{"type":"array","items":"boolean"}}]}`)
+	// Booleans take one byte each, so the input holds every counted item and only the element limit applies.
+	payload := func(n int) []byte {
+		return append(append(avro.EncodeIntToBytes(n), make([]byte, n)...), 0x00)
+	}
+
+	var got otherFieldOnly
+	require.NoError(t, avro.Unmarshal(schema, payload(limit), &got))
+	require.ErrorIs(t, avro.Unmarshal(schema, payload(limit+1), &got), avro.ErrMaxSliceAllocSize)
+}
