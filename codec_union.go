@@ -229,6 +229,7 @@ func decoderOfNullableUnion(d *decoderContext, schema Schema, typ reflect2.Type)
 	return &unionNullableDecoder{
 		schema:  union,
 		typ:     baseTyp,
+		target:  typ.Type1(),
 		isPtr:   isPtr,
 		decoder: decoder,
 	}
@@ -237,6 +238,7 @@ func decoderOfNullableUnion(d *decoderContext, schema Schema, typ reflect2.Type)
 type unionNullableDecoder struct {
 	schema  *UnionSchema
 	typ     reflect2.Type
+	target  reflect.Type
 	isPtr   bool
 	decoder ValDecoder
 }
@@ -253,33 +255,7 @@ func (d *unionNullableDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 	}
 
 	if r.cfg.typeConverters.HasAny() {
-		defer func() {
-			if !d.isPtr {
-				obj := d.typ.UnsafeIndirect(ptr)
-				obj, err := r.cfg.typeConverters.DecodeTypeConvert(obj, d.schema)
-				if errors.Is(err, errNoTypeConverter) {
-					return
-				}
-				if err != nil {
-					r.Error = err
-				}
-				if obj == nil {
-					*(*unsafe.Pointer)(ptr) = nil
-					return
-				}
-				d.typ.UnsafeSet(ptr, reflect2.PtrOf(obj))
-				return
-			}
-			obj := d.typ.UnsafeIndirect(*(*unsafe.Pointer)(ptr))
-			obj, err := r.cfg.typeConverters.DecodeTypeConvert(obj, d.schema)
-			if errors.Is(err, errNoTypeConverter) {
-				return
-			}
-			if err != nil {
-				r.Error = err
-			}
-			*(*unsafe.Pointer)(ptr) = reflect2.PtrOf(obj)
-		}()
+		defer d.convert(ptr, r)
 	}
 
 	// Handle the non-ptr case separately.
@@ -307,6 +283,47 @@ func (d *unionNullableDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 
 	// Reuse existing instance.
 	d.decoder.Decode(*(*unsafe.Pointer)(ptr), r)
+}
+
+// convert runs the union decode converter on the decoded value and stores its result.
+func (d *unionNullableDecoder) convert(ptr unsafe.Pointer, r *Reader) {
+	valPtr := ptr
+	if d.isPtr {
+		valPtr = *(*unsafe.Pointer)(ptr)
+	}
+
+	obj, err := r.cfg.typeConverters.DecodeTypeConvert(d.typ.UnsafeIndirect(valPtr), d.schema)
+	if errors.Is(err, errNoTypeConverter) {
+		return
+	}
+	if err != nil {
+		r.Error = err
+	}
+	if storeErr := d.store(ptr, obj); storeErr != nil && err == nil {
+		r.Error = storeErr
+	}
+}
+
+// store writes a converter result into the target, boxing an element value when the target is a pointer.
+func (d *unionNullableDecoder) store(ptr unsafe.Pointer, obj any) error {
+	target := reflect.NewAt(d.target, ptr).Elem()
+	if obj == nil {
+		target.SetZero()
+		return nil
+	}
+
+	val := reflect.ValueOf(obj)
+	if d.isPtr && val.Type() == d.target.Elem() {
+		boxed := reflect.New(val.Type())
+		boxed.Elem().Set(val)
+		val = boxed
+	}
+	if val.Type() != d.target {
+		return fmt.Errorf("avro: type converter returned %s, expected %s", val.Type(), d.target)
+	}
+
+	target.Set(val)
+	return nil
 }
 
 func encoderOfUnionConverterCodec(_ *encoderContext, schema Schema, typ reflect2.Type) ValEncoder {

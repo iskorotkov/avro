@@ -298,3 +298,72 @@ func TestDecoderTypeConverter_MapUnionBranch(t *testing.T) {
 		})
 	}
 }
+
+func TestDecoderTypeConverter_UnionNullablePtrResult(t *testing.T) {
+	tests := []struct {
+		name    string
+		convert func(in any) any
+		want    *int
+		wantErr string
+	}{
+		{
+			name:    "pointer",
+			convert: func(in any) any { v := in.(int) * 2; return &v },
+			want:    new(54),
+		},
+		{
+			name:    "element value",
+			convert: func(in any) any { return in.(int) * 2 },
+			want:    new(54),
+		},
+		{
+			name:    "wrong pointer type",
+			convert: func(in any) any { v := int64(in.(int)); return &v },
+			wantErr: "avro: type converter returned *int64, expected *int",
+		},
+		{
+			name:    "wrong value type",
+			convert: func(in any) any { return "27" },
+			wantErr: "avro: type converter returned string, expected *int",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			defer ConfigTeardown()
+
+			avro.RegisterTypeConverters(avro.TypeConversionFuncs{
+				AvroType: avro.Union,
+				DecoderTypeConversion: func(in any, _ avro.Schema) (any, error) {
+					return test.convert(in), nil
+				},
+			})
+
+			var got *int
+			err := avro.Unmarshal(avro.MustParse(`["null", "int"]`), []byte{0x02, 0x36}, &got)
+
+			if test.wantErr != "" {
+				assert.EqualError(t, err, test.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, test.want, got)
+		})
+	}
+}
+
+func TestDecoderTypeConverter_UnionNullableSliceWrongType(t *testing.T) {
+	defer ConfigTeardown()
+
+	avro.RegisterTypeConverters(avro.TypeConversionFuncs{
+		AvroType: avro.Union,
+		DecoderTypeConversion: func(in any, _ avro.Schema) (any, error) {
+			return string(in.([]byte)), nil
+		},
+	})
+
+	var got []byte
+	err := avro.Unmarshal(avro.MustParse(`["null", "bytes"]`), []byte{0x02, 0x06, 'f', 'o', 'o'}, &got)
+
+	assert.EqualError(t, err, "avro: type converter returned string, expected []uint8")
+}
