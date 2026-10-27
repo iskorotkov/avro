@@ -1,0 +1,152 @@
+[
+  {
+    "id": "schema/apache/016",
+    "reason": "Parse rejects the empty union [] that the spec and Avro Java accept.",
+    "tracking": "fix/schema-hardening (accept empty unions like Java)",
+    "match": "union type must have at least one member"
+  },
+  {
+    "id": "invalid/truncated/empty-int",
+    "reason": "Unmarshal returns a zero value without error when the input ends inside a varint.",
+    "tracking": "fix/decoder-hardening (return io.ErrUnexpectedEOF for input truncated inside a value)",
+    "match": "An error is expected but got nil"
+  },
+  {
+    "id": "invalid/truncated/int",
+    "reason": "Unmarshal returns a zero value without error when the input ends inside a varint.",
+    "tracking": "fix/decoder-hardening (return io.ErrUnexpectedEOF for input truncated inside a value)",
+    "match": "An error is expected but got nil"
+  },
+  {
+    "id": "invalid/truncated/long",
+    "reason": "Unmarshal returns a zero value without error when the input ends inside a varint.",
+    "tracking": "fix/decoder-hardening (return io.ErrUnexpectedEOF for input truncated inside a value)",
+    "match": "An error is expected but got nil"
+  },
+  {
+    "id": "invalid/truncated/enum",
+    "reason": "Unmarshal returns a zero value without error when the input ends inside a varint.",
+    "tracking": "fix/decoder-hardening (return io.ErrUnexpectedEOF for input truncated inside a value)",
+    "match": "An error is expected but got nil"
+  },
+  {
+    "id": "invalid/truncated/union-value",
+    "reason": "Unmarshal returns a zero value without error when the input ends inside a varint.",
+    "tracking": "fix/decoder-hardening (return io.ErrUnexpectedEOF for input truncated inside a value)",
+    "match": "An error is expected but got nil"
+  },
+  {
+    "id": "invalid/truncated/record",
+    "reason": "Unmarshal returns a zero value without error when the input ends inside a varint.",
+    "tracking": "fix/decoder-hardening (return io.ErrUnexpectedEOF for input truncated inside a value)",
+    "match": "An error is expected but got nil"
+  },
+  {
+    "id": "invalid/truncated/array",
+    "reason": "Unmarshal returns a zero value without error when the input ends inside a varint.",
+    "tracking": "fix/decoder-hardening (return io.ErrUnexpectedEOF for input truncated inside a value)",
+    "match": "An error is expected but got nil"
+  },
+  {
+    "id": "invalid/truncated/array-end",
+    "reason": "Unmarshal returns a zero value without error when the input ends inside a varint.",
+    "tracking": "fix/decoder-hardening (return io.ErrUnexpectedEOF for input truncated inside a value)",
+    "match": "An error is expected but got nil"
+  },
+  {
+    "id": "invalid/truncated/map-value",
+    "reason": "Unmarshal returns a zero value without error when the input ends inside a varint.",
+    "tracking": "fix/decoder-hardening (return io.ErrUnexpectedEOF for input truncated inside a value)",
+    "match": "An error is expected but got nil"
+  },
+  {
+    "id": "resolve/union/writer-union-reader-plain",
+    "reason": "Resolve rejects a writer union when any branch is unreadable; the spec resolves only the branch actually written.",
+    "tracking": "open library bug; no fix branch yet",
+    "match": "reader schema long not compatible with writer schema null"
+  },
+  {
+    "id": "resolve/enum/known-symbol-no-default",
+    "reason": "Resolve rejects a writer enum with symbols the reader lacks even when the written symbol exists in the reader; the spec fails only on the unknown symbol.",
+    "tracking": "open library bug; no fix branch yet",
+    "match": "reader E is missing symbol C"
+  },
+  {
+    "id": "schema/valid/default-union-second-branch",
+    "reason": "Parse rejects a union field default matching a non-first branch; the 1.12 spec and Java accept the first matching branch.",
+    "tracking": "open library bug; no fix branch yet",
+    "match": "invalid default for field a"
+  },
+  {
+    "id": "resolve/default/union-second-branch",
+    "reason": "Parse rejects a union field default matching a non-first branch; the 1.12 spec and Java accept the first matching branch.",
+    "tracking": "open library bug; no fix branch yet",
+    "match": "invalid default for field x"
+  },
+  {
+    "id": "compat/default/union-second-branch",
+    "reason": "Parse rejects a union field default matching a non-first branch; the 1.12 spec and Java accept the first matching branch.",
+    "tracking": "open library bug; no fix branch yet",
+    "match": "invalid default for field x"
+  },
+  {
+    "id": "schema/logical/date",
+    "reason": "Schema.String keeps logicalType, precision and scale, but Parsing Canonical Form keeps only type, name, fields, symbols, items, values and size, so fingerprints differ from Java.",
+    "tracking": "open library bug; no fix branch yet",
+    "match": "logicalType"
+  },
+  {
+    "id": "schema/logical/timestamp-nanos",
+    "reason": "Schema.String keeps logicalType, precision and scale, but Parsing Canonical Form keeps only type, name, fields, symbols, items, values and size, so fingerprints differ from Java.",
+    "tracking": "open library bug; no fix branch yet",
+    "match": "logicalType"
+  },
+  {
+    "id": "schema/logical/uuid",
+    "reason": "Schema.String keeps logicalType, precision and scale, but Parsing Canonical Form keeps only type, name, fields, symbols, items, values and size, so fingerprints differ from Java.",
+    "tracking": "open library bug; no fix branch yet",
+    "match": "logicalType"
+  },
+  {
+    "id": "schema/logical/decimal-bytes",
+    "reason": "Schema.String keeps logicalType, precision and scale, but Parsing Canonical Form keeps only type, name, fields, symbols, items, values and size, so fingerprints differ from Java.",
+    "tracking": "open library bug; no fix branch yet",
+    "match": "logicalType"
+  },
+  {
+    "id": "schema/logical/decimal-fixed",
+    "reason": "Schema.String keeps logicalType, precision and scale, but Parsing Canonical Form keeps only type, name, fields, symbols, items, values and size, so fingerprints differ from Java.",
+    "tracking": "open library bug; no fix branch yet",
+    "match": "logicalType"
+  },
+  {
+    "id": "schema/logical/duration",
+    "reason": "Schema.String keeps logicalType, precision and scale, but Parsing Canonical Form keeps only type, name, fields, symbols, items, values and size, so fingerprints differ from Java.",
+    "tracking": "open library bug; no fix branch yet",
+    "match": "logicalType"
+  },
+  {
+    "id": "resolve-cache/default-then-skip",
+    "reason": "The API codec cache keys resolved schemas by CacheFingerprint, which does not tell a skipped writer field from a reader default, so a later resolution reuses the wrong decoder and leaks the skipped writer field into the value.",
+    "tracking": "open library bug; no fix branch yet (also fails on fix/decoder-hardening and fix/schema-hardening)",
+    "match": "resolved value map"
+  },
+  {
+    "id": "schema/invalid/attribute-name-case",
+    "reason": "Parse matches schema attribute names case-insensitively, so NAME or SIZE is accepted; Java and the spec use exact lowercase names.",
+    "tracking": "open library bug; no fix branch yet",
+    "match": "An error is expected but got nil"
+  },
+  {
+    "id": "schema/invalid/attribute-size-case",
+    "reason": "Parse matches schema attribute names case-insensitively, so NAME or SIZE is accepted; Java and the spec use exact lowercase names.",
+    "tracking": "open library bug; no fix branch yet",
+    "match": "An error is expected but got nil"
+  },
+  {
+    "id": "invalid/time-micros/overflows-duration",
+    "reason": "Decoding time-micros multiplies by 1000 into time.Duration without an overflow check, so values beyond about 292 years wrap silently; Java rejects them.",
+    "tracking": "open library bug; no fix branch yet",
+    "match": "An error is expected but got nil"
+  }
+]
