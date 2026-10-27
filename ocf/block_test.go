@@ -24,10 +24,11 @@ func craftOCF(t testing.TB, schema string, count int64, payload []byte) []byte {
 	return out.Bytes()
 }
 
-func decodeAllLongs(t testing.TB, data []byte) ([]int64, error) {
+func decodeAllLongs(t testing.TB, data []byte, opts ...ocf.DecoderFunc) ([]int64, error) {
 	t.Helper()
-	dec, err := ocf.NewDecoder(bytes.NewReader(data))
+	dec, err := ocf.NewDecoder(bytes.NewReader(data), opts...)
 	require.NoError(t, err)
+	defer dec.Close()
 	var got []int64
 	for dec.HasNext() {
 		var v int64
