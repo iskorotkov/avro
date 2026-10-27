@@ -31,7 +31,22 @@ Unresolved issues from hamba/avro are tracked in [ISSUES.md](./ISSUES.md).
 - **Bug fix:** fixed enum type duplication in Go code generation (`avrogen`)
 - **Go 1.26+ required:** minimum Go version raised to 1.26; codebase updated to use latest Go idioms
 - **CI updated:** tested on Go 1.26 and 1.27; tools (golangci-lint, gotestsum) pinned via `go.mod` `tool` directive
+- **Dropped `modern-go/reflect2`:** the codec no longer reaches into the Go runtime through `//go:linkname`; map encoding and decoding are faster and allocate less
+- **Bug fix:** `Reader.ReadVal` reports an error for a `nil` target instead of panicking
 - **19.5% decode speedup on internally used benchmark:** optimized inlining and bounds checks in number parsing; iskorotkov/avro now decodes at 118.6 ns/op vs hamba/avro's 147.3 ns/op (Apple M4 Pro, zero allocations)
+
+## Breaking changes
+
+These `API` and `TypeResolver` methods take or return the standard `reflect.Type` instead of `reflect2.Type`:
+
+- `API.DecoderOf(schema Schema, typ reflect.Type) ValDecoder`
+- `API.EncoderOf(schema Schema, typ reflect.Type) ValEncoder`
+- `API.TypeOf(name string) (reflect.Type, error)`
+- `API.NamesOf(typ reflect.Type) ([]string, error)`
+- `TypeResolver.Name(typ reflect.Type) ([]string, error)`
+- `TypeResolver.Type(name string) (reflect.Type, error)`
+
+To migrate, replace `reflect2.TypeOf(v)` with `reflect.TypeOf(v)` (or `reflect.TypeFor[T]()`) at these call sites and drop the `github.com/modern-go/reflect2` import.
 
 ## How to migrate from hamba/avro?
 
