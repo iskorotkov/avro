@@ -1,0 +1,4 @@
+go test fuzz v1
+string("{\"type\":\"record\",\"name\":\"R\",\"fields\":[{\"name\":\"a\",\"type\":\"int\"}]}")
+string("{\"type\":\"record\",\"name\":\"R\",\"fields\":[{\"name\":\"x\",\"type\":[\"null\",\"string\"]},{\"name\":\"a\",\"type\":\"int\"}]}")
+[]byte("\x02\x02x\x02")

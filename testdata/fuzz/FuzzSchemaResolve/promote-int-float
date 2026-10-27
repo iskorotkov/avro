@@ -1,0 +1,4 @@
+go test fuzz v1
+string("\"float\"")
+string("\"int\"")
+[]byte("\x02")

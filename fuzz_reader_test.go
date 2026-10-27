@@ -1,10 +1,33 @@
 package avro_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/iskorotkov/avro/v2"
+	"github.com/iskorotkov/avro/v2/internal/fuzzcheck"
 )
+
+// fuzzLimits bounds allocations so hostile counts and lengths fail fast instead of exhausting memory.
+var fuzzLimits = avro.Config{
+	MaxByteSliceSize:  1 << 20,
+	MaxSliceAllocSize: 1 << 22,
+	MaxMapAllocSize:   1 << 20,
+}
+
+var fuzzAPI = fuzzLimits.Freeze()
+
+func fuzzDecode(api avro.API, schema avro.Schema) func([]byte) (any, error) {
+	return func(data []byte) (any, error) {
+		return fuzzcheck.Decode(api, schema, data)
+	}
+}
+
+func fuzzEncode(api avro.API, schema avro.Schema) func(any) ([]byte, error) {
+	return func(v any) ([]byte, error) {
+		return api.Marshal(schema, v)
+	}
+}
 
 // fuzzReadNextSchemas covers every schema type ReadNext dispatches on.
 var fuzzReadNextSchemas = []string{
@@ -27,7 +50,7 @@ var fuzzReadNextSchemas = []string{
 	`{"type":"record","name":"R","fields":[{"name":"a","type":"long"},{"name":"b","type":{"type":"array","items":["null","string"]}}]}`,
 }
 
-// FuzzReaderReadNext decodes data generically with ReadNext against a schema chosen by the first input byte.
+// FuzzReaderReadNext decodes data with ReadNext and round-trips it generically against a schema chosen by idx.
 func FuzzReaderReadNext(f *testing.F) {
 	for i := range fuzzReadNextSchemas {
 		f.Add(byte(i), []byte{})
@@ -43,11 +66,17 @@ func FuzzReaderReadNext(f *testing.F) {
 		schemas[i] = schema
 	}
 
-	f.Fuzz(func(_ *testing.T, idx byte, data []byte) {
+	f.Fuzz(func(t *testing.T, idx byte, data []byte) {
 		if len(data) > 1<<16 {
 			return
 		}
-		schema := schemas[int(idx)%len(schemas)]
+		i := int(idx) % len(schemas)
+		// Out-of-precision decimals (as in Java) and overflowing time-micros (a tracked bug) cannot round-trip.
+		if !strings.Contains(fuzzReadNextSchemas[i], "decimal") && !strings.Contains(fuzzReadNextSchemas[i], "time-micros") {
+			fuzzcheck.RoundTrip(t, data, fuzzDecode(fuzzAPI, schemas[i]), fuzzEncode(fuzzAPI, schemas[i]))
+		}
+		schema := schemas[i]
+
 		r := avro.NewReader(nil, 0).Reset(data)
 		for range 64 {
 			_ = r.ReadNext(schema)

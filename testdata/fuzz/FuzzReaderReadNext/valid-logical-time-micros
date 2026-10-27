@@ -1,0 +1,3 @@
+go test fuzz v1
+byte('\n')
+[]byte("\xb8\x17")

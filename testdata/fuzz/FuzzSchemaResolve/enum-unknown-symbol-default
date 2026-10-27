@@ -1,0 +1,4 @@
+go test fuzz v1
+string("{\"type\":\"enum\",\"name\":\"E\",\"symbols\":[\"A\",\"B\"],\"default\":\"A\"}")
+string("{\"type\":\"enum\",\"name\":\"E\",\"symbols\":[\"A\",\"B\",\"C\"]}")
+[]byte("\x04")

@@ -23,3 +23,7 @@ javadiff/
   A test harness that builds against Apache Avro Java (org.apache.avro:avro,
   Apache License 2.0) downloaded from Maven Central at build time; no Apache
   Avro code or binaries are redistributed in this repository.
+
+fuzz/, ../registry/testdata/fuzz/ and ../soe/testdata/fuzz/
+  Seed inputs generated from this repository's conformance vectors; no
+  Apache Avro test data is copied.

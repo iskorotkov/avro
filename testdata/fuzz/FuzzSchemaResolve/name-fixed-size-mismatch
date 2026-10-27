@@ -1,0 +1,4 @@
+go test fuzz v1
+string("{\"type\":\"fixed\",\"name\":\"F\",\"size\":3}")
+string("{\"type\":\"fixed\",\"name\":\"F\",\"size\":2}")
+[]byte("\x01\x02")
