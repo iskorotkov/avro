@@ -7,6 +7,7 @@ import (
 	"github.com/iskorotkov/avro/v2"
 	"github.com/iskorotkov/avro/v2/soe"
 	"github.com/iskorotkov/avro/v2/soe/internal/testdata"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -242,4 +243,30 @@ func TestCodec_CustomAPIFallsBackToMarshal(t *testing.T) {
 	var got testdata.StringInt
 	require.NoError(t, codec.Decode(encoded, &got))
 	require.Equal(t, want, got)
+}
+
+func TestCodec_EncodeErrors(t *testing.T) {
+	apis := map[string]avro.API{"pooled writer": avro.DefaultConfig, "marshal fallback": wrapperAPI{API: avro.DefaultConfig}}
+
+	for name, api := range apis {
+		t.Run(name, func(t *testing.T) {
+			codec, err := soe.NewCodecWithAPI(testdata.StringIntSchema, api)
+			require.NoError(t, err)
+			dst := []byte{0xff}
+
+			encoded, err := codec.Encode("not a record")
+			require.Error(t, err)
+			assert.Nil(t, encoded)
+			appended, err := codec.AppendEncode(dst, "not a record")
+			require.Error(t, err)
+			assert.Nil(t, appended)
+
+			want := testdata.StringInt{StringVal: "abc", IntVal: 123}
+			encoded, err = codec.Encode(want)
+			require.NoError(t, err)
+			var got testdata.StringInt
+			require.NoError(t, codec.Decode(encoded, &got))
+			assert.Equal(t, want, got)
+		})
+	}
 }
