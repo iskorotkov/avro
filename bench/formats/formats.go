@@ -4,6 +4,7 @@ package formats
 import (
 	"github.com/iskorotkov/avro/bench/format"
 	"github.com/iskorotkov/avro/bench/formats/avro"
+	"github.com/iskorotkov/avro/bench/formats/goavro"
 	"github.com/iskorotkov/avro/bench/formats/hamba"
 	"github.com/iskorotkov/avro/bench/formats/protobuf"
 	"github.com/iskorotkov/avro/bench/formats/stdjson"
@@ -16,6 +17,7 @@ func All() []format.Format {
 		avro.Format{},
 		hamba.Format{},
 		twmb.Format{},
+		goavro.Format{},
 		stdjson.Format{},
 		protobuf.Format{},
 	}
