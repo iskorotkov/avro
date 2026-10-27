@@ -64,7 +64,7 @@ func hasComponent(typ reflect.Type, refs bool, visited map[reflect.Type]bool, ma
 	return false
 }
 
-// sameLayout reports whether a and b share size, alignment and pointer-freedom.
+// sameLayout reports whether a and b share size, alignment and pointer-freedom, ignoring where their pointers sit.
 func sameLayout(a, b reflect.Type) bool {
 	return a.Size() == b.Size() && a.Align() == b.Align() && a.FieldAlign() == b.FieldAlign() &&
 		pointerFree(a) == pointerFree(b)

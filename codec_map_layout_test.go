@@ -53,6 +53,91 @@ func TestMap_RoundTripsElementLayouts(t *testing.T) {
 	}
 }
 
+func TestMap_RoundTripsMultiGroupMaps(t *testing.T) {
+	api := avro.Config{BlockLength: 7}.Freeze()
+
+	for _, n := range []int{9, 100, 3000} {
+		t.Run(strconv.Itoa(n), func(t *testing.T) {
+			named := map[mapKey]mapInt16{}
+			values := map[string]any{}
+			for i := range n {
+				named[mapKey(strconv.Itoa(i))] = mapInt16(i - n/2)
+				values[strconv.Itoa(i)] = int64(i)
+			}
+
+			assertMapRoundTrip(t, api, `{"type":"map","values":"int"}`, named)
+			assertMapRoundTrip(t, api, `{"type":"map","values":"long"}`, values)
+		})
+	}
+}
+
+func TestMap_RoundTripsMultiGroupPointerKeys(t *testing.T) {
+	api := avro.Config{BlockLength: 7}.Freeze()
+	schema := avro.MustParse(`{"type":"map","values":"string"}`)
+
+	for _, n := range []int{9, 100, 3000} {
+		t.Run(strconv.Itoa(n), func(t *testing.T) {
+			in := map[*benchTextKey]string{}
+			want := map[benchTextKey]string{}
+			for i := range n {
+				k := benchTextKey(i)
+				in[&k] = strconv.Itoa(i)
+				want[k] = strconv.Itoa(i)
+			}
+
+			b, err := api.Marshal(schema, in)
+			require.NoError(t, err)
+			var out map[*benchTextKey]string
+			err = api.Unmarshal(schema, b, &out)
+
+			require.NoError(t, err)
+			got := map[benchTextKey]string{}
+			for k, v := range out {
+				got[*k] = v
+			}
+			assert.Equal(t, want, got)
+		})
+	}
+}
+
+func TestMap_EncodesMultiGroupTimeKeys(t *testing.T) {
+	api := avro.Config{BlockLength: 7}.Freeze()
+	schema := avro.MustParse(`{"type":"map","values":"long"}`)
+	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	for _, n := range []int{9, 100, 3000} {
+		t.Run(strconv.Itoa(n), func(t *testing.T) {
+			in := map[time.Time]int64{}
+			want := map[string]int64{}
+			for i := range n {
+				key := start.Add(time.Duration(i) * time.Second)
+				in[key] = int64(i)
+				want[key.Format(time.RFC3339)] = int64(i)
+			}
+
+			b, err := api.Marshal(schema, in)
+			require.NoError(t, err)
+			var got map[string]int64
+			err = api.Unmarshal(schema, b, &got)
+
+			require.NoError(t, err)
+			assert.Equal(t, want, got)
+		})
+	}
+}
+
+func assertMapRoundTrip(t *testing.T, api avro.API, schema string, in any) {
+	t.Helper()
+	out := reflect.New(reflect.TypeOf(in))
+
+	b, err := api.Marshal(avro.MustParse(schema), in)
+	require.NoError(t, err)
+	err = api.Unmarshal(avro.MustParse(schema), b, out.Interface())
+
+	require.NoError(t, err)
+	assert.Equal(t, in, out.Elem().Interface())
+}
+
 func TestDecoder_MapMergesIntoExistingMap(t *testing.T) {
 	schema := avro.MustParse(`{"type":"map","values":{"type":"record","name":"test","fields":[{"name":"a","type":"long"}]}}`)
 	b, err := avro.Marshal(schema, map[string]TestRecord{"x": {A: 1}})

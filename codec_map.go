@@ -355,6 +355,7 @@ func nativeMapEncoderOf[K comparable](base mapEncoderBase) ValEncoder {
 		return nil
 	}
 
+	// Only primitive, pointer, slice and exact types qualify, as sameLayout ignores pointer positions.
 	switch elemType.Kind() {
 	case reflect.String:
 		return newNativeMapEncoder[K, string](base)
