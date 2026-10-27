@@ -206,7 +206,7 @@ func encoderOfStruct(e *encoderContext, rec *RecordSchema, typ reflect2.Type) Va
 		defaultType := reflect2.TypeOf(def)
 		defaultEncoder := encoderOfType(e, field.Type(), defaultType)
 		if defaultType.LikePtr() {
-			defaultEncoder = &onePtrEncoder{defaultEncoder}
+			defaultEncoder = newOnePtrEncoder(defaultType, defaultEncoder)
 		}
 		fields = append(fields, &structFieldEncoder{
 			defaultPtr: reflect2.PtrOf(def),
@@ -358,7 +358,7 @@ func encoderOfRecord(e *encoderContext, rec *RecordSchema, typ reflect2.Type) Va
 			defaultType := reflect2.TypeOf(fields[i].def)
 			fields[i].defEncoder = encoderOfType(e, field.Type(), defaultType)
 			if defaultType.LikePtr() {
-				fields[i].defEncoder = &onePtrEncoder{fields[i].defEncoder}
+				fields[i].defEncoder = newOnePtrEncoder(defaultType, fields[i].defEncoder)
 			}
 		}
 	}

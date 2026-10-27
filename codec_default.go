@@ -16,7 +16,7 @@ func createDefaultDecoder(d *decoderContext, field *Field, typ reflect2.Type) Va
 		}
 		defaultEncoder := encoderOfType(newEncoderContext(cfg), field.Type(), defaultType)
 		if defaultType.LikePtr() {
-			defaultEncoder = &onePtrEncoder{defaultEncoder}
+			defaultEncoder = newOnePtrEncoder(defaultType, defaultEncoder)
 		}
 		w := cfg.borrowWriter()
 		defer cfg.returnWriter(w)

@@ -176,10 +176,29 @@ func (c *frozenConfig) EncoderOf(schema Schema, typ reflect2.Type) ValEncoder {
 
 	encoder = encoderOfType(newEncoderContext(c), schema, typ)
 	if typ.LikePtr() {
-		encoder = &onePtrEncoder{encoder}
+		encoder = newOnePtrEncoder(typ, encoder)
 	}
 	c.addEncoderToCache(schema.CacheFingerprint(), rtype, encoder)
 	return encoder
+}
+
+// newOnePtrEncoder wraps enc for a pointer-like typ, copying the pointer to the heap when user methods may keep its address.
+func newOnePtrEncoder(typ reflect2.Type, enc ValEncoder) ValEncoder {
+	if exposesAddress(typ.Type1()) {
+		return &heapPtrEncoder{enc}
+	}
+	return &onePtrEncoder{enc}
+}
+
+// heapPtrEncoder is a onePtrEncoder for values whose address may reach user methods.
+type heapPtrEncoder struct {
+	enc ValEncoder
+}
+
+func (e *heapPtrEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
+	p := new(unsafe.Pointer)
+	*p = ptr
+	e.enc.Encode(unsafe.Pointer(p), w)
 }
 
 type onePtrEncoder struct {

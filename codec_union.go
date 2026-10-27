@@ -192,7 +192,7 @@ func (e *mapUnionEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 
 	encoder := encoderOfType(newEncoderContext(e.cfg), schema, elemType)
 	if elemType.LikePtr() {
-		encoder = &onePtrEncoder{encoder}
+		encoder = newOnePtrEncoder(elemType, encoder)
 	}
 	encoder.Encode(elemPtr, w)
 }
