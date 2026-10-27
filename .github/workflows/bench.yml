@@ -50,5 +50,13 @@ jobs:
       - name: Test
         run: go test ./...
 
+      - name: Check build-tagged formats and generated code
+        run: |
+          GOEXPERIMENT=jsonv2 go vet ./...
+          GOEXPERIMENT=jsonv2 go test ./suite
+          GOARCH=arm go vet ./formats/...
+          go generate ./formats/msgp
+          git diff --exit-code
+
       - name: Run each benchmark once to check round trips
         run: go test -run='^$' -bench=. -benchtime=1x ./...
