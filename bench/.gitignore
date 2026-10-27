@@ -4,3 +4,5 @@
 /results/*.txt
 !/results/latest.txt
 /results/profiles/
+/results/java.json
+/java/target/
