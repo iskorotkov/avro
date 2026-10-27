@@ -92,6 +92,30 @@ jobs:
           CGO_ENABLED: "0"
         run: go test -count=1 ./...
 
+  test-mapsplitgroup:
+    runs-on: ubuntu-latest
+    env:
+      GO_VERSION: "1.27"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Go
+        id: install-go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+        if: steps.install-go.outputs.cache-hit != 'true'
+
+      # Native map codecs alias map types by layout, so they run under the alternate map group layout too.
+      - name: Run Tests (GOEXPERIMENT=mapsplitgroup)
+        env:
+          GOEXPERIMENT: "mapsplitgroup"
+        run: go test -count=1 -race .
+
   test-bigendian:
     runs-on: ubuntu-latest
     # Emulated runs are slow but bounded; fail fast instead of burning the 6h default on a qemu hang.
