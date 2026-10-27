@@ -169,3 +169,17 @@ func TestSemanticError_ManualFieldMessage(t *testing.T) {
 
 	assert.Equal(t, "a.b: EOF", err.Error())
 }
+
+func TestSemanticError_ArrayEncodePathHasSinglePrefix(t *testing.T) {
+	schema := avro.MustParse(`{"type":"record","name":"r","fields":[{"name":"l","type":{"type":"array","items":"int"}}]}`)
+	type rec struct {
+		L []any `avro:"l"`
+	}
+
+	_, err := avro.Marshal(schema, rec{L: []any{"x"}})
+
+	var semErr *avro.SemanticError
+	require.ErrorAs(t, err, &semErr)
+	assert.Equal(t, "L", semErr.Field)
+	assert.EqualError(t, err, "L: []interface {}: avro: string is unsupported for Avro int")
+}

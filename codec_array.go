@@ -114,7 +114,6 @@ func (e *arrayEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 				elemPtr := e.typ.UnsafeGetIndex(ptr, j)
 				e.encoder.Encode(elemPtr, w)
 				if w.Error != nil && !errors.Is(w.Error, io.EOF) {
-					w.Error = fmt.Errorf("%s: %w", e.typ.String(), w.Error)
 					return count
 				}
 				count++

@@ -26,6 +26,7 @@ Unresolved issues from hamba/avro are tracked in [ISSUES.md](./ISSUES.md).
 - **Feature:** `AppendMarshal` encodes into a caller-owned buffer without allocations
 - **Feature:** opt-in `Config.DisallowUnknownFields` and `Config.AliasInput` (zero-copy strings and bytes in `Unmarshal`)
 - **Behaviour change:** record field errors are now `*avro.SemanticError`; messages and `errors.Is` matching are unchanged
+- **Bug fix:** array encode errors name the slice type once instead of twice
 - **Behaviour change:** `Unmarshal` input that ends before the value is complete (including empty input) returns `*avro.ShortBufferError` wrapping `io.ErrUnexpectedEOF` instead of `nil`, and `Decoder.Decode` returns `io.ErrUnexpectedEOF` for a stream cut inside a value
 - **Feature:** added Avro 1.12 nanosecond-precision timestamp logical types (`timestamp-nanos`, `local-timestamp-nanos`)
 - **Bug fix:** timestamp encoders return an error when the value does not fit the `long` range of the schema precision instead of silently wrapping
