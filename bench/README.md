@@ -32,13 +32,22 @@ machine drift spreads across formats. It then:
 - writes [RESULTS.md](RESULTS.md) and SVG charts to `results/charts/`
   (light and dark mode aware, embeddable in READMEs).
 
-Other flags: `-data` (full datasets, see below), `-java` (JMH JSON, see
-[java/README.md](java/README.md)), `-out`, `-charts`, `-results`, `-procs`.
+Other flags: `-java-run` / `-java-args` (run the Java suite first, see below), `-data` (full datasets, see below), `-java` (JMH JSON file), `-out`, `-charts`, `-results`, `-procs`.
 Run `go run ./cmd/report -h` for the full list.
 
 Close other applications and keep the machine on AC power; numbers from
 shared CI runners are too noisy for comparisons, so CI only checks that every
 benchmark builds and round-trips (`-benchtime=1x`).
+
+## Java comparison
+
+`go run ./cmd/report -java-run` runs [java/run.sh](java/run.sh) (JDK 21 and
+Maven) and merges the numbers as `java-avro-generic` and `java-avro-specific`;
+without `java`/`mvn` it is skipped, and `-java <file>` merges an existing JMH
+JSON. Java runs in a separate JVM, process and harness (JMH forks, JIT warmup,
+its own GC), not interleaved with the Go rounds, so the comparison is
+approximate. `-java-run` ignores `-dataset`/`-op`/`-format` (pass `-java-args='-p dataset=superhero'`), is refused with `-data`, and takes precedence over `-java`. Expect machine drift between the two runs and different
+steady-state assumptions. Compare shapes and ratios, not small gaps.
 
 ## Operations and metrics
 
