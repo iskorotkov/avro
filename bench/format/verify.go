@@ -58,7 +58,7 @@ func verifyBatch(s *Subject) error {
 		return fmt.Errorf("unmarshal: %w", err)
 	}
 
-	return s.equalAll(got)
+	return s.Check(got)
 }
 
 func verifyContainer(s *Subject, compression string) error {
@@ -72,10 +72,14 @@ func verifyContainer(s *Subject, compression string) error {
 		return fmt.Errorf("read: %w", err)
 	}
 
-	return s.equalAll(got)
+	return s.Check(got)
 }
 
-func (s *Subject) equalAll(got []any) error {
+// Check reports the first value of got that differs from the matching value of Values.
+func (s *Subject) Check(got []any) error {
+	if len(got) != len(s.Values) {
+		return fmt.Errorf("got %d values, want %d", len(got), len(s.Values))
+	}
 	for i, v := range s.Values {
 		if !s.equal(v, got[i]) {
 			return fmt.Errorf("value %d differs after round trip", i)

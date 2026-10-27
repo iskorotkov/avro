@@ -55,7 +55,7 @@ func encode(b *testing.B, s *format.Subject) {
 		size += len(data)
 	}
 
-	measure(b, len(s.Values), size, func() {
+	Measure(b, len(s.Values), size, func() {
 		for _, v := range s.Values {
 			if _, err := s.Codec.Marshal(v); err != nil {
 				b.Fatal(err)
@@ -76,7 +76,7 @@ func decode(b *testing.B, s *format.Subject) {
 		size += len(data)
 	}
 
-	measure(b, len(payloads), size, func() {
+	Measure(b, len(payloads), size, func() {
 		for _, p := range payloads {
 			if err := s.Codec.Unmarshal(p, s.New()); err != nil {
 				b.Fatal(err)
@@ -91,7 +91,7 @@ func batchEncode(b *testing.B, s *format.Subject) {
 		b.Fatal(err)
 	}
 
-	measure(b, len(s.Values), len(data), func() {
+	Measure(b, len(s.Values), len(data), func() {
 		if _, err := s.Batch.MarshalBatch(s.Values); err != nil {
 			b.Fatal(err)
 		}
@@ -105,7 +105,7 @@ func batchDecode(b *testing.B, s *format.Subject) {
 	}
 	data = bytes.Clone(data)
 
-	measure(b, len(s.Values), len(data), func() {
+	Measure(b, len(s.Values), len(data), func() {
 		if err := s.Batch.UnmarshalBatch(data, s.NewValues(len(s.Values))); err != nil {
 			b.Fatal(err)
 		}
@@ -119,7 +119,7 @@ func containerWrite(compression string) func(*testing.B, *format.Subject) {
 			b.Fatal(err)
 		}
 
-		measure(b, len(s.Values), buf.Len(), func() {
+		Measure(b, len(s.Values), buf.Len(), func() {
 			buf.Reset()
 			if err := s.Container.WriteContainer(&buf, compression, s.Values); err != nil {
 				b.Fatal(err)
@@ -136,7 +136,7 @@ func containerRead(compression string) func(*testing.B, *format.Subject) {
 		}
 		data := buf.Bytes()
 
-		measure(b, len(s.Values), len(data), func() {
+		Measure(b, len(s.Values), len(data), func() {
 			if err := s.Container.ReadContainer(bytes.NewReader(data), s.NewValues(len(s.Values))); err != nil {
 				b.Fatal(err)
 			}
@@ -144,8 +144,8 @@ func containerRead(compression string) func(*testing.B, *format.Subject) {
 	}
 }
 
-// measure times run over records and reports throughput and wire size metrics.
-func measure(b *testing.B, records, wireBytes int, run func()) {
+// Measure times run over records and reports throughput and wire size metrics.
+func Measure(b *testing.B, records, wireBytes int, run func()) {
 	b.Helper()
 	b.SetBytes(int64(wireBytes))
 	b.ReportAllocs()
