@@ -8,8 +8,10 @@ import (
 )
 
 const (
-	defaultMaxByteSliceSize = 1_048_576 // 1 MiB
-	defaultMaxDepth         = 1000
+	defaultMaxByteSliceSize  = 1_048_576  // 1 MiB
+	defaultMaxSliceAllocSize = 67_108_864 // 64 Mi elements
+	defaultMaxMapAllocSize   = 67_108_864 // 64 Mi entries
+	defaultMaxDepth          = 1000
 
 	defaultSlabSize = 1024
 
@@ -53,19 +55,20 @@ type Config struct {
 	// call to Marshal() and Unmarshal()
 	DisableCaching bool
 
-	// MaxByteSliceSize is the maximum size of `bytes` or `string` types the Reader will create, defaulting to 1MiB.
-	// If this size is exceeded, the Reader returns an error. This can be disabled by setting a negative number.
+	// MaxByteSliceSize is the maximum size in bytes of `bytes` or `string` types the Reader will allocate.
+	// It defaults to 1 MiB when set to zero or a negative value and is capped at the platform allocation limit.
+	// If this size is exceeded, the Reader returns an error.
 	MaxByteSliceSize int
 
 	// MaxSliceAllocSize is the maximum total number of array elements the decoder will read for a
-	// single decoded value, summed over all arrays it contains. It is set to the max heap allocation
-	// size by default.
+	// single decoded value, summed over all arrays it contains. It defaults to 67,108,864 when set to
+	// zero or a negative value and is capped at the platform allocation limit.
 	// If this size is exceeded, the decoder returns an error.
 	MaxSliceAllocSize int
 
 	// MaxMapAllocSize is the maximum total number of map entries the decoder will read for a
-	// single decoded value, summed over all maps it contains. It is set to the max heap allocation
-	// size by default.
+	// single decoded value, summed over all maps it contains. It defaults to 67,108,864 when set to
+	// zero or a negative value and is capped at the platform allocation limit.
 	// If this size is exceeded, the decoder returns an error.
 	MaxMapAllocSize int
 
@@ -329,26 +332,26 @@ func (c *frozenConfig) getBlockLength() int {
 
 func (c *frozenConfig) getMaxByteSliceSize() int {
 	size := c.config.MaxByteSliceSize
-	if size == 0 {
+	if size <= 0 {
 		return defaultMaxByteSliceSize
 	}
-	return size
+	return min(size, maxAllocSize)
 }
 
 func (c *frozenConfig) getMaxSliceAllocSize() int {
 	size := c.config.MaxSliceAllocSize
-	if size > maxAllocSize || size <= 0 {
-		return maxAllocSize
+	if size <= 0 {
+		return defaultMaxSliceAllocSize
 	}
-	return size
+	return min(size, maxAllocSize)
 }
 
 func (c *frozenConfig) getMaxMapAllocSize() int {
 	size := c.config.MaxMapAllocSize
-	if size > maxAllocSize || size <= 0 {
-		return maxAllocSize
+	if size <= 0 {
+		return defaultMaxMapAllocSize
 	}
-	return size
+	return min(size, maxAllocSize)
 }
 
 func (c *frozenConfig) getMaxDepth() int {

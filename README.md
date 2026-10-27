@@ -32,6 +32,7 @@ Unresolved issues from hamba/avro are tracked in [ISSUES.md](./ISSUES.md).
 - **Security:** decoding rejects hostile payloads: nesting of recursive records is limited by the new `Config.MaxDepth` (default 1000, also applied when encoding, which rejects cyclic values), array and map counts are checked against the remaining input and allocated in bounded chunks, items without wire representation are capped, decoding stops at the first error, and skipped fields and `Reader.ReadNext` obey the same limits
 - **Bug fix:** `Unmarshal`, `Decoder.Decode` and `Reader.ReadNext` return an error wrapping `io.ErrUnexpectedEOF` when the input ends inside a value instead of silently returning a partially filled value; `Decoder.Decode` still returns `io.EOF` at a clean value boundary; `Reader.ReadBytes` and `Reader.ReadString` return `nil`/`""` when they fail, and `soe` `DecodeUnverified` fails with `io.ErrUnexpectedEOF` when the payload after the header is empty or truncated
 - **Feature:** limit violations can be matched with `errors.Is` against the exported `ErrMaxDepth`, `ErrMaxSliceAllocSize`, `ErrMaxMapAllocSize`, `ErrMaxByteSliceSize`, `ErrTooManyZeroWidthItems` and `ErrBlockCountExceedsInput` (which also wraps `io.ErrUnexpectedEOF`)
+- **Security (breaking):** `MaxSliceAllocSize`/`MaxMapAllocSize` default to 64 Mi elements summed over the whole decoded value, OCF blocks are capped at 64 MiB by default, and zero or negative limits select the default instead of disabling the limit
 - **Go 1.26+ required:** minimum Go version raised to 1.26; codebase updated to use latest Go idioms
 - **CI updated:** tested on Go 1.26 and 1.27; tools (golangci-lint, gotestsum) pinned via `go.mod` `tool` directive
 - **19.5% decode speedup on internally used benchmark:** optimized inlining and bounds checks in number parsing; iskorotkov/avro now decodes at 118.6 ns/op vs hamba/avro's 147.3 ns/op (Apple M4 Pro, zero allocations)
@@ -237,16 +238,18 @@ The type conversion for decoding will receive the decoded value with a data type
 
 #### Untrusted Input
 
-When processing untrusted Avro data, it is important to configure protection against Denial of Service (DoS) attacks. The library provides three configuration options to limit resource allocation:
+When processing untrusted Avro data, it is important to configure protection against Denial of Service (DoS) attacks. The library applies safe defaults and provides these configuration options to tighten them:
 
 - `Config.MaxByteSliceSize` - Restricts the maximum size of `bytes` and `string` types (default: `1MiB`)
-- `Config.MaxSliceAllocSize` - Limits the total number of array elements in one decoded value (default: unlimited)
-- `Config.MaxMapAllocSize` - Limits the total number of map entries in one decoded value (default: unlimited)
+- `Config.MaxSliceAllocSize` - Limits the total number of array elements in one decoded value (default: `67,108,864`)
+- `Config.MaxMapAllocSize` - Limits the total number of map entries in one decoded value (default: `67,108,864`)
 - `Config.MaxDepth` - Limits how deeply recursive records (such as linked lists and trees) nest when decoding and encoding (default: `1000`)
 
 Independently of these options, array and map counts must fit in the remaining input when it is known (byte slices, `bytes.Reader`, `bytes.Buffer`, `strings.Reader`), allocation grows in chunks as items are decoded, and arrays whose items have no wire representation (such as `null` or empty records) are limited to 1,048,576 items per decoded value.
 
 `MaxSliceAllocSize` and `MaxMapAllocSize` are budgets per decoded value: all arrays (or maps) inside one value, including skipped fields, share them, and the budget is reset for the next value.
+
+When reading Object Container Files, `ocf.WithMaxBlockBytes` and `ocf.WithMaxDecompressedBlockBytes` additionally cap a single data block's compressed and decompressed sizes (default: `64MiB` each).
 
 For comprehensive security considerations and configuration requirements, please refer to [SECURITY.md](SECURITY.md).
 

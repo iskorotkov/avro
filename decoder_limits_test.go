@@ -173,11 +173,11 @@ func TestUnmarshal_ForgedBlockCountsReturnError(t *testing.T) {
 		wantErr error
 	}{
 		{
-			name:    "huge array over remaining input",
+			name:    "array over slice limit",
 			schema:  `{"type":"array","items":{"type":"record","name":"R","fields":[{"name":"a","type":"long"},{"name":"b","type":"string"}]}}`,
 			data:    avro.EncodeIntToBytes(1_000_000_000),
 			v:       new([]struct{ A int64 }),
-			wantErr: avro.ErrBlockCountExceedsInput,
+			wantErr: avro.ErrMaxSliceAllocSize,
 		},
 		{
 			name:    "array over remaining input",
@@ -198,7 +198,7 @@ func TestUnmarshal_ForgedBlockCountsReturnError(t *testing.T) {
 			schema:  `{"type":"map","values":"int"}`,
 			data:    avro.EncodeIntToBytes(100_000_000),
 			v:       new(map[string]int),
-			wantErr: avro.ErrBlockCountExceedsInput,
+			wantErr: avro.ErrMaxMapAllocSize,
 		},
 		{
 			name:    "map into any over remaining input",
@@ -514,7 +514,7 @@ func TestReader_ReadNextForgedCountReturnsError(t *testing.T) {
 		wantErr error
 	}{
 		{name: "array of null", schema: `{"type":"array","items":"null"}`, data: avro.EncodeIntToBytes(40_000_000), wantErr: avro.ErrTooManyZeroWidthItems},
-		{name: "huge array of null", schema: `{"type":"array","items":"null"}`, data: avro.EncodeIntToBytes(1_000_000_000), wantErr: avro.ErrTooManyZeroWidthItems},
+		{name: "array over slice limit", schema: `{"type":"array","items":"null"}`, data: avro.EncodeIntToBytes(1_000_000_000), wantErr: avro.ErrMaxSliceAllocSize},
 		{name: "map over remaining input", schema: `{"type":"map","values":"null"}`, data: avro.EncodeIntToBytes(40_000_000), wantErr: avro.ErrBlockCountExceedsInput},
 	}
 	for _, tt := range tests {
