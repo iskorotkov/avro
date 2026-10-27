@@ -100,7 +100,7 @@ func WithZStandardDecoder(dec *zstd.Decoder) DecoderFunc {
 	}
 }
 
-// WithMaxBlockBytes caps the declared compressed size of a single OCF data block; a header claiming more errors out before any allocation. It defaults to 64 MiB when set to zero or a negative value; set a higher value to allow larger blocks.
+// WithMaxBlockBytes caps the declared compressed size of a single OCF data block; a header claiming more errors out before any allocation. It defaults to 64 MiB when set to zero or a negative value; the cap cannot be disabled, so set a higher value to allow larger blocks.
 //
 // It does not bound decompression amplification — a small block can still expand much larger; combine it with WithMaxDecompressedBlockBytes.
 func WithMaxBlockBytes(n int) DecoderFunc {
@@ -109,7 +109,7 @@ func WithMaxBlockBytes(n int) DecoderFunc {
 	}
 }
 
-// WithMaxDecompressedBlockBytes caps the size of a single OCF data block after the codec decompresses it; built-in codecs (deflate, snappy, zstandard) reject inputs that would expand past it. It defaults to 64 MiB when set to zero or a negative value; set a higher value to allow larger blocks.
+// WithMaxDecompressedBlockBytes caps the size of a single OCF data block after the codec decompresses it; built-in codecs (deflate, snappy, zstandard) reject inputs that would expand past it. It defaults to 64 MiB when set to zero or a negative value; the cap cannot be disabled, so set a higher value to allow larger blocks.
 //
 // It does not apply to user-supplied codecs registered outside this package; with a zstandard decoder shared via WithZStandardDecoder it still rejects oversized output but cannot prevent the allocation, so set zstd.WithDecoderMaxMemory on the shared decoder to reject earlier.
 func WithMaxDecompressedBlockBytes(n int) DecoderFunc {

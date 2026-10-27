@@ -59,18 +59,21 @@ type Config struct {
 
 	// MaxByteSliceSize is the maximum size in bytes of `bytes` or `string` types the Reader will allocate.
 	// It defaults to 1 MiB when set to zero or a negative value and is capped at the platform allocation limit.
+	// The limit cannot be disabled; set a large explicit value to allow bigger data.
 	// If this size is exceeded, the Reader returns an error.
 	MaxByteSliceSize int
 
 	// MaxSliceAllocSize is the maximum total number of array elements the decoder will read for a
 	// single decoded value, summed over all arrays it contains. It defaults to 67,108,864 when set to
 	// zero or a negative value and is capped at the platform allocation limit.
+	// The limit cannot be disabled; set a large explicit value to allow bigger data.
 	// If this size is exceeded, the decoder returns an error.
 	MaxSliceAllocSize int
 
 	// MaxMapAllocSize is the maximum total number of map entries the decoder will read for a
 	// single decoded value, summed over all maps it contains. It defaults to 67,108,864 when set to
 	// zero or a negative value and is capped at the platform allocation limit.
+	// The limit cannot be disabled; set a large explicit value to allow bigger data.
 	// If this size is exceeded, the decoder returns an error.
 	MaxMapAllocSize int
 

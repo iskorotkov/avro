@@ -37,6 +37,13 @@ Unresolved issues from hamba/avro are tracked in [ISSUES.md](./ISSUES.md).
 - **CI updated:** tested on Go 1.26 and 1.27; tools (golangci-lint, gotestsum) pinned via `go.mod` `tool` directive
 - **19.5% decode speedup on internally used benchmark:** optimized inlining and bounds checks in number parsing; iskorotkov/avro now decodes at 118.6 ns/op vs hamba/avro's 147.3 ns/op (Apple M4 Pro, zero allocations)
 
+## Breaking changes
+
+- **Limits can no longer be disabled.** `Config.MaxByteSliceSize`, `Config.MaxSliceAllocSize`, `Config.MaxMapAllocSize`, `ocf.WithMaxBlockBytes` and `ocf.WithMaxDecompressedBlockBytes` treat zero and negative values, including `-1`, as "use the default". Previously `-1` disabled `MaxByteSliceSize` and zero or negative values left the other limits unbounded. To accept larger data, set an explicit large value, for example `MaxByteSliceSize: 256 << 20`.
+- **Zero or negative always means the default.** Every numeric size or limit option follows this rule: the `Config` limits above, `Config.MaxDepth`, `Config.BlockLength`, `Config.SlabSize`, `Config.ReadBufSize`, `Config.WriteBufSize`, and the OCF options. `ocf.WithBlockLength(0)` used to write unbounded blocks and negative values flushed every record into its own block; both now select the default of 100 records. A negative `ocf.WithBlockSize` used to flush every record; it now selects the default, which bounds blocks by record count only.
+- **Large OCF blocks need a raised decoder cap.** The encoder does not limit block bytes by default, so files with 100 large records per block can exceed the decoder's 64 MiB default. Raise `ocf.WithMaxBlockBytes`/`ocf.WithMaxDecompressedBlockBytes` to read them, or write smaller blocks with `ocf.WithBlockSize`.
+- **Stricter defaults.** Arrays and maps are limited to 67,108,864 items in total per decoded value, and OCF blocks to 64 MiB compressed and decompressed. Strings and bytes stay at 1 MiB and recursive records at 1000 levels (`Config.MaxDepth`).
+
 ## How to migrate from hamba/avro?
 
 You have 2 options:
