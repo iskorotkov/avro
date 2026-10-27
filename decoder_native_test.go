@@ -1124,6 +1124,49 @@ func TestDecoder_BytesRat_Zero(t *testing.T) {
 	assert.Equal(t, big.NewRat(0, 1), got)
 }
 
+func TestDecoder_BytesRatValue(t *testing.T) {
+	defer ConfigTeardown()
+
+	tests := []struct {
+		name string
+		data []byte
+		want *big.Rat
+	}{
+		{name: "Positive", data: []byte{0x6, 0x00, 0x87, 0x78}, want: big.NewRat(1734, 5)},
+		{name: "Negative", data: []byte{0x6, 0xFF, 0x78, 0x88}, want: big.NewRat(-1734, 5)},
+		{name: "Zero", data: []byte{0x02, 0x00}, want: big.NewRat(0, 1)},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			schema := `{"type":"bytes","logicalType":"decimal","precision":4,"scale":2}`
+			dec, err := avro.NewDecoder(schema, bytes.NewReader(test.data))
+			require.NoError(t, err)
+
+			var got big.Rat
+			err = dec.Decode(&got)
+
+			require.NoError(t, err)
+			assert.Equal(t, test.want.String(), got.String())
+		})
+	}
+}
+
+func TestDecoder_BytesRatValueInRecord(t *testing.T) {
+	defer ConfigTeardown()
+
+	type record struct {
+		D big.Rat `avro:"d"`
+	}
+	schema := avro.MustParse(`{"type":"record","name":"R","fields":[{"name":"d","type":{"type":"bytes","logicalType":"decimal","precision":4,"scale":2}}]}`)
+
+	var got record
+	err := avro.Unmarshal(schema, []byte{0x6, 0xFF, 0x78, 0x88}, &got)
+
+	require.NoError(t, err)
+	assert.Equal(t, "-1734/5", got.D.String())
+}
+
 func TestDecoder_BytesRatInvalidSchema(t *testing.T) {
 	defer ConfigTeardown()
 

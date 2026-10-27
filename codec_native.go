@@ -699,7 +699,7 @@ type bytesDecimalCodec struct {
 }
 
 func (c *bytesDecimalCodec) Decode(ptr unsafe.Pointer, r *Reader) {
-	*(**big.Rat)(ptr) = ratFromBytes(r.ReadBytes(), c.scale)
+	(*big.Rat)(ptr).Set(ratFromBytes(r.ReadBytes(), c.scale))
 }
 
 func (c *bytesDecimalCodec) Encode(ptr unsafe.Pointer, w *Writer) {

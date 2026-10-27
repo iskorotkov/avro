@@ -31,6 +31,7 @@ Unresolved issues from hamba/avro are tracked in [ISSUES.md](./ISSUES.md).
 - **Bug fix:** fixed enum type duplication in Go code generation (`avrogen`)
 - **Bug fix:** encoder and decoder caches take field defaults into account, so schemas differing only in defaults no longer share codecs ([hamba/avro#449](https://github.com/hamba/avro/issues/449))
 - **Bug fix:** empty unions (`[]`) are accepted as the Avro spec allows; encoding or decoding a value against one returns an error
+- **Bug fix:** decoding a `bytes` decimal into a `big.Rat` value (not a pointer) sets the value instead of leaving it zero
 - **Security:** hardened handling of untrusted schemas: `Resolve` handles recursive and DAG schemas, `fixed` size and `decimal` precision are capped, OCF and registry schemas no longer leak into `avro.DefaultSchemaCache`, and codec caches can be bounded (see [SECURITY.md](SECURITY.md))
 - **Go 1.26+ required:** minimum Go version raised to 1.26; codebase updated to use latest Go idioms
 - **CI updated:** tested on Go 1.26 and 1.27; tools (golangci-lint, gotestsum) pinned via `go.mod` `tool` directive
