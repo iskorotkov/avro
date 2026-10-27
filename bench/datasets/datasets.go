@@ -6,6 +6,7 @@ import (
 	"github.com/iskorotkov/avro/bench/datasets/earthquakes"
 	"github.com/iskorotkov/avro/bench/datasets/nyctaxi"
 	"github.com/iskorotkov/avro/bench/datasets/superhero"
+	"github.com/iskorotkov/avro/bench/datasets/wikirc"
 )
 
 // All returns the providers of every dataset in benchmark order.
@@ -14,5 +15,6 @@ func All() []dataset.Provider {
 		superhero.Provider{},
 		nyctaxi.Provider{},
 		earthquakes.Provider{},
+		wikirc.Provider{},
 	}
 }

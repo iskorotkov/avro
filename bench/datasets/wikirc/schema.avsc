@@ -1,0 +1,69 @@
+{
+    "type": "record",
+    "name": "RecentChange",
+    "namespace": "wikimedia.mediawiki",
+    "fields": [
+        {"name": "schema", "type": "string"},
+        {"name": "meta", "type": {
+            "type": "record",
+            "name": "Meta",
+            "fields": [
+                {"name": "uri", "type": "string"},
+                {"name": "request_id", "type": {"type": "string", "logicalType": "uuid"}},
+                {"name": "id", "type": {"type": "string", "logicalType": "uuid"}},
+                {"name": "dt", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+                {"name": "domain", "type": "string"},
+                {"name": "stream", "type": "string"},
+                {"name": "topic", "type": "string"},
+                {"name": "partition", "type": "int"},
+                {"name": "offset", "type": "long"}
+            ]
+        }},
+        {"name": "id", "type": ["null", "long"]},
+        {"name": "type", "type": {"type": "enum", "name": "ChangeType", "symbols": ["edit", "new", "log", "categorize"]}},
+        {"name": "namespace", "type": "int"},
+        {"name": "title", "type": "string"},
+        {"name": "title_url", "type": "string"},
+        {"name": "comment", "type": "string"},
+        {"name": "parsedcomment", "type": "string"},
+        {"name": "timestamp", "type": "long"},
+        {"name": "user", "type": "string"},
+        {"name": "bot", "type": "boolean"},
+        {"name": "minor", "type": ["null", "boolean"]},
+        {"name": "patrolled", "type": ["null", "boolean"]},
+        {"name": "length", "type": ["null", {
+            "type": "record",
+            "name": "Length",
+            "fields": [
+                {"name": "old", "type": ["null", "long"]},
+                {"name": "new", "type": ["null", "long"]}
+            ]
+        }]},
+        {"name": "revision", "type": ["null", {
+            "type": "record",
+            "name": "Revision",
+            "fields": [
+                {"name": "old", "type": ["null", "long"]},
+                {"name": "new", "type": ["null", "long"]}
+            ]
+        }]},
+        {"name": "server_url", "type": "string"},
+        {"name": "server_name", "type": "string"},
+        {"name": "server_script_path", "type": "string"},
+        {"name": "wiki", "type": "string"},
+        {"name": "notify_url", "type": "string"},
+        {"name": "log_id", "type": ["null", "long"]},
+        {"name": "log_type", "type": ["null", "string"]},
+        {"name": "log_action", "type": ["null", "string"]},
+        {"name": "log_action_comment", "type": ["null", "string"]},
+        {"name": "log_params", "type": ["null", {
+            "type": "record",
+            "name": "LogParams",
+            "fields": [
+                {"name": "list", "type": ["null", {"type": "array", "items": "string"}]},
+                {"name": "fields", "type": ["null", {"type": "map", "values": "string"}]},
+                {"name": "text", "type": ["null", "string"]}
+            ]
+        }]}
+    ]
+}
