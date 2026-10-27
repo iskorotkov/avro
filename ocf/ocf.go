@@ -61,6 +61,7 @@ type decoderConfig struct {
 	CodecOptions              codecOptions
 	MaxBlockBytes             int
 	MaxDecompressedBlockBytes int
+	MaxZeroWidthBlockCount    int64
 }
 
 // DecoderFunc represents a configuration function for Decoder.
@@ -115,13 +116,20 @@ func WithMaxDecompressedBlockBytes(n int) DecoderFunc {
 	}
 }
 
-// maxZeroWidthBlockCount caps the record count of a block whose schema encodes to zero bytes, such as "null" or an empty record.
-const maxZeroWidthBlockCount = 1 << 24
+// WithMaxZeroWidthBlockCount caps the record count of a block whose schema encodes to zero bytes, such as "null" or an empty record. Values <= 0 restore the default of DefaultMaxZeroWidthBlockCount.
+func WithMaxZeroWidthBlockCount(n int64) DecoderFunc {
+	return func(cfg *decoderConfig) {
+		cfg.MaxZeroWidthBlockCount = n
+	}
+}
+
+// DefaultMaxZeroWidthBlockCount is the default record-count cap for blocks of a zero-width schema.
+const DefaultMaxZeroWidthBlockCount = 1 << 24
 
 // Decoder reads and decodes Avro values from a container file.
 //
 // A block whose record count cannot fit in its decoded bytes is rejected. For schemas that encode to zero
-// bytes, such as "null" or an empty record, a block may hold at most 2^24 records; larger blocks are rejected.
+// bytes, such as "null" or an empty record, a block may hold at most WithMaxZeroWidthBlockCount records.
 type Decoder struct {
 	reader   *avro.Reader
 	block    *avro.Reader
@@ -134,12 +142,16 @@ type Decoder struct {
 
 	codec Codec
 
-	count         int64
-	maxBlockBytes int
-	minValueBytes int
+	count             int64
+	maxBlockBytes     int
+	maxZeroWidthCount int64
+	minValueBytes     int
 }
 
 // NewDecoder returns a new decoder that reads from reader r.
+//
+// The header's metadata map and schema are bounded by the MaxMapAllocSize and MaxByteSliceSize of the
+// config passed with WithDecoderConfig.
 func NewDecoder(r io.Reader, opts ...DecoderFunc) (*Decoder, error) {
 	cfg := decoderConfig{
 		DecoderConfig: avro.DefaultConfig,
@@ -150,6 +162,9 @@ func NewDecoder(r io.Reader, opts ...DecoderFunc) (*Decoder, error) {
 	}
 	for _, opt := range opts {
 		opt(&cfg)
+	}
+	if cfg.MaxZeroWidthBlockCount <= 0 {
+		cfg.MaxZeroWidthBlockCount = DefaultMaxZeroWidthBlockCount
 	}
 
 	cfg.CodecOptions.MaxDecompressedBytes = cfg.MaxDecompressedBlockBytes
@@ -162,15 +177,16 @@ func NewDecoder(r io.Reader, opts ...DecoderFunc) (*Decoder, error) {
 	}
 
 	return &Decoder{
-		reader:        reader,
-		block:         avro.NewReader(nil, 0, avro.WithReaderConfig(cfg.DecoderConfig)),
-		api:           cfg.DecoderConfig,
-		meta:          h.Meta,
-		sync:          h.Sync,
-		codec:         h.Codec,
-		schema:        h.Schema,
-		maxBlockBytes: cfg.MaxBlockBytes,
-		minValueBytes: minWireSize(h.Schema),
+		reader:            reader,
+		block:             avro.NewReader(nil, 0, avro.WithReaderConfig(cfg.DecoderConfig)),
+		api:               cfg.DecoderConfig,
+		meta:              h.Meta,
+		sync:              h.Sync,
+		codec:             h.Codec,
+		schema:            h.Schema,
+		maxBlockBytes:     cfg.MaxBlockBytes,
+		maxZeroWidthCount: cfg.MaxZeroWidthBlockCount,
+		minValueBytes:     minWireSize(h.Schema),
 	}, nil
 }
 
@@ -329,8 +345,8 @@ func (d *Decoder) readBlock() int64 {
 
 func (d *Decoder) checkBlockCount(count int64, size int) error {
 	if d.minValueBytes == 0 {
-		if count > maxZeroWidthBlockCount {
-			return fmt.Errorf("decoder: block count %d exceeds %d for a zero-width schema", count, maxZeroWidthBlockCount)
+		if count > d.maxZeroWidthCount {
+			return fmt.Errorf("decoder: block count %d exceeds %d for a zero-width schema", count, d.maxZeroWidthCount)
 		}
 		return nil
 	}

@@ -171,3 +171,40 @@ func TestDecoder_SkipsEmptyBlockMidFile(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []int64{1, 2, 3}, got)
 }
+
+func TestDecoder_ZeroWidthCountBoundary(t *testing.T) {
+	tests := []struct {
+		name    string
+		opts    []ocf.DecoderFunc
+		count   int64
+		wantErr bool
+	}{
+		{name: "custom cap", opts: []ocf.DecoderFunc{ocf.WithMaxZeroWidthBlockCount(5)}, count: 5},
+		{name: "custom cap plus one", opts: []ocf.DecoderFunc{ocf.WithMaxZeroWidthBlockCount(5)}, count: 6, wantErr: true},
+		{name: "non-positive restores default", opts: []ocf.DecoderFunc{ocf.WithMaxZeroWidthBlockCount(0)}, count: ocf.DefaultMaxZeroWidthBlockCount + 1, wantErr: true},
+		{name: "default plus one", count: ocf.DefaultMaxZeroWidthBlockCount + 1, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := craftOCF(t, `"null"`, tt.count, nil)
+			dec, err := ocf.NewDecoder(bytes.NewReader(data), tt.opts...)
+			require.NoError(t, err)
+
+			var n int64
+			for dec.HasNext() {
+				var v any
+				require.NoError(t, dec.Decode(&v))
+				n++
+			}
+
+			if tt.wantErr {
+				assert.ErrorContains(t, dec.Error(), "zero-width schema")
+				assert.Zero(t, n)
+				return
+			}
+			require.NoError(t, dec.Error())
+			assert.Equal(t, tt.count, n)
+		})
+	}
+}
