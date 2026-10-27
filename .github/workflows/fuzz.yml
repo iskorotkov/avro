@@ -27,6 +27,8 @@ jobs:
             pkg: .
           - name: FuzzOCFReader
             pkg: ./ocf
+          - name: FuzzSnappyCodecDecode
+            pkg: ./ocf
 
     steps:
       - name: Checkout code
