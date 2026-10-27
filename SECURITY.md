@@ -37,9 +37,38 @@ decoder, err := avro.NewDecoder(schema, untrustedReader)
 
 1. **MaxByteSliceSize**: Controls the maximum size of individual `bytes` or `string` values. Default: 1 MiB. Set to -1 to disable (not recommended for untrusted input).
 
-2. **MaxSliceAllocSize**: Controls the maximum length of an individual array. Default: unlimited. Set this to a reasonable value based on your expected data size.
+2. **MaxSliceAllocSize**: Controls the total number of array elements in one decoded value, summed over all arrays it contains (including skipped fields). Default: unlimited. Set this to a reasonable value based on your expected data size.
 
-3. **MaxMapAllocSize**: Controls the maximum capacity of an individual map. Default: unlimited. Set this to a reasonable value based on your expected data size.
+3. **MaxMapAllocSize**: Controls the total number of map entries in one decoded value, summed over all maps it contains (including skipped fields). Default: unlimited. Set this to a reasonable value based on your expected data size.
+
+4. **MaxDepth**: Controls how many values of recursive record types (records that can contain themselves, such as linked lists or trees) may nest inside each other. Default: 1000. Zero or negative values select the default. Deeper data fails to decode, and cyclic Go values fail to encode. Non-recursive schemas are not affected because their nesting is fixed by the schema. `Reader.ReadNext` counts every nested record.
+
+## Built-in Protections
+
+These checks always apply and need no configuration:
+
+- An array or map block count must fit in the remaining input, assuming each item takes the minimum number of bytes its schema allows. A `bytes` or `string` length must fit in the remaining input as well. The remaining input is known when decoding a byte slice, a `*bytes.Reader`, `*bytes.Buffer` or `*strings.Reader`, or an OCF data block; other readers are treated as streams.
+- Slices and maps are pre-allocated for at most 4096 items and grow as items are actually decoded, so a forged count on a stream cannot allocate ahead of the data.
+- Arrays whose items have no wire representation (such as `null` or empty records) are limited to 1,048,576 items per decoded value.
+- Decoding stops at the first error, so truncated or corrupt input fails fast.
+- The limits above also apply to fields skipped because the target struct lacks them and to `Reader.ReadNext`. `Reader.ReadArrayCB` and `Reader.ReadMapCB` stream items to a callback without allocating, so they skip the element totals; `ReadMapCB` still checks map counts against the remaining input, while `ReadArrayCB` leaves validating counts to the callback because its items may have no wire representation.
+
+## Truncated Input
+
+`Unmarshal`, `Decoder.Decode` and `Reader.ReadNext` return an error wrapping `io.ErrUnexpectedEOF` when the input ends inside a value. Earlier versions returned `nil` and left the target partially filled. `Decoder.Decode` still returns `io.EOF` when the stream ends cleanly between values. `Reader.ReadBytes` and `Reader.ReadString` return `nil` and `""` when they fail instead of a partially read value.
+
+## Matching Limit Errors
+
+Every limit violation wraps an exported sentinel, so callers can tell hostile input apart from other failures with `errors.Is`:
+
+| Sentinel | Reported when |
+| --- | --- |
+| `avro.ErrMaxDepth` | recursive values nest deeper than `MaxDepth` (decoding and encoding) |
+| `avro.ErrMaxSliceAllocSize` | a value holds more array elements than `MaxSliceAllocSize` |
+| `avro.ErrMaxMapAllocSize` | a value holds more map entries than `MaxMapAllocSize` |
+| `avro.ErrMaxByteSliceSize` | a `bytes` or `string` value is longer than `MaxByteSliceSize` |
+| `avro.ErrTooManyZeroWidthItems` | a value holds more than 1,048,576 items without wire representation |
+| `avro.ErrBlockCountExceedsInput` | an array or map count cannot fit in the remaining input; also wraps `io.ErrUnexpectedEOF` |
 
 ## Decoding untrusted OCF (Object Container Files)
 
@@ -69,4 +98,4 @@ Both caps default to unlimited for backward compatibility. **For untrusted input
 
 ### Reading OCF metadata (header)
 
-The OCF header itself contains a `map<string, bytes>` of arbitrary metadata, parsed *before* any data block — and therefore before any of the block-level caps above can apply. It is bounded only by `MaxByteSliceSize` and `MaxMapAllocSize` from the value-decoder config. `MaxMapAllocSize` defaults to effectively unbounded (`1<<48` on 64-bit platforms), so a hostile header declaring a huge entry count can OOM the decoder before a single block is read. **For untrusted input you must** pass `WithDecoderConfig` a frozen `avro.Config` that sets `MaxMapAllocSize` (and `MaxByteSliceSize`) to sane values, in addition to the OCF-specific caps above.
+The OCF header itself contains a `map<string, bytes>` of arbitrary metadata, parsed *before* any data block — and therefore before any of the block-level caps above can apply. It is bounded only by `MaxByteSliceSize` and `MaxMapAllocSize` from the value-decoder config. `MaxMapAllocSize` defaults to effectively unbounded (`1<<48` on 64-bit platforms). The header map is pre-allocated for at most 4096 entries, so a forged entry count alone no longer allocates ahead of the data, but a large header that really contains that many entries is still accepted. **For untrusted input you must** pass `WithDecoderConfig` a frozen `avro.Config` that sets `MaxMapAllocSize` (and `MaxByteSliceSize`) to sane values, in addition to the OCF-specific caps above.
