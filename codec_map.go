@@ -366,6 +366,10 @@ func nativeMapEncoderOf[K comparable](base mapEncoderBase) ValEncoder {
 		if elemType.NumMethod() == 0 {
 			return newNativeMapEncoder[K, any](base)
 		}
+	case reflect.Struct:
+		if elemType == timeType {
+			return newNativeMapEncoder[K, time.Time](base)
+		}
 	case reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
 		reflect.Float32, reflect.Float64:
