@@ -893,7 +893,12 @@ func TestEncoder_EncodeCompressesSnappy(t *testing.T) {
 	err = enc.Close()
 
 	require.NoError(t, err)
-	assert.Equal(t, 938, buf.Len())
+	dec, err := ocf.NewDecoder(buf)
+	require.NoError(t, err)
+	require.True(t, dec.HasNext())
+	var got FullRecord
+	require.NoError(t, dec.Decode(&got))
+	assert.Equal(t, record, got)
 }
 
 func TestEncoder_EncodeCompressesZStandard(t *testing.T) {

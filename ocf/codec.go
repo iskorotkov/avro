@@ -10,7 +10,8 @@ import (
 	"io"
 	"math"
 
-	"github.com/golang/snappy"
+	"github.com/klauspost/compress/s2"
+	"github.com/klauspost/compress/snappy"
 	"github.com/klauspost/compress/zstd"
 )
 
@@ -143,7 +144,7 @@ func (c *SnappyCodec) Decode(b []byte) ([]byte, error) {
 		}
 	}
 
-	dst, err := snappy.Decode(nil, b[:l-4])
+	dst, err := snappy.DecodeStrict(nil, b[:l-4])
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +159,7 @@ func (c *SnappyCodec) Decode(b []byte) ([]byte, error) {
 
 // Encode encodes the given bytes.
 func (*SnappyCodec) Encode(b []byte) []byte {
-	dst := snappy.Encode(nil, b)
+	dst := s2.EncodeSnappy(make([]byte, 0, s2.MaxEncodedLen(len(b))+4), b)
 
 	dst = append(dst, 0, 0, 0, 0)
 	binary.BigEndian.PutUint32(dst[len(dst)-4:], crc32.ChecksumIEEE(b))
