@@ -23,6 +23,8 @@ type errOuter struct {
 }
 
 func TestSemanticError_DecodePath(t *testing.T) {
+	defer ConfigTeardown()
+
 	schema := avro.MustParse(nestedErrSchema)
 
 	err := avro.Unmarshal(schema, []byte{0x06, 'a'}, &errOuter{})
@@ -35,6 +37,8 @@ func TestSemanticError_DecodePath(t *testing.T) {
 }
 
 func TestSemanticError_EncodePath(t *testing.T) {
+	defer ConfigTeardown()
+
 	schema := avro.MustParse(`{"type":"record","name":"outer","fields":[{"name":"inner","type":{"type":"record","name":"inner","fields":[{"name":"b","type":"int"}]}}]}`)
 	type inner struct {
 		B any `avro:"b"`
@@ -51,6 +55,8 @@ func TestSemanticError_EncodePath(t *testing.T) {
 }
 
 func TestSemanticError_MapRecordPath(t *testing.T) {
+	defer ConfigTeardown()
+
 	schema := avro.MustParse(`{"type":"record","name":"r","fields":[{"name":"a","type":"int"}]}`)
 
 	_, err := avro.Marshal(schema, map[string]any{"a": "x"})
@@ -61,6 +67,8 @@ func TestSemanticError_MapRecordPath(t *testing.T) {
 }
 
 func TestShortBufferError(t *testing.T) {
+	defer ConfigTeardown()
+
 	schema := avro.MustParse(nestedErrSchema)
 
 	err := avro.Unmarshal(schema, []byte{0x06, 'a'}, &errOuter{})
@@ -72,6 +80,8 @@ func TestShortBufferError(t *testing.T) {
 }
 
 func TestShortBufferError_RecordTruncatedInLongOrBetweenFields(t *testing.T) {
+	defer ConfigTeardown()
+
 	schema := avro.MustParse(`{"type":"record","name":"test","fields":[{"name":"a","type":"long"},{"name":"b","type":"string"}]}`)
 
 	for _, data := range [][]byte{{}, {0x80}, {0x02}, {0x02, 0x80}} {
@@ -86,6 +96,8 @@ func TestShortBufferError_RecordTruncatedInLongOrBetweenFields(t *testing.T) {
 }
 
 func TestShortBufferError_EveryPrefix(t *testing.T) {
+	defer ConfigTeardown()
+
 	str := "ab"
 	tests := []struct {
 		name   string
@@ -130,6 +142,8 @@ func TestShortBufferError_EveryPrefix(t *testing.T) {
 }
 
 func TestShortBufferError_TrailingBytesIgnored(t *testing.T) {
+	defer ConfigTeardown()
+
 	schema := avro.MustParse("long")
 
 	var got int64
@@ -140,6 +154,8 @@ func TestShortBufferError_TrailingBytesIgnored(t *testing.T) {
 }
 
 func TestDecoder_TruncatedStream(t *testing.T) {
+	defer ConfigTeardown()
+
 	schema := avro.MustParse(`{"type":"record","name":"test","fields":[{"name":"a","type":"long"},{"name":"b","type":"string"}]}`)
 	dec := avro.NewDecoderForSchema(schema, bytes.NewReader([]byte{0x36, 0x06, 'f', 'o', 'o', 0x02, 0x80}))
 
@@ -154,6 +170,8 @@ func TestDecoder_TruncatedStream(t *testing.T) {
 }
 
 func TestShortBufferError_NotForOtherErrors(t *testing.T) {
+	defer ConfigTeardown()
+
 	schema := avro.MustParse("string")
 
 	var s string
@@ -171,6 +189,8 @@ func TestSemanticError_ManualFieldMessage(t *testing.T) {
 }
 
 func TestSemanticError_ArrayEncodePathHasSinglePrefix(t *testing.T) {
+	defer ConfigTeardown()
+
 	schema := avro.MustParse(`{"type":"record","name":"r","fields":[{"name":"l","type":{"type":"array","items":"int"}}]}`)
 	type rec struct {
 		L []any `avro:"l"`

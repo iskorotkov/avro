@@ -140,6 +140,8 @@ func TestDisallowUnknownFields_NestedWithoutData(t *testing.T) {
 }
 
 func TestDisallowUnknownFields_LenientNestedWithoutData(t *testing.T) {
+	defer ConfigTeardown()
+
 	type inArray struct {
 		R []strictInner `avro:"r"`
 	}
@@ -181,6 +183,8 @@ func TestDisallowUnknownFields_NilInNullableUnion(t *testing.T) {
 }
 
 func TestDisallowUnknownFields_DefaultIsLenient(t *testing.T) {
+	defer ConfigTeardown()
+
 	type rec struct {
 		A int64 `avro:"a"`
 		D bool  `avro:"d"`

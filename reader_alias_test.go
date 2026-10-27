@@ -33,6 +33,8 @@ func TestAliasInput_SharesInput(t *testing.T) {
 }
 
 func TestAliasInput_DefaultCopies(t *testing.T) {
+	defer ConfigTeardown()
+
 	data := []byte{0x06, 'f', 'o', 'o', 0x04, 0x01, 0x02}
 
 	var got aliasRecord
