@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"compress/flate"
 	"encoding/binary"
+	"hash/crc32"
 	"io"
 	"math"
 	"runtime"
 	"sync"
 	"testing"
 
+	"github.com/golang/snappy"
 	"github.com/iskorotkov/avro/v2"
 	"github.com/iskorotkov/avro/v2/ocf"
 	"github.com/klauspost/compress/zstd"
@@ -45,7 +47,7 @@ func TestDecoder_RejectsDeflateZipBomb(t *testing.T) {
 
 	assert.False(t, dec.HasNext())
 	require.Error(t, dec.Error())
-	assert.Contains(t, dec.Error().Error(), "deflate: decompressed size exceeds")
+	assert.ErrorIs(t, dec.Error(), ocf.ErrDecompressedBlockTooLarge)
 }
 
 func TestDecoder_RejectsSnappyInflatedHeader(t *testing.T) {
@@ -67,7 +69,7 @@ func TestDecoder_RejectsSnappyInflatedHeader(t *testing.T) {
 
 	assert.False(t, dec.HasNext())
 	require.Error(t, dec.Error())
-	assert.Contains(t, dec.Error().Error(), "snappy: claimed decoded size")
+	assert.ErrorIs(t, dec.Error(), ocf.ErrDecompressedBlockTooLarge)
 }
 
 func TestDecoder_RejectsZstdBomb(t *testing.T) {
@@ -87,6 +89,7 @@ func TestDecoder_RejectsZstdBomb(t *testing.T) {
 
 	assert.False(t, dec.HasNext())
 	require.ErrorIs(t, dec.Error(), zstd.ErrDecoderSizeExceeded)
+	require.ErrorIs(t, dec.Error(), ocf.ErrDecompressedBlockTooLarge)
 }
 
 func TestDecoder_RejectsZstdBombViaSharedDecoder(t *testing.T) {
@@ -112,7 +115,7 @@ func TestDecoder_RejectsZstdBombViaSharedDecoder(t *testing.T) {
 
 	assert.False(t, dec.HasNext())
 	require.Error(t, dec.Error())
-	assert.Contains(t, dec.Error().Error(), "zstd: decompressed size")
+	assert.ErrorIs(t, dec.Error(), ocf.ErrDecompressedBlockTooLarge)
 }
 
 func TestDecoder_TruncatedBlockDoesNotPreAllocate(t *testing.T) {
@@ -342,35 +345,31 @@ func TestDecoder_DeflateCapAtMaxIntDoesNotOverflow(t *testing.T) {
 	assert.Equal(t, []int64{1, 2, 3}, got)
 }
 
-func TestDecoder_DeflateDecompressedSizeBoundary(t *testing.T) {
-	original := buildOCF(t, ocf.Deflate, []int64{1, 2, 3})
-	body := craftDeflate(t, bytes.Repeat([]byte{0}, 3))
-	mutated := replaceFirstBlockPayload(t, original, body)
+func TestDecoder_DecompressedSizeBoundary(t *testing.T) {
+	compressors := map[ocf.CodecName]func(testing.TB, []byte) []byte{
+		ocf.Deflate: craftDeflate,
+		ocf.Snappy:  craftSnappy,
+	}
+	for codec, compress := range compressors {
+		t.Run(string(codec), func(t *testing.T) {
+			// Three zero bytes decode as the three longs the block declares.
+			mutated := replaceFirstBlockPayload(t, buildOCF(t, codec, []int64{1, 2, 3}), compress(t, []byte{0, 0, 0}))
 
-	t.Run("exactly at cap decodes", func(t *testing.T) {
-		dec, err := ocf.NewDecoder(bytes.NewReader(mutated), ocf.WithMaxDecompressedBlockBytes(3))
-		require.NoError(t, err)
-		defer dec.Close()
+			t.Run("exactly at cap decodes", func(t *testing.T) {
+				got, err := decodeAllLongs(t, mutated, ocf.WithMaxDecompressedBlockBytes(3))
 
-		n := 0
-		for dec.HasNext() {
-			var v int64
-			require.NoError(t, dec.Decode(&v))
-			n++
-		}
-		require.NoError(t, dec.Error())
-		assert.Equal(t, 3, n)
-	})
+				require.NoError(t, err)
+				assert.Equal(t, []int64{0, 0, 0}, got)
+			})
 
-	t.Run("one byte over cap rejected", func(t *testing.T) {
-		dec, err := ocf.NewDecoder(bytes.NewReader(mutated), ocf.WithMaxDecompressedBlockBytes(2))
-		require.NoError(t, err)
-		defer dec.Close()
+			t.Run("one byte over cap rejected", func(t *testing.T) {
+				got, err := decodeAllLongs(t, mutated, ocf.WithMaxDecompressedBlockBytes(2))
 
-		assert.False(t, dec.HasNext())
-		require.Error(t, dec.Error())
-		assert.Contains(t, dec.Error().Error(), "deflate: decompressed size exceeds")
-	})
+				assert.Empty(t, got)
+				require.ErrorIs(t, err, ocf.ErrDecompressedBlockTooLarge)
+			})
+		})
+	}
 }
 
 func TestDecoder_ZeroCountBlockSkippedWithoutDecompress(t *testing.T) {
@@ -429,6 +428,13 @@ func replaceFirstBlockPayload(t testing.TB, original, newPayload []byte) []byte 
 	out.Write(newPayload)
 	out.Write(h.Sync[:])
 	return out.Bytes()
+}
+
+// craftSnappy returns payload in the OCF snappy block framing: a snappy block followed by a big-endian CRC32.
+func craftSnappy(t testing.TB, payload []byte) []byte {
+	t.Helper()
+	out := snappy.Encode(nil, payload)
+	return binary.BigEndian.AppendUint32(out, crc32.ChecksumIEEE(payload))
 }
 
 // craftDeflate returns the deflate-compressed form of payload for use as an OCF block body.

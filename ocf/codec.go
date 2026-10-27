@@ -14,6 +14,9 @@ import (
 	"github.com/klauspost/compress/zstd"
 )
 
+// ErrDecompressedBlockTooLarge is wrapped by built-in codec errors when a block decompresses past WithMaxDecompressedBlockBytes.
+var ErrDecompressedBlockTooLarge = errors.New("ocf: decompressed block exceeds size limit")
+
 // CodecName represents a compression codec name.
 type CodecName string
 
@@ -120,7 +123,7 @@ func (c *DeflateCodec) Decode(b []byte) ([]byte, error) {
 		return nil, readErr
 	}
 	if c.maxDecompressed > 0 && c.decBuf.Len() > c.maxDecompressed {
-		return nil, fmt.Errorf("deflate: decompressed size exceeds %d bytes", c.maxDecompressed)
+		return nil, fmt.Errorf("deflate: decompressed size exceeds %d bytes: %w", c.maxDecompressed, ErrDecompressedBlockTooLarge)
 	}
 
 	return c.decBuf.Bytes(), closeErr
@@ -163,7 +166,7 @@ func (c *SnappyCodec) Decode(b []byte) ([]byte, error) {
 			return nil, err
 		}
 		if dLen > c.maxDecompressed {
-			return nil, fmt.Errorf("snappy: claimed decoded size %d exceeds %d bytes", dLen, c.maxDecompressed)
+			return nil, fmt.Errorf("snappy: claimed decoded size %d exceeds %d bytes: %w", dLen, c.maxDecompressed, ErrDecompressedBlockTooLarge)
 		}
 	}
 
@@ -243,12 +246,15 @@ func newZStandardCodec(opts zstdOptions, maxDecompressed int) *ZStandardCodec {
 // Decode decodes the given bytes.
 func (zstdCodec *ZStandardCodec) Decode(b []byte) ([]byte, error) {
 	out, err := zstdCodec.decoder.DecodeAll(b, zstdCodec.decBuf[:0])
+	if errors.Is(err, zstd.ErrDecoderSizeExceeded) {
+		return nil, fmt.Errorf("zstd: %w: %w", err, ErrDecompressedBlockTooLarge)
+	}
 	if err != nil {
 		return nil, err
 	}
 	zstdCodec.decBuf = out
 	if zstdCodec.maxDecompressed > 0 && len(out) > zstdCodec.maxDecompressed {
-		return nil, fmt.Errorf("zstd: decompressed size %d exceeds %d bytes", len(out), zstdCodec.maxDecompressed)
+		return nil, fmt.Errorf("zstd: decompressed size %d exceeds %d bytes: %w", len(out), zstdCodec.maxDecompressed, ErrDecompressedBlockTooLarge)
 	}
 	return out, nil
 }
