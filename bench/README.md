@@ -79,8 +79,37 @@ go run ./cmd/report -data=data     # benchmarks the full files instead of the sa
 |---|---|---|
 | `avro` (baseline) | this library, reflection | all |
 | `hamba` | github.com/hamba/avro/v2 | all |
-| `json` | encoding/json | single, batch (NDJSON) |
+| `json` | encoding/json (v1; reimplemented on v2 when built with `-goexperiment=jsonv2`) | single, batch (NDJSON) |
+| `json-exp` | github.com/go-json-experiment/json | single, batch |
+| `json-v2` | encoding/json/v2, only with `-goexperiment=jsonv2` | single, batch |
+| `goccy` | github.com/goccy/go-json | single, batch |
+| `sonic` | github.com/bytedance/sonic, amd64/arm64 only (skipped elsewhere) | single, batch |
 | `protobuf` | google.golang.org/protobuf, generated messages | single, batch (`protodelim`) |
+| `msgp` | github.com/tinylib/msgp, generated methods | single, batch |
+| `msgpack` | github.com/vmihailenco/msgpack/v5, reflection | single, batch |
+| `cbor` | github.com/fxamacker/cbor/v2, reflection | single, batch |
+
+Build-tagged formats need the report tool to pass the toolchain settings; the
+flags are recorded in the `RESULTS.md` header:
+
+```sh
+go run ./cmd/report -goexperiment=jsonv2    # adds json-v2 and runs json (v1) on the v2 implementation
+go run ./cmd/report -tags=sometag           # any other build tags
+```
+
+Run once without and once with `-goexperiment=jsonv2` to compare `json` on v1
+and on v2; runs with different tags or experiments write separate result files
+(`results/<date>-<sha>-jsonv2.txt`), but `latest.txt` and `RESULTS.md` hold the last run.
+
+Struct-based formats (JSON, MessagePack, CBOR) use the `json` tags of the
+canonical records and encode structs as maps keyed by field name, so sizes are
+comparable. Timestamps are exact in every format: JSON and `cbor` use RFC 3339
+text (`cbor`'s epoch modes lose sub-second precision, so it is larger and
+slower than its integer mode would be), `msgpack` the standard MessagePack
+timestamp extension and `msgp` its own 15-byte time extension (its standard
+one, `//msgp:newtime`, breaks the streaming reader in v1.6.5). Equality is `cmp.Equal`, which compares `time.Time`
+with `Equal`, so the location a decoder attaches does not matter. `msgp` encodes
+mirror types generated into `formats/msgp` (`go generate`).
 
 ## Extending
 
