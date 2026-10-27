@@ -326,3 +326,38 @@ func TestEncoderTypeConverter_ErrorMapUnion(t *testing.T) {
 	assert.ErrorIs(t, err, testError)
 	assert.Empty(t, buf.Bytes())
 }
+
+func TestEncoderTypeConverter_MapUnionBranch(t *testing.T) {
+	tests := []struct {
+		name   string
+		schema string
+		val    map[string]any
+		want   []byte
+	}{
+		{
+			name:   "long",
+			schema: `["null","long"]`,
+			val:    map[string]any{"long": "27"},
+			want:   []byte{0x02, 0x36},
+		},
+		{
+			name:   "timestamp-millis",
+			schema: `["null",{"type":"long","logicalType":"timestamp-millis"}]`,
+			val:    map[string]any{"long.timestamp-millis": "2020-01-02T03:04:05Z"},
+			want:   []byte{0x02, 0x90, 0xb2, 0xae, 0xc3, 0xec, 0x5b},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			defer ConfigTeardown()
+
+			avro.RegisterTypeConverters(longStringConverter, timestampMillisConverter)
+
+			got, err := avro.Marshal(avro.MustParse(test.schema), test.val)
+
+			require.NoError(t, err)
+			assert.Equal(t, test.want, got)
+		})
+	}
+}

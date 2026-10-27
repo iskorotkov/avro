@@ -262,3 +262,39 @@ func TestDecoderTypeConverter_GenericPrimitiveError(t *testing.T) {
 
 	assert.ErrorIs(t, err, errConv)
 }
+
+func TestDecoderTypeConverter_MapUnionBranch(t *testing.T) {
+	tests := []struct {
+		name   string
+		schema string
+		data   []byte
+		want   map[string]any
+	}{
+		{
+			name:   "long",
+			schema: `["null","long"]`,
+			data:   []byte{0x02, 0x36},
+			want:   map[string]any{"long": "27"},
+		},
+		{
+			name:   "timestamp-millis",
+			schema: `["null",{"type":"long","logicalType":"timestamp-millis"}]`,
+			data:   []byte{0x02, 0x90, 0xb2, 0xae, 0xc3, 0xec, 0x5b},
+			want:   map[string]any{"long.timestamp-millis": "2020-01-02T03:04:05Z"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			defer ConfigTeardown()
+
+			avro.RegisterTypeConverters(longStringConverter, timestampMillisConverter)
+
+			var got map[string]any
+			err := avro.Unmarshal(avro.MustParse(test.schema), test.data, &got)
+
+			require.NoError(t, err)
+			assert.Equal(t, test.want, got)
+		})
+	}
+}

@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"math/big"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/iskorotkov/avro/v2"
 	"github.com/stretchr/testify/assert"
@@ -94,6 +96,29 @@ var (
 			}
 
 			return in, nil
+		},
+	}
+)
+
+var (
+	longStringConverter = avro.TypeConversionFuncs{
+		AvroType: avro.Long,
+		EncoderTypeConversion: func(in any, _ avro.Schema) (any, error) {
+			return strconv.ParseInt(in.(string), 10, 64)
+		},
+		DecoderTypeConversion: func(in any, _ avro.Schema) (any, error) {
+			return strconv.FormatInt(in.(int64), 10), nil
+		},
+	}
+
+	timestampMillisConverter = avro.TypeConversionFuncs{
+		AvroType:        avro.Long,
+		AvroLogicalType: avro.TimestampMillis,
+		EncoderTypeConversion: func(in any, _ avro.Schema) (any, error) {
+			return time.Parse(time.RFC3339, in.(string))
+		},
+		DecoderTypeConversion: func(in any, _ avro.Schema) (any, error) {
+			return in.(time.Time).Format(time.RFC3339), nil
 		},
 	}
 )

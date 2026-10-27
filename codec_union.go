@@ -186,12 +186,23 @@ func (e *mapUnionEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 		return
 	}
 
-	val, ok := w.cfg.typeConverters.encodeConverted(val, e.schema, w)
+	val, ok := w.cfg.typeConverters.encodeConverted(val, e.converterSchema(schema, w), w)
 	if !ok {
 		return
 	}
 
 	e.cfg.EncoderOf(schema, reflect2.TypeOf(val)).Encode(reflect2.PtrOf(val), w)
+}
+
+// converterSchema picks the branch schema for converter lookup, falling back to the union for compatibility.
+func (e *mapUnionEncoder) converterSchema(branch Schema, w *Writer) Schema {
+	if !w.cfg.typeConverters.HasAny() {
+		return branch
+	}
+	if _, ok := w.cfg.typeConverters.getTypeConverter(branch); ok {
+		return branch
+	}
+	return e.schema
 }
 
 func decoderOfNullableUnion(d *decoderContext, schema Schema, typ reflect2.Type) ValDecoder {
