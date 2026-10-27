@@ -19,7 +19,7 @@ func TestSample(t *testing.T) {
 		writeSample(t, *parquetPath)
 	}
 
-	ds, err := nyctaxi.Provider{}.Load("")
+	ds, err := nyctaxi.Provider{}.Load("", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +38,7 @@ func TestSample(t *testing.T) {
 func writeSample(t *testing.T, path string) {
 	t.Helper()
 
-	trips, err := nyctaxi.ReadParquet(path, sampleStride)
+	trips, err := nyctaxi.ReadParquet(path, sampleStride, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

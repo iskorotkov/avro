@@ -22,6 +22,8 @@ type Options struct {
 	Format    string
 	// DataDir is passed as -suite.data when set.
 	DataDir string
+	// Rows is passed as -suite.rows when positive.
+	Rows int
 	// CPUProfileDir receives one profile per round when set.
 	CPUProfileDir string
 	// ResultsDir receives the dated file and latest.txt.
@@ -46,6 +48,9 @@ func (o Options) FlagsLine() string {
 	}
 	if o.DataDir != "" {
 		parts = append(parts, "-data="+o.DataDir)
+	}
+	if o.Rows > 0 {
+		parts = append(parts, fmt.Sprintf("-rows=%d", o.Rows))
 	}
 	if o.CPUProfileDir != "" {
 		parts = append(parts, "-cpuprofile="+o.CPUProfileDir)

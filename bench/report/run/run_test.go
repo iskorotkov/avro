@@ -18,9 +18,9 @@ func TestBenchRegex(t *testing.T) {
 }
 
 func TestTestArgs(t *testing.T) {
-	o := Options{Dir: "/b", Procs: 4, Benchtime: "10ms", DataDir: "data", CPUProfileDir: "prof"}
+	o := Options{Dir: "/b", Procs: 4, Benchtime: "10ms", DataDir: "data", Rows: 100, CPUProfileDir: "prof"}
 	args := strings.Join(o.testArgs(2), " ")
-	for _, want := range []string{"-test.cpu=4", "-test.benchtime=10ms", "-suite.rotate=2", "-suite.data=/b/data", "-test.cpuprofile=/b/prof/round-2.pprof"} {
+	for _, want := range []string{"-test.cpu=4", "-test.benchtime=10ms", "-suite.rotate=2", "-suite.data=/b/data", "-suite.rows=100", "-test.cpuprofile=/b/prof/round-2.pprof"} {
 		if !strings.Contains(args, want) {
 			t.Errorf("args %q lack %q", args, want)
 		}

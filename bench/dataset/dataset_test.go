@@ -43,3 +43,12 @@ func TestTyped(t *testing.T) {
 		t.Fatalf("New() = %T", ds.New())
 	}
 }
+
+func TestHead(t *testing.T) {
+	in := []int{1, 2, 3}
+	for _, tc := range []struct{ rows, want int }{{0, 3}, {-1, 3}, {2, 2}, {5, 3}} {
+		if got := dataset.Head(in, tc.rows); len(got) != tc.want {
+			t.Errorf("Head(%d) has %d records, want %d", tc.rows, len(got), tc.want)
+		}
+	}
+}

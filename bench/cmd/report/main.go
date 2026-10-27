@@ -51,6 +51,7 @@ func parseFlags(args []string) config {
 	fs.StringVar(&c.run.Op, "op", "", "regexp of ops to run (default all)")
 	fs.StringVar(&c.run.Format, "format", "", "regexp of formats to run (default all)")
 	fs.StringVar(&c.run.DataDir, "data", "", "dataset directory passed to the suite as -suite.data")
+	fs.IntVar(&c.run.Rows, "rows", 0, "load at most this many records per dataset (default all)")
 	fs.StringVar(&c.run.CPUProfileDir, "cpuprofile", "", "directory for one CPU profile per round")
 	fs.StringVar(&c.run.ResultsDir, "results", "results", "directory for raw result files")
 	fs.StringVar(&c.from, "from", "", "read this raw results file instead of running the suite")

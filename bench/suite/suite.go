@@ -18,11 +18,11 @@ type Case struct {
 	Subject *format.Subject
 }
 
-// Load loads every dataset, from full data under dataDir when set, and binds every format to it.
-func Load(dataDir string, providers []dataset.Provider, formats []format.Format) ([]Case, error) {
+// Load loads every dataset, from full data under dataDir when set and capped at rows records when positive, and binds every format to it.
+func Load(dataDir string, rows int, providers []dataset.Provider, formats []format.Format) ([]Case, error) {
 	var cases []Case
 	for _, p := range providers {
-		ds, err := p.Load(fullDir(dataDir, p))
+		ds, err := p.Load(fullDir(dataDir, p), rows)
 		if err != nil {
 			return nil, err
 		}

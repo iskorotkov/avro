@@ -116,6 +116,9 @@ func (o Options) testArgs(round int) []string {
 	if o.DataDir != "" {
 		args = append(args, "-suite.data="+abs(o.Dir, o.DataDir))
 	}
+	if o.Rows > 0 {
+		args = append(args, "-suite.rows="+strconv.Itoa(o.Rows))
+	}
 	if o.CPUProfileDir != "" {
 		args = append(args, "-test.cpuprofile="+filepath.Join(abs(o.Dir, o.CPUProfileDir), fmt.Sprintf("round-%d.pprof", round)))
 	}

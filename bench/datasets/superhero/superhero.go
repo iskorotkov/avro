@@ -47,11 +47,11 @@ func (Provider) Name() string { return Name }
 func (Provider) Sources() []dataset.Source { return nil }
 
 // Load implements dataset.Provider.
-func (Provider) Load(string) (dataset.Dataset, error) {
+func (Provider) Load(_ string, rows int) (dataset.Dataset, error) {
 	records, err := dataset.DecodeJSONL[Superhero](sample)
 	if err != nil {
 		return nil, fmt.Errorf("%s sample: %w", Name, err)
 	}
 
-	return dataset.New(Name, schema, records), nil
+	return dataset.New(Name, schema, dataset.Head(records, rows)), nil
 }

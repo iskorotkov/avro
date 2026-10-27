@@ -16,6 +16,7 @@ import (
 var (
 	rotate  = flag.Int("suite.rotate", 0, "rotate the format order by `n` to interleave formats across rounds")
 	dataDir = flag.String("suite.data", "", "load full datasets from `dir` instead of the committed samples")
+	rows    = flag.Int("suite.rows", 0, "load at most `n` records per dataset (0 loads all)")
 	dsMatch = flag.String("suite.dataset", "", "load only datasets matching `regexp`")
 	fmMatch = flag.String("suite.format", "", "bind only formats matching `regexp`")
 )
@@ -63,7 +64,7 @@ func load(tb testing.TB) []suite.Case {
 	providers := matching(tb, *dsMatch, datasets.All(), dataset.Provider.Name)
 	fs := matching(tb, *fmMatch, formats.All(), format.Format.Name)
 
-	cases, err := suite.Load(*dataDir, providers, suite.Rotate(fs, *rotate))
+	cases, err := suite.Load(*dataDir, *rows, providers, suite.Rotate(fs, *rotate))
 	if err != nil {
 		tb.Fatal(err)
 	}

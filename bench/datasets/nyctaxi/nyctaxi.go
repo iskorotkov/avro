@@ -61,8 +61,8 @@ func (Provider) Sources() []dataset.Source {
 }
 
 // Load implements dataset.Provider.
-func (Provider) Load(dir string) (dataset.Dataset, error) {
-	records, err := load(dir)
+func (Provider) Load(dir string, rows int) (dataset.Dataset, error) {
+	records, err := load(dir, rows)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", Name, err)
 	}
@@ -70,10 +70,11 @@ func (Provider) Load(dir string) (dataset.Dataset, error) {
 	return dataset.New(Name, schema, records), nil
 }
 
-func load(dir string) ([]Trip, error) {
+func load(dir string, rows int) ([]Trip, error) {
 	if dir == "" {
-		return dataset.DecodeJSONL[Trip](sample)
+		trips, err := dataset.DecodeJSONL[Trip](sample)
+		return dataset.Head(trips, rows), err
 	}
 
-	return ReadParquet(filepath.Join(dir, fullFile), 1)
+	return ReadParquet(filepath.Join(dir, fullFile), 1, rows)
 }

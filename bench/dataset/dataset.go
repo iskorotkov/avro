@@ -29,8 +29,8 @@ type Provider interface {
 	Name() string
 	// Sources lists the full data downloads; empty when only the sample exists.
 	Sources() []Source
-	// Load reads the committed sample, or the full data when dir is non-empty.
-	Load(dir string) (Dataset, error)
+	// Load reads the committed sample, or the full data when dir is non-empty, keeping the first rows records when rows is positive.
+	Load(dir string, rows int) (Dataset, error)
 }
 
 // Of is a Dataset of canonical records of type T.

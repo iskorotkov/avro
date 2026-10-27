@@ -34,8 +34,8 @@ type row struct {
 	AirportFee           *float64 `parquet:"Airport_fee"`
 }
 
-// ReadParquet reads every stride-th trip from a TLC yellow taxi parquet file.
-func ReadParquet(path string, stride int) ([]Trip, error) {
+// ReadParquet reads every stride-th trip from a TLC yellow taxi parquet file, stopping after rows trips when rows is positive.
+func ReadParquet(path string, stride, rows int) ([]Trip, error) {
 	f, err := os.Open(filepath.Clean(path))
 	if err != nil {
 		return nil, err
@@ -45,12 +45,17 @@ func ReadParquet(path string, stride int) ([]Trip, error) {
 	r := parquet.NewGenericReader[row](f)
 	defer func() { _ = r.Close() }()
 
-	trips := make([]Trip, 0, int(r.NumRows())/stride+1)
+	limit := int(r.NumRows())/stride + 1
+	if rows > 0 {
+		limit = min(limit, rows)
+	}
+
+	trips := make([]Trip, 0, limit)
 	buf := make([]row, 1024)
-	for index := 0; ; {
+	for index := 0; len(trips) < limit; {
 		n, err := r.Read(buf)
 		for i := range buf[:n] {
-			if (index+i)%stride == 0 {
+			if (index+i)%stride == 0 && len(trips) < limit {
 				trips = append(trips, buf[i].trip())
 			}
 		}
@@ -63,6 +68,8 @@ func ReadParquet(path string, stride int) ([]Trip, error) {
 			return nil, fmt.Errorf("read %s: %w", path, err)
 		}
 	}
+
+	return trips, nil
 }
 
 func (r *row) trip() Trip {

@@ -32,7 +32,7 @@ machine drift spreads across formats. It then:
 - writes [RESULTS.md](RESULTS.md) and SVG charts to `results/charts/`
   (light and dark mode aware, embeddable in READMEs).
 
-Other flags: `-data` (full datasets, see below), `-java` (JMH JSON, see
+Other flags: `-data` (full datasets, see below), `-rows`, `-java` (JMH JSON, see
 [java/README.md](java/README.md)), `-out`, `-charts`, `-results`, `-procs`.
 Run `go run ./cmd/report -h` for the full list.
 
@@ -71,6 +71,7 @@ Full datasets are optional and never committed:
 ```sh
 go run ./cmd/fetch                 # downloads pinned URLs into data/<dataset>/, verifies SHA-256
 go run ./cmd/report -data=data     # benchmarks the full files instead of the samples
+go run ./cmd/report -data=data -rows=200000   # caps every dataset at 200 000 records to bound memory
 ```
 
 ## Formats

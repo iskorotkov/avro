@@ -20,7 +20,7 @@ func TestSample(t *testing.T) {
 		writeSample(t, want)
 	}
 
-	ds, err := superhero.Provider{}.Load("")
+	ds, err := superhero.Provider{}.Load("", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
