@@ -121,6 +121,9 @@ func (r *Reader) readNext(schema Schema) any {
 		obj := make(map[string]any, len(fields))
 		for _, field := range fields {
 			obj[field.Name()] = r.readNext(field.Type())
+			if r.Error != nil {
+				break
+			}
 		}
 		r.leaveNested()
 		return obj

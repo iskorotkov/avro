@@ -2,6 +2,7 @@ package avro_test
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/netip"
 	"runtime"
@@ -599,6 +600,68 @@ func allocatedBytes(fn func()) uint64 {
 	fn()
 	runtime.ReadMemStats(&after)
 	return after.TotalAlloc - before.TotalAlloc
+}
+
+// dagRecordSchema builds records Lk with two fields of type L(k-1) over a leaf field, so a decoder that keeps going after an error does 2^levels work.
+func dagRecordSchema(levels int, leaf string) string {
+	schema := `{"type":"record","name":"L0","fields":[{"name":"v","type":` + leaf + `}]}`
+	for k := 1; k <= levels; k++ {
+		schema = fmt.Sprintf(`{"type":"record","name":"L%d","fields":[{"name":"a","type":%s},{"name":"b","type":"L%d"}]}`, k, schema, k-1)
+	}
+	return schema
+}
+
+// dagNode matches every level of dagRecordSchema.
+type dagNode struct {
+	V int64    `avro:"v"`
+	A *dagNode `avro:"a"`
+	B *dagNode `avro:"b"`
+}
+
+func TestUnmarshal_TruncatedDAGStopsAtFirstError(t *testing.T) {
+	defer ConfigTeardown()
+
+	// A decoder that keeps going after the first error allocates for each of the 2^20 nodes.
+	schema := avro.MustParse(dagRecordSchema(20, `"long"`))
+	data := []byte{0x02}
+
+	tests := []struct {
+		name   string
+		decode func() error
+	}{
+		{name: "struct", decode: func() error {
+			return avro.Unmarshal(schema, data, &dagNode{})
+		}},
+		{name: "any", decode: func() error { return avro.Unmarshal(schema, data, new(any)) }},
+		{name: "skip", decode: func() error { return avro.Unmarshal(schema, data, &struct{}{}) }},
+		{name: "ReadNext", decode: func() error {
+			r := avro.NewReader(nil, 0).Reset(data)
+			_ = r.ReadNext(schema)
+			return r.Error
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var err error
+			allocs := testing.AllocsPerRun(1, func() { err = tt.decode() })
+
+			require.ErrorIs(t, err, io.ErrUnexpectedEOF)
+			assert.Less(t, allocs, float64(200))
+		})
+	}
+}
+
+func TestDecoder_TruncatedDAGSkipStopsAtFirstError(t *testing.T) {
+	defer ConfigTeardown()
+
+	// Skipping does not allocate, so count reads: each fixed leaf skipped after EOF reads the stream again.
+	reader := newCountingReader([]byte{0x02})
+	dec := avro.NewDecoderForSchema(avro.MustParse(dagRecordSchema(20, `{"type":"fixed","name":"F","size":1}`)), reader)
+
+	err := dec.Decode(&struct{}{})
+
+	require.ErrorIs(t, err, io.ErrUnexpectedEOF)
+	assert.Less(t, reader.getCallCount(), int64(10))
 }
 
 func TestUnmarshal_DepthErrorIsNotRepeatedPerLevel(t *testing.T) {

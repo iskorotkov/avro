@@ -135,6 +135,9 @@ type recordSkipDecoder struct {
 func (d *recordSkipDecoder) Decode(_ unsafe.Pointer, r *Reader) {
 	for _, decoder := range d.decoders {
 		decoder.Decode(nil, r)
+		if r.Error != nil {
+			return
+		}
 	}
 }
 
