@@ -1,6 +1,7 @@
 package soe_test
 
 import (
+	"io"
 	"slices"
 	"testing"
 
@@ -112,13 +113,11 @@ func TestTypedCodec_DecodeBadFingerprint(t *testing.T) {
 		require.ErrorContains(t, err, "bad fingerprint")
 	})
 	t.Run("DecodeUnverified", func(t *testing.T) {
-		// DecodeUnverified does not validate the fingerprint, and
-		// successfully decodes empty payload.
+		// DecodeUnverified does not validate the fingerprint, so it fails on the missing payload instead.
 		var v1 testdata.Generated
 		err := codec.DecodeUnverified(data, &v1)
 
-		require.NoError(t, err)
-		require.Equal(t, testdata.Generated{}, v1)
+		require.ErrorIs(t, err, io.ErrUnexpectedEOF)
 	})
 }
 
