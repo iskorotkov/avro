@@ -2,6 +2,7 @@ package avro_test
 
 import (
 	"bytes"
+	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -329,6 +330,30 @@ func TestEncoder_UnionMapInvalidMap(t *testing.T) {
 	err = enc.Encode(map[string]string{})
 
 	assert.Error(t, err)
+}
+
+type unionMapStringer interface {
+	String() string
+}
+
+type unionMapString string
+
+func (s unionMapString) String() string { return string(s) }
+
+func TestEncoder_UnionMapNonEmptyInterface(t *testing.T) {
+	schema := avro.MustParse(`["null", "string"]`)
+
+	t.Run("fmt.Stringer", func(t *testing.T) {
+		_, err := avro.Marshal(schema, map[string]fmt.Stringer{"string": unionMapString("foo")})
+
+		assert.ErrorContains(t, err, "unable to resolve type")
+	})
+
+	t.Run("custom", func(t *testing.T) {
+		_, err := avro.Marshal(schema, map[string]unionMapStringer{"string": unionMapString("foo")})
+
+		assert.ErrorContains(t, err, "unable to resolve type")
+	})
 }
 
 func TestEncoder_UnionPtr(t *testing.T) {

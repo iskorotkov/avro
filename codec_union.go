@@ -22,8 +22,7 @@ type UnionConverter interface {
 func createDecoderOfUnion(d *decoderContext, schema *UnionSchema, typ reflect2.Type) ValDecoder {
 	switch typ.Kind() {
 	case reflect.Map:
-		if typ.(reflect2.MapType).Key().Kind() != reflect.String ||
-			typ.(reflect2.MapType).Elem().Kind() != reflect.Interface {
+		if !isUnionMap(typ) {
 			break
 		}
 		return decoderOfMapUnion(d, schema, typ)
@@ -59,8 +58,7 @@ func createDecoderOfUnion(d *decoderContext, schema *UnionSchema, typ reflect2.T
 func createEncoderOfUnion(e *encoderContext, schema *UnionSchema, typ reflect2.Type) ValEncoder {
 	switch typ.Kind() {
 	case reflect.Map:
-		if typ.(reflect2.MapType).Key().Kind() != reflect.String ||
-			typ.(reflect2.MapType).Elem().Kind() != reflect.Interface {
+		if !isUnionMap(typ) {
 			break
 		}
 		return encoderOfMapUnion(e, schema, typ)
@@ -81,6 +79,12 @@ func createEncoderOfUnion(e *encoderContext, schema *UnionSchema, typ reflect2.T
 	}
 
 	return encoderOfResolverUnion(e, schema, typ)
+}
+
+// isUnionMap reports whether typ is map[string]any; other interface elements have a different memory layout.
+func isUnionMap(typ reflect2.Type) bool {
+	mapType := typ.(reflect2.MapType)
+	return mapType.Key().Kind() == reflect.String && mapType.Elem().Type1() == reflect.TypeFor[any]()
 }
 
 func decoderOfMapUnion(d *decoderContext, union *UnionSchema, typ reflect2.Type) ValDecoder {

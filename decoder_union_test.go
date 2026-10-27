@@ -2,6 +2,7 @@ package avro_test
 
 import (
 	"bytes"
+	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -245,6 +246,27 @@ func TestDecoder_UnionMapInvalidMap(t *testing.T) {
 	err := dec.Decode(&got)
 
 	assert.Error(t, err)
+}
+
+func TestDecoder_UnionMapNonEmptyInterface(t *testing.T) {
+	data := []byte{0x02, 0x06, 0x66, 0x6F, 0x6F}
+	schema := avro.MustParse(`["null", "string"]`)
+
+	t.Run("fmt.Stringer", func(t *testing.T) {
+		var got map[string]fmt.Stringer
+		err := avro.Unmarshal(schema, data, &got)
+
+		assert.ErrorContains(t, err, "unsupported")
+		assert.Nil(t, got)
+	})
+
+	t.Run("custom", func(t *testing.T) {
+		var got map[string]unionMapStringer
+		err := avro.Unmarshal(schema, data, &got)
+
+		assert.ErrorContains(t, err, "unsupported")
+		assert.Nil(t, got)
+	})
 }
 
 func TestDecoder_UnionPtr(t *testing.T) {
