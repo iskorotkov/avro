@@ -42,7 +42,7 @@ benchmark builds and round-trips (`-benchtime=1x`).
 
 ## Operations and metrics
 
-Every operation processes the whole dataset per iteration. Each adapter's
+Every built-in operation processes the whole dataset per iteration. Each adapter's
 round trip is verified (decoded value equals the original) before timing, so
 a broken adapter fails instead of benchmarking an error path.
 
@@ -51,6 +51,7 @@ a broken adapter fails instead of benchmarking an error path.
 | `encode` / `decode` | one `Marshal`/`Unmarshal` call per record |
 | `batch-encode` / `batch-decode` | all records through the format's streaming encoder/decoder |
 | `container-write-<codec>` / `container-read-<codec>` | a container file (Avro OCF) with `null`, `deflate`, `snappy` or `zstd` blocks |
+| `grpc-unary` / `grpc-stream` | the format as a gRPC codec, see [gRPC](#grpc) |
 
 Metrics: `ns/op`, `MB/s` (encoded bytes), `B/op`, `allocs/op`, plus `ns/rec`,
 `rec/s` and `wire-B/rec` (encoded bytes per record).
@@ -77,10 +78,43 @@ go run ./cmd/report -data=data     # benchmarks the full files instead of the sa
 
 | Format | Library | Ops |
 |---|---|---|
-| `avro` (baseline) | this library, reflection | all |
-| `hamba` | github.com/hamba/avro/v2 | all |
-| `json` | encoding/json | single, batch (NDJSON) |
-| `protobuf` | google.golang.org/protobuf, generated messages | single, batch (`protodelim`) |
+| `avro` (baseline) | this library, reflection | all, gRPC |
+| `hamba` | github.com/hamba/avro/v2 | all, gRPC |
+| `json` | encoding/json | single, batch (NDJSON), gRPC |
+| `protobuf` | google.golang.org/protobuf, generated messages | single, batch (`protodelim`), gRPC (default codec) |
+| `vtprotobuf` | github.com/planetscale/vtprotobuf, generated `MarshalVT`/`UnmarshalVT` | single, batch (varint-delimited), gRPC (`vtprotobuf/codec/grpc`) |
+
+`avro`, `hamba` and `json` use their
+single-value `Marshal`/`Unmarshal` (with the dataset schema for Avro) as an
+`encoding.Codec`.
+
+## gRPC
+
+`grpc-unary` and `grpc-stream` send records through a real
+`google.golang.org/grpc` client and server connected in-process by
+`grpc/test/bufconn`. Every format uses the same hand-written echo service
+(`bench.Echo`), the same transport and the same settings, so only the codec
+differs; it is forced on both ends with `ForceCodec`/`ForceServerCodec`.
+
+- `grpc-unary`: one `Unary` RPC per record; the server decodes the request
+  and echoes it back, so each record is encoded and decoded twice. `ns/rec`
+  is the per-RPC latency.
+- `grpc-stream`: one bidirectional `Stream` RPC per iteration; the client
+  sends every record while receiving the echoes concurrently. `ns/rec` is the
+  amortised cost per message.
+
+The numbers include, equally for every format: HTTP/2 framing, gRPC
+headers and the 5-byte message prefix, flow control, the client and server
+goroutines and the in-memory pipe. Absolute values are therefore far above
+`encode`/`decode`; compare formats within a gRPC op, not against other ops.
+Allocations and `B/op` cover client and server (same process).
+
+`wire-B/rec` and `MB/s` count gRPC message bytes (payload plus the 5-byte
+prefix) in both directions per record, as reported by a client
+`stats.Handler` during the round-trip check that runs before timing; HTTP/2
+frames, headers and connection setup are excluded so the value is
+deterministic. To keep unary
+runs short, each gRPC op uses the first 1 000 records of the dataset.
 
 ## Extending
 
@@ -97,4 +131,12 @@ automatically; code-generated formats skip it until they add a binding.
 (`format.StreamBatch` and `format.StreamContainer` wrap streaming APIs); return
 `format.ErrUnsupported` for datasets it cannot bind. Then add it to
 `formats.All`. Code-generated formats keep per-dataset schemas and converters
-in their own package (see `formats/protobuf`, regenerated with `go generate`).
+in their own package (see `formats/protobuf`, regenerated with `go generate`;
+the same `buf.gen.yaml` also emits the vtprotobuf methods that
+`formats/vtprotobuf` binds to the same messages).
+
+**Add an operation kind**: implement `suite.Extension` (`Ops(Case) []Op`,
+`Verify(Case) error`) in `extensions/<name>` and add it to `extensions.All`.
+The suite verifies and benchmarks extension ops after the built-in ones,
+timing them with `suite.Measure`; existing format adapters stay untouched and
+the report renders any op name (see `extensions/rpc`).
