@@ -8,6 +8,7 @@ import (
 	"github.com/iskorotkov/avro/bench/formats/goavro"
 	"github.com/iskorotkov/avro/bench/formats/gogenavro"
 	"github.com/iskorotkov/avro/bench/formats/hamba"
+	"github.com/iskorotkov/avro/bench/formats/heetch"
 	"github.com/iskorotkov/avro/bench/formats/protobuf"
 	"github.com/iskorotkov/avro/bench/formats/stdjson"
 	"github.com/iskorotkov/avro/bench/formats/twmb"
@@ -22,6 +23,7 @@ func All() []format.Format {
 		twmb.Format{},
 		goavro.Format{},
 		gogenavro.Format{},
+		heetch.Format{},
 		stdjson.Format{},
 		protobuf.Format{},
 	}
