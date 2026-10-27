@@ -9,8 +9,10 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
+	"github.com/iskorotkov/avro/bench/report/javarun"
 	"github.com/iskorotkov/avro/bench/report/jmh"
 	"github.com/iskorotkov/avro/bench/report/pipeline"
 	"github.com/iskorotkov/avro/bench/report/raw"
@@ -22,6 +24,8 @@ type config struct {
 	run      run.Options
 	from     string
 	java     string
+	javaRun  bool
+	javaArgs string
 	out      string
 	charts   string
 	baseline string
@@ -55,6 +59,8 @@ func parseFlags(args []string) config {
 	fs.StringVar(&c.run.ResultsDir, "results", "results", "directory for raw result files")
 	fs.StringVar(&c.from, "from", "", "read this raw results file instead of running the suite")
 	fs.StringVar(&c.java, "java", "", "JMH JSON file to merge as extra formats")
+	fs.BoolVar(&c.javaRun, "java-run", false, "run the Java suite (java/run.sh) when java and mvn are installed, else use -java")
+	fs.StringVar(&c.javaArgs, "java-args", "", "extra JMH arguments for -java-run, e.g. \"-f 1 -wi 1 -i 1\"")
 	fs.StringVar(&c.out, "out", "RESULTS.md", "markdown report path")
 	fs.StringVar(&c.charts, "charts", "results/charts", "SVG charts directory")
 	fs.StringVar(&c.baseline, "baseline", "avro", "baseline format (100%)")
@@ -74,7 +80,11 @@ func execute(ctx context.Context, c config) error {
 		}
 		fmt.Fprintln(os.Stderr, "raw results:", rawPath)
 	}
-	results, err := load(rawPath, c.java)
+	javaPath, err := javaResults(ctx, c)
+	if err != nil {
+		return err
+	}
+	results, err := load(rawPath, javaPath)
 	if err != nil {
 		return err
 	}
@@ -99,6 +109,29 @@ func execute(ctx context.Context, c config) error {
 	}
 	fmt.Fprintf(os.Stderr, "wrote %s and %d charts in %s\n", c.out, len(out.Charts), c.charts)
 	return nil
+}
+
+// javaResults returns the JMH JSON to merge: a fresh run when requested and possible, else -java.
+func javaResults(ctx context.Context, c config) (string, error) {
+	if !c.javaRun {
+		return c.java, nil
+	}
+	if missing := javarun.Available(); missing != "" {
+		fmt.Fprintf(os.Stderr, "report: %s not found, skipping the Java run\n", missing)
+		return c.java, nil
+	}
+	if c.run.DataDir != "" {
+		return "", fmt.Errorf("-java-run measures the committed samples, not -data; run Java separately and pass -java")
+	}
+	if err := os.MkdirAll(c.run.ResultsDir, 0o750); err != nil {
+		return "", err
+	}
+	out := filepath.Join(c.run.ResultsDir, "java.json")
+	if err := javarun.Run(ctx, filepath.Join(c.run.Dir, "java", "run.sh"), out, strings.Fields(c.javaArgs), os.Stderr); err != nil {
+		return "", err
+	}
+
+	return out, nil
 }
 
 func load(rawPath, javaPath string) ([]*benchfmt.Result, error) {
