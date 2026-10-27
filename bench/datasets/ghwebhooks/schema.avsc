@@ -1,0 +1,1493 @@
+{
+  "type": "record",
+  "name": "Event",
+  "fields": [
+    {
+      "name": "event",
+      "type": "string"
+    },
+    {
+      "name": "action",
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    {
+      "name": "sender",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "User",
+          "fields": [
+            {
+              "name": "login",
+              "type": "string"
+            },
+            {
+              "name": "id",
+              "type": "long"
+            },
+            {
+              "name": "node_id",
+              "type": "string"
+            },
+            {
+              "name": "avatar_url",
+              "type": "string"
+            },
+            {
+              "name": "gravatar_id",
+              "type": "string"
+            },
+            {
+              "name": "url",
+              "type": "string"
+            },
+            {
+              "name": "html_url",
+              "type": "string"
+            },
+            {
+              "name": "followers_url",
+              "type": "string"
+            },
+            {
+              "name": "following_url",
+              "type": "string"
+            },
+            {
+              "name": "gists_url",
+              "type": "string"
+            },
+            {
+              "name": "starred_url",
+              "type": "string"
+            },
+            {
+              "name": "subscriptions_url",
+              "type": "string"
+            },
+            {
+              "name": "organizations_url",
+              "type": "string"
+            },
+            {
+              "name": "repos_url",
+              "type": "string"
+            },
+            {
+              "name": "events_url",
+              "type": "string"
+            },
+            {
+              "name": "received_events_url",
+              "type": "string"
+            },
+            {
+              "name": "type",
+              "type": "string"
+            },
+            {
+              "name": "site_admin",
+              "type": "boolean"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "repository",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "Repository",
+          "fields": [
+            {
+              "name": "id",
+              "type": "long"
+            },
+            {
+              "name": "node_id",
+              "type": "string"
+            },
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "full_name",
+              "type": "string"
+            },
+            {
+              "name": "private",
+              "type": "boolean"
+            },
+            {
+              "name": "owner",
+              "type": [
+                "null",
+                "github.webhooks.User"
+              ]
+            },
+            {
+              "name": "html_url",
+              "type": "string"
+            },
+            {
+              "name": "description",
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            {
+              "name": "fork",
+              "type": "boolean"
+            },
+            {
+              "name": "url",
+              "type": "string"
+            },
+            {
+              "name": "issues_url",
+              "type": "string"
+            },
+            {
+              "name": "pulls_url",
+              "type": "string"
+            },
+            {
+              "name": "commits_url",
+              "type": "string"
+            },
+            {
+              "name": "git_url",
+              "type": "string"
+            },
+            {
+              "name": "ssh_url",
+              "type": "string"
+            },
+            {
+              "name": "clone_url",
+              "type": "string"
+            },
+            {
+              "name": "homepage",
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            {
+              "name": "size",
+              "type": "int"
+            },
+            {
+              "name": "stargazers_count",
+              "type": "int"
+            },
+            {
+              "name": "watchers_count",
+              "type": "int"
+            },
+            {
+              "name": "language",
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            {
+              "name": "forks_count",
+              "type": "int"
+            },
+            {
+              "name": "open_issues_count",
+              "type": "int"
+            },
+            {
+              "name": "license",
+              "type": [
+                "null",
+                {
+                  "type": "record",
+                  "name": "License",
+                  "fields": [
+                    {
+                      "name": "key",
+                      "type": "string"
+                    },
+                    {
+                      "name": "name",
+                      "type": "string"
+                    },
+                    {
+                      "name": "spdx_id",
+                      "type": "string"
+                    },
+                    {
+                      "name": "node_id",
+                      "type": "string"
+                    },
+                    {
+                      "name": "url",
+                      "type": [
+                        "null",
+                        "string"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "topics",
+              "type": {
+                "type": "array",
+                "items": "string"
+              }
+            },
+            {
+              "name": "visibility",
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            {
+              "name": "default_branch",
+              "type": "string"
+            },
+            {
+              "name": "archived",
+              "type": "boolean"
+            },
+            {
+              "name": "disabled",
+              "type": [
+                "null",
+                "boolean"
+              ]
+            },
+            {
+              "name": "has_issues",
+              "type": "boolean"
+            },
+            {
+              "name": "is_template",
+              "type": [
+                "null",
+                "boolean"
+              ]
+            },
+            {
+              "name": "web_commit_signoff_required",
+              "type": [
+                "null",
+                "boolean"
+              ]
+            },
+            {
+              "name": "created_at",
+              "type": [
+                "null",
+                {
+                  "type": "long",
+                  "logicalType": "timestamp-millis"
+                }
+              ]
+            },
+            {
+              "name": "updated_at",
+              "type": [
+                "null",
+                {
+                  "type": "long",
+                  "logicalType": "timestamp-millis"
+                }
+              ]
+            },
+            {
+              "name": "pushed_at",
+              "type": [
+                "null",
+                {
+                  "type": "long",
+                  "logicalType": "timestamp-millis"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "organization",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "Organization",
+          "fields": [
+            {
+              "name": "login",
+              "type": "string"
+            },
+            {
+              "name": "id",
+              "type": "long"
+            },
+            {
+              "name": "node_id",
+              "type": "string"
+            },
+            {
+              "name": "url",
+              "type": "string"
+            },
+            {
+              "name": "avatar_url",
+              "type": "string"
+            },
+            {
+              "name": "repos_url",
+              "type": "string"
+            },
+            {
+              "name": "members_url",
+              "type": "string"
+            },
+            {
+              "name": "description",
+              "type": [
+                "null",
+                "string"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "installation",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "Installation",
+          "fields": [
+            {
+              "name": "id",
+              "type": "long"
+            },
+            {
+              "name": "node_id",
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            {
+              "name": "app_id",
+              "type": [
+                "null",
+                "long"
+              ]
+            },
+            {
+              "name": "app_slug",
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            {
+              "name": "target_id",
+              "type": [
+                "null",
+                "long"
+              ]
+            },
+            {
+              "name": "target_type",
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            {
+              "name": "repository_selection",
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            {
+              "name": "account",
+              "type": [
+                "null",
+                "github.webhooks.User"
+              ]
+            },
+            {
+              "name": "html_url",
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            {
+              "name": "access_tokens_url",
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            {
+              "name": "events",
+              "type": {
+                "type": "array",
+                "items": "string"
+              }
+            },
+            {
+              "name": "permissions",
+              "type": {
+                "type": "map",
+                "values": "string"
+              }
+            },
+            {
+              "name": "created_at",
+              "type": [
+                "null",
+                {
+                  "type": "long",
+                  "logicalType": "timestamp-millis"
+                }
+              ]
+            },
+            {
+              "name": "updated_at",
+              "type": [
+                "null",
+                {
+                  "type": "long",
+                  "logicalType": "timestamp-millis"
+                }
+              ]
+            },
+            {
+              "name": "suspended_at",
+              "type": [
+                "null",
+                {
+                  "type": "long",
+                  "logicalType": "timestamp-millis"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "issue",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "Issue",
+          "fields": [
+            {
+              "name": "id",
+              "type": "long"
+            },
+            {
+              "name": "node_id",
+              "type": "string"
+            },
+            {
+              "name": "number",
+              "type": "int"
+            },
+            {
+              "name": "url",
+              "type": "string"
+            },
+            {
+              "name": "repository_url",
+              "type": "string"
+            },
+            {
+              "name": "html_url",
+              "type": "string"
+            },
+            {
+              "name": "title",
+              "type": "string"
+            },
+            {
+              "name": "user",
+              "type": [
+                "null",
+                "github.webhooks.User"
+              ]
+            },
+            {
+              "name": "state",
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            {
+              "name": "locked",
+              "type": [
+                "null",
+                "boolean"
+              ]
+            },
+            {
+              "name": "draft",
+              "type": [
+                "null",
+                "boolean"
+              ]
+            },
+            {
+              "name": "assignee",
+              "type": [
+                "null",
+                "github.webhooks.User"
+              ]
+            },
+            {
+              "name": "assignees",
+              "type": {
+                "type": "array",
+                "items": "github.webhooks.User"
+              }
+            },
+            {
+              "name": "labels",
+              "type": {
+                "type": "array",
+                "items": {
+                  "type": "record",
+                  "name": "Label",
+                  "fields": [
+                    {
+                      "name": "id",
+                      "type": "long"
+                    },
+                    {
+                      "name": "node_id",
+                      "type": "string"
+                    },
+                    {
+                      "name": "url",
+                      "type": "string"
+                    },
+                    {
+                      "name": "name",
+                      "type": "string"
+                    },
+                    {
+                      "name": "color",
+                      "type": "string"
+                    },
+                    {
+                      "name": "description",
+                      "type": [
+                        "null",
+                        "string"
+                      ]
+                    },
+                    {
+                      "name": "default",
+                      "type": "boolean"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "milestone",
+              "type": [
+                "null",
+                {
+                  "type": "record",
+                  "name": "Milestone",
+                  "fields": [
+                    {
+                      "name": "id",
+                      "type": "long"
+                    },
+                    {
+                      "name": "node_id",
+                      "type": "string"
+                    },
+                    {
+                      "name": "number",
+                      "type": "int"
+                    },
+                    {
+                      "name": "url",
+                      "type": "string"
+                    },
+                    {
+                      "name": "html_url",
+                      "type": "string"
+                    },
+                    {
+                      "name": "title",
+                      "type": "string"
+                    },
+                    {
+                      "name": "description",
+                      "type": [
+                        "null",
+                        "string"
+                      ]
+                    },
+                    {
+                      "name": "creator",
+                      "type": [
+                        "null",
+                        "github.webhooks.User"
+                      ]
+                    },
+                    {
+                      "name": "open_issues",
+                      "type": "int"
+                    },
+                    {
+                      "name": "closed_issues",
+                      "type": "int"
+                    },
+                    {
+                      "name": "state",
+                      "type": "string"
+                    },
+                    {
+                      "name": "created_at",
+                      "type": {
+                        "type": "long",
+                        "logicalType": "timestamp-millis"
+                      }
+                    },
+                    {
+                      "name": "updated_at",
+                      "type": {
+                        "type": "long",
+                        "logicalType": "timestamp-millis"
+                      }
+                    },
+                    {
+                      "name": "closed_at",
+                      "type": [
+                        "null",
+                        {
+                          "type": "long",
+                          "logicalType": "timestamp-millis"
+                        }
+                      ]
+                    },
+                    {
+                      "name": "due_on",
+                      "type": [
+                        "null",
+                        {
+                          "type": "long",
+                          "logicalType": "timestamp-millis"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "comments",
+              "type": "int"
+            },
+            {
+              "name": "created_at",
+              "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+              }
+            },
+            {
+              "name": "updated_at",
+              "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+              }
+            },
+            {
+              "name": "closed_at",
+              "type": [
+                "null",
+                {
+                  "type": "long",
+                  "logicalType": "timestamp-millis"
+                }
+              ]
+            },
+            {
+              "name": "author_association",
+              "type": "string"
+            },
+            {
+              "name": "active_lock_reason",
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            {
+              "name": "body",
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            {
+              "name": "reactions",
+              "type": [
+                "null",
+                {
+                  "type": "record",
+                  "name": "Reactions",
+                  "fields": [
+                    {
+                      "name": "url",
+                      "type": "string"
+                    },
+                    {
+                      "name": "total_count",
+                      "type": "int"
+                    },
+                    {
+                      "name": "plus_one",
+                      "type": "int"
+                    },
+                    {
+                      "name": "minus_one",
+                      "type": "int"
+                    },
+                    {
+                      "name": "laugh",
+                      "type": "int"
+                    },
+                    {
+                      "name": "hooray",
+                      "type": "int"
+                    },
+                    {
+                      "name": "confused",
+                      "type": "int"
+                    },
+                    {
+                      "name": "heart",
+                      "type": "int"
+                    },
+                    {
+                      "name": "rocket",
+                      "type": "int"
+                    },
+                    {
+                      "name": "eyes",
+                      "type": "int"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comment",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "Comment",
+          "fields": [
+            {
+              "name": "id",
+              "type": "long"
+            },
+            {
+              "name": "node_id",
+              "type": "string"
+            },
+            {
+              "name": "url",
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            {
+              "name": "html_url",
+              "type": "string"
+            },
+            {
+              "name": "user",
+              "type": [
+                "null",
+                "github.webhooks.User"
+              ]
+            },
+            {
+              "name": "created_at",
+              "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+              }
+            },
+            {
+              "name": "updated_at",
+              "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+              }
+            },
+            {
+              "name": "author_association",
+              "type": "string"
+            },
+            {
+              "name": "body",
+              "type": "string"
+            },
+            {
+              "name": "path",
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            {
+              "name": "position",
+              "type": [
+                "null",
+                "int"
+              ]
+            },
+            {
+              "name": "line",
+              "type": [
+                "null",
+                "int"
+              ]
+            },
+            {
+              "name": "commit_id",
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            {
+              "name": "pull_request_review_id",
+              "type": [
+                "null",
+                "long"
+              ]
+            },
+            {
+              "name": "reactions",
+              "type": [
+                "null",
+                "github.webhooks.Reactions"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "pull_request",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "PullRequest",
+          "fields": [
+            {
+              "name": "id",
+              "type": "long"
+            },
+            {
+              "name": "node_id",
+              "type": "string"
+            },
+            {
+              "name": "number",
+              "type": "int"
+            },
+            {
+              "name": "url",
+              "type": "string"
+            },
+            {
+              "name": "html_url",
+              "type": "string"
+            },
+            {
+              "name": "diff_url",
+              "type": "string"
+            },
+            {
+              "name": "patch_url",
+              "type": "string"
+            },
+            {
+              "name": "issue_url",
+              "type": "string"
+            },
+            {
+              "name": "commits_url",
+              "type": "string"
+            },
+            {
+              "name": "statuses_url",
+              "type": "string"
+            },
+            {
+              "name": "state",
+              "type": "string"
+            },
+            {
+              "name": "locked",
+              "type": "boolean"
+            },
+            {
+              "name": "draft",
+              "type": [
+                "null",
+                "boolean"
+              ]
+            },
+            {
+              "name": "title",
+              "type": "string"
+            },
+            {
+              "name": "user",
+              "type": [
+                "null",
+                "github.webhooks.User"
+              ]
+            },
+            {
+              "name": "body",
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            {
+              "name": "created_at",
+              "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+              }
+            },
+            {
+              "name": "updated_at",
+              "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+              }
+            },
+            {
+              "name": "closed_at",
+              "type": [
+                "null",
+                {
+                  "type": "long",
+                  "logicalType": "timestamp-millis"
+                }
+              ]
+            },
+            {
+              "name": "merged_at",
+              "type": [
+                "null",
+                {
+                  "type": "long",
+                  "logicalType": "timestamp-millis"
+                }
+              ]
+            },
+            {
+              "name": "merge_commit_sha",
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            {
+              "name": "assignee",
+              "type": [
+                "null",
+                "github.webhooks.User"
+              ]
+            },
+            {
+              "name": "assignees",
+              "type": {
+                "type": "array",
+                "items": "github.webhooks.User"
+              }
+            },
+            {
+              "name": "requested_reviewers",
+              "type": {
+                "type": "array",
+                "items": "github.webhooks.User"
+              }
+            },
+            {
+              "name": "labels",
+              "type": {
+                "type": "array",
+                "items": "github.webhooks.Label"
+              }
+            },
+            {
+              "name": "milestone",
+              "type": [
+                "null",
+                "github.webhooks.Milestone"
+              ]
+            },
+            {
+              "name": "head",
+              "type": {
+                "type": "record",
+                "name": "Ref",
+                "fields": [
+                  {
+                    "name": "label",
+                    "type": [
+                      "null",
+                      "string"
+                    ]
+                  },
+                  {
+                    "name": "ref",
+                    "type": "string"
+                  },
+                  {
+                    "name": "sha",
+                    "type": "string"
+                  },
+                  {
+                    "name": "user",
+                    "type": [
+                      "null",
+                      "github.webhooks.User"
+                    ]
+                  },
+                  {
+                    "name": "repo",
+                    "type": [
+                      "null",
+                      "github.webhooks.Repository"
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "name": "base",
+              "type": "github.webhooks.Ref"
+            },
+            {
+              "name": "author_association",
+              "type": "string"
+            },
+            {
+              "name": "merged",
+              "type": [
+                "null",
+                "boolean"
+              ]
+            },
+            {
+              "name": "mergeable",
+              "type": [
+                "null",
+                "boolean"
+              ]
+            },
+            {
+              "name": "mergeable_state",
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            {
+              "name": "comments",
+              "type": [
+                "null",
+                "int"
+              ]
+            },
+            {
+              "name": "review_comments",
+              "type": [
+                "null",
+                "int"
+              ]
+            },
+            {
+              "name": "commits",
+              "type": [
+                "null",
+                "int"
+              ]
+            },
+            {
+              "name": "additions",
+              "type": [
+                "null",
+                "int"
+              ]
+            },
+            {
+              "name": "deletions",
+              "type": [
+                "null",
+                "int"
+              ]
+            },
+            {
+              "name": "changed_files",
+              "type": [
+                "null",
+                "int"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "release",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "Release",
+          "fields": [
+            {
+              "name": "id",
+              "type": "long"
+            },
+            {
+              "name": "node_id",
+              "type": "string"
+            },
+            {
+              "name": "url",
+              "type": "string"
+            },
+            {
+              "name": "html_url",
+              "type": "string"
+            },
+            {
+              "name": "upload_url",
+              "type": "string"
+            },
+            {
+              "name": "tag_name",
+              "type": "string"
+            },
+            {
+              "name": "target_commitish",
+              "type": "string"
+            },
+            {
+              "name": "name",
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            {
+              "name": "draft",
+              "type": "boolean"
+            },
+            {
+              "name": "prerelease",
+              "type": "boolean"
+            },
+            {
+              "name": "created_at",
+              "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+              }
+            },
+            {
+              "name": "published_at",
+              "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+              }
+            },
+            {
+              "name": "author",
+              "type": [
+                "null",
+                "github.webhooks.User"
+              ]
+            },
+            {
+              "name": "body",
+              "type": [
+                "null",
+                "string"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "label",
+      "type": [
+        "null",
+        "github.webhooks.Label"
+      ]
+    },
+    {
+      "name": "number",
+      "type": [
+        "null",
+        "int"
+      ]
+    },
+    {
+      "name": "ref",
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    {
+      "name": "ref_type",
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    {
+      "name": "master_branch",
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    {
+      "name": "description",
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    {
+      "name": "pusher_type",
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    {
+      "name": "before",
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    {
+      "name": "after",
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    {
+      "name": "created",
+      "type": [
+        "null",
+        "boolean"
+      ]
+    },
+    {
+      "name": "deleted",
+      "type": [
+        "null",
+        "boolean"
+      ]
+    },
+    {
+      "name": "forced",
+      "type": [
+        "null",
+        "boolean"
+      ]
+    },
+    {
+      "name": "base_ref",
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    {
+      "name": "compare",
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    {
+      "name": "commits",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "Commit",
+          "fields": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "tree_id",
+              "type": "string"
+            },
+            {
+              "name": "distinct",
+              "type": "boolean"
+            },
+            {
+              "name": "message",
+              "type": "string"
+            },
+            {
+              "name": "timestamp",
+              "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+              }
+            },
+            {
+              "name": "url",
+              "type": "string"
+            },
+            {
+              "name": "author",
+              "type": {
+                "type": "record",
+                "name": "Author",
+                "fields": [
+                  {
+                    "name": "name",
+                    "type": "string"
+                  },
+                  {
+                    "name": "email",
+                    "type": [
+                      "null",
+                      "string"
+                    ]
+                  },
+                  {
+                    "name": "username",
+                    "type": [
+                      "null",
+                      "string"
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "name": "committer",
+              "type": "github.webhooks.Author"
+            },
+            {
+              "name": "added",
+              "type": {
+                "type": "array",
+                "items": "string"
+              }
+            },
+            {
+              "name": "removed",
+              "type": {
+                "type": "array",
+                "items": "string"
+              }
+            },
+            {
+              "name": "modified",
+              "type": {
+                "type": "array",
+                "items": "string"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "head_commit",
+      "type": [
+        "null",
+        "github.webhooks.Commit"
+      ]
+    },
+    {
+      "name": "pusher",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "Pusher",
+          "fields": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "email",
+              "type": [
+                "null",
+                "string"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "namespace": "github.webhooks"
+}

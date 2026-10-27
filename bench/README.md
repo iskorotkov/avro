@@ -63,6 +63,7 @@ Metrics: `ns/op`, `MB/s` (encoded bytes), `B/op`, `allocs/op`, plus `ns/rec`,
 | `nyctaxi` | real | 20 032 | NYC TLC yellow taxi trips (Jan 2024), flat, numeric, nullable fields, timestamps |
 | `earthquakes` | real | 1 707 | USGS weekly earthquake feed (Feb 2018, full snapshot), nullable numbers, timestamps, string arrays |
 | `wikirc` | synthetic | 2 500 | Wikimedia recent-change events (mediawiki/recentchange schema): enum, uuid, timestamp-millis, nullable records, map and array |
+| `ghwebhooks` | real | 329 | GitHub webhook event payloads (octokit examples), deeply nested, many nullable records, URLs, maps, timestamps |
 
 Samples are committed as zstd-compressed JSON Lines (`sample.jsonl.zst`,
 best compression, no Git LFS) and decompressed once in memory, outside timing.

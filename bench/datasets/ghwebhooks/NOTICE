@@ -1,0 +1,55 @@
+GitHub webhook event payload examples, @octokit/webhooks-examples 7.6.1
+
+Source:  https://github.com/octokit/webhooks (packages/webhooks-examples), published on npm
+File:    https://registry.npmjs.org/@octokit/webhooks-examples/-/webhooks-examples-7.6.1.tgz
+SHA-256: 89e6cb1c6345d32e3dd775617fa54effbdc26c859e514898d7728e95e9738280
+Owner:   Gregor Martynus and the octokit/webhooks contributors
+
+Licence: MIT (package.json "license": "MIT"; LICENSE of the octokit/webhooks
+repository, https://raw.githubusercontent.com/octokit/webhooks/main/LICENSE):
+
+    The MIT License
+
+    Copyright (c) 2018 Gregor Martynus
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    THE SOFTWARE.
+
+The payloads are documentation examples, largely taken from GitHub Docs
+(https://docs.github.com/en/webhooks/webhook-events-and-payloads; GitHub Docs
+content is CC-BY-4.0, https://github.com/github/docs/blob/main/LICENSE).
+Attribution: webhook payload examples by GitHub, Inc., via octokit/webhooks.
+Most accounts are placeholders (octocat, Codertocat, noreply addresses), but
+some examples name real public GitHub accounts (logins, ids, avatar and
+profile URLs) as published in those docs; no e-mail address other than
+noreply and placeholder ones is kept. GH Archive was not used: it has no data
+licence and carries personal data.
+
+sample.jsonl.zst holds all 329 payloads of the api.github.com directory (58
+event types), one record per payload, with the event name added. It is a
+subset of fields: the shared envelope (sender, repository, organization,
+installation) plus issue, comment, pull_request, release, label and push
+fields (ref, before, after, commits, head_commit, pusher); all other payload
+fields are dropped. Timestamps (ISO strings, or Unix seconds in push events)
+are normalised to UTC milliseconds. The tarball's ghes-31..35 directories are
+only read when the full data is loaded (726 payloads).
+
+Regenerate it with:
+
+    go run ./cmd/fetch -dataset ghwebhooks
+    go test ./datasets/ghwebhooks -update "$PWD/data/ghwebhooks/webhooks-examples-7.6.1.tgz"
