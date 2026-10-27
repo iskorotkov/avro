@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"sync"
 	"testing"
+	"unsafe"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -228,4 +229,40 @@ func TestZStandardCodec_DefaultInstancesConcurrent(t *testing.T) {
 	for err := range errs {
 		t.Fatal(err)
 	}
+}
+
+// A built-in codec's result is only valid until its next call, because the next call reuses the same buffer.
+func TestCodecs_ResultValidUntilNextCall(t *testing.T) {
+	first := makeTestData(4096, func() byte { return 'a' })
+	second := makeTestData(4096, func() byte { return 'b' })
+
+	for _, name := range []CodecName{Deflate, Snappy, ZStandard} {
+		t.Run(string(name), func(t *testing.T) {
+			codec, err := resolveCodec(name, codecOptions{DeflateCompressionLevel: -1})
+			require.NoError(t, err)
+			encodedFirst := bytes.Clone(codec.Encode(first))
+			encodedSecond := bytes.Clone(codec.Encode(second))
+
+			decoded, err := codec.Decode(encodedFirst)
+			require.NoError(t, err)
+			assert.Equal(t, first, decoded)
+			reused, err := codec.Decode(encodedSecond)
+			require.NoError(t, err)
+
+			assert.Same(t, unsafe.SliceData(decoded), unsafe.SliceData(reused))
+			assert.Equal(t, second, decoded)
+			assert.Same(t, unsafe.SliceData(codec.Encode(first)), unsafe.SliceData(codec.Encode(second)))
+		})
+	}
+}
+
+func TestNullCodec_ReturnsInput(t *testing.T) {
+	codec := &NullCodec{}
+	in := []byte("abc")
+
+	decoded, err := codec.Decode(in)
+
+	require.NoError(t, err)
+	assert.Same(t, unsafe.SliceData(in), unsafe.SliceData(decoded))
+	assert.Same(t, unsafe.SliceData(in), unsafe.SliceData(codec.Encode(in)))
 }
