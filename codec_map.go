@@ -109,7 +109,7 @@ func decoderOfMap(d *decoderContext, m *MapSchema, typ reflect.Type) ValDecoder 
 	case reflect.TypeFor[map[string]bool]():
 		return &nativeMapDecoder[bool]{typ: typ, decoder: decoder}
 	case reflect.TypeFor[map[string]any]():
-		return &nativeMapDecoder[any]{typ: typ, decoder: decoder, merge: true}
+		return &nativeMapDecoder[any]{typ: typ, decoder: decoder}
 	default:
 		return &mapDecoder{typ: typ, decoder: decoder, elem: newMapElem(typ.Elem())}
 	}
@@ -119,12 +119,11 @@ func decoderOfMap(d *decoderContext, m *MapSchema, typ reflect.Type) ValDecoder 
 type nativeMapDecoder[V any] struct {
 	typ     reflect.Type
 	decoder ValDecoder
-	merge   bool
 }
 
 func (d *nativeMapDecoder[V]) Decode(ptr unsafe.Pointer, r *Reader) {
 	m := (*map[string]V)(ptr)
-	merge := d.merge || len(*m) > 0
+	merge := len(*m) > 0
 	var size int
 
 	for {

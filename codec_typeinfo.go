@@ -12,7 +12,7 @@ func exposesAddress(typ reflect.Type) bool {
 // accumulates reports whether decoding into an existing typ value can keep data from that value.
 func accumulates(typ reflect.Type) bool {
 	return hasComponent(typ, true, map[reflect.Type]bool{}, func(t reflect.Type) bool {
-		return t.Kind() == reflect.Map || t.Kind() == reflect.Interface
+		return t.Kind() == reflect.Map
 	})
 }
 

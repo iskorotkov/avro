@@ -39,9 +39,9 @@ func TestAccumulates(t *testing.T) {
 	assert.False(t, accumulates(reflect.TypeFor[*node]()))
 	assert.False(t, accumulates(reflect.TypeFor[struct{ A []string }]()))
 	assert.True(t, accumulates(reflect.TypeFor[map[string]int]()))
-	assert.True(t, accumulates(reflect.TypeFor[any]()))
+	assert.False(t, accumulates(reflect.TypeFor[any]()))
 	assert.True(t, accumulates(reflect.TypeFor[[]struct{ M map[string]int }]()))
-	assert.True(t, accumulates(reflect.TypeFor[*struct{ A any }]()))
+	assert.True(t, accumulates(reflect.TypeFor[*struct{ M map[string]int }]()))
 }
 
 func TestSameLayout(t *testing.T) {

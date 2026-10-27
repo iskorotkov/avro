@@ -46,6 +46,8 @@ These `API` and `TypeResolver` methods take or return the standard `reflect.Type
 - `TypeResolver.Name(typ reflect.Type) ([]string, error)`
 - `TypeResolver.Type(name string) (reflect.Type, error)`
 
+When a key repeats within one map in the input and the map value is a struct without nested maps, the repeated entry is now decoded from a zero value instead of into the earlier entry; maps that already hold entries before decoding still merge as before.
+
 To migrate, replace `reflect2.TypeOf(v)` with `reflect.TypeOf(v)` (or `reflect.TypeFor[T]()`) at these call sites and drop the `github.com/modern-go/reflect2` import.
 
 ## How to migrate from hamba/avro?
