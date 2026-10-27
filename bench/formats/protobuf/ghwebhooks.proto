@@ -1,0 +1,308 @@
+syntax = "proto3";
+
+package bench;
+
+option go_package = "github.com/iskorotkov/avro/bench/formats/protobuf";
+
+// Gh messages store times as Unix milliseconds, matching Avro timestamp-millis on the wire.
+message GhUser {
+  string login = 1;
+  int64 id = 2;
+  string node_id = 3;
+  string avatar_url = 4;
+  string gravatar_id = 5;
+  string url = 6;
+  string html_url = 7;
+  string followers_url = 8;
+  string following_url = 9;
+  string gists_url = 10;
+  string starred_url = 11;
+  string subscriptions_url = 12;
+  string organizations_url = 13;
+  string repos_url = 14;
+  string events_url = 15;
+  string received_events_url = 16;
+  string type = 17;
+  bool site_admin = 18;
+}
+
+message GhLicense {
+  string key = 1;
+  string name = 2;
+  string spdx_id = 3;
+  string node_id = 4;
+  optional string url = 5;
+}
+
+message GhRepository {
+  int64 id = 1;
+  string node_id = 2;
+  string name = 3;
+  string full_name = 4;
+  bool private = 5;
+  GhUser owner = 6;
+  string html_url = 7;
+  optional string description = 8;
+  bool fork = 9;
+  string url = 10;
+  string issues_url = 11;
+  string pulls_url = 12;
+  string commits_url = 13;
+  string git_url = 14;
+  string ssh_url = 15;
+  string clone_url = 16;
+  optional string homepage = 17;
+  int32 size = 18;
+  int32 stargazers_count = 19;
+  int32 watchers_count = 20;
+  optional string language = 21;
+  int32 forks_count = 22;
+  int32 open_issues_count = 23;
+  GhLicense license = 24;
+  repeated string topics = 25;
+  optional string visibility = 26;
+  string default_branch = 27;
+  bool archived = 28;
+  optional bool disabled = 29;
+  bool has_issues = 30;
+  optional bool is_template = 31;
+  optional bool web_commit_signoff_required = 32;
+  optional int64 created_at = 33;
+  optional int64 updated_at = 34;
+  optional int64 pushed_at = 35;
+}
+
+message GhOrganization {
+  string login = 1;
+  int64 id = 2;
+  string node_id = 3;
+  string url = 4;
+  string avatar_url = 5;
+  string repos_url = 6;
+  string members_url = 7;
+  optional string description = 8;
+}
+
+message GhInstallation {
+  int64 id = 1;
+  optional string node_id = 2;
+  optional int64 app_id = 3;
+  optional string app_slug = 4;
+  optional int64 target_id = 5;
+  optional string target_type = 6;
+  optional string repository_selection = 7;
+  GhUser account = 8;
+  optional string html_url = 9;
+  optional string access_tokens_url = 10;
+  repeated string events = 11;
+  map<string, string> permissions = 12;
+  optional int64 created_at = 13;
+  optional int64 updated_at = 14;
+  optional int64 suspended_at = 15;
+}
+
+message GhLabel {
+  int64 id = 1;
+  string node_id = 2;
+  string url = 3;
+  string name = 4;
+  string color = 5;
+  optional string description = 6;
+  bool default = 7;
+}
+
+message GhReactions {
+  string url = 1;
+  int32 total_count = 2;
+  int32 plus_one = 3;
+  int32 minus_one = 4;
+  int32 laugh = 5;
+  int32 hooray = 6;
+  int32 confused = 7;
+  int32 heart = 8;
+  int32 rocket = 9;
+  int32 eyes = 10;
+}
+
+message GhMilestone {
+  int64 id = 1;
+  string node_id = 2;
+  int32 number = 3;
+  string url = 4;
+  string html_url = 5;
+  string title = 6;
+  optional string description = 7;
+  GhUser creator = 8;
+  int32 open_issues = 9;
+  int32 closed_issues = 10;
+  string state = 11;
+  int64 created_at = 12;
+  int64 updated_at = 13;
+  optional int64 closed_at = 14;
+  optional int64 due_on = 15;
+}
+
+message GhIssue {
+  int64 id = 1;
+  string node_id = 2;
+  int32 number = 3;
+  string url = 4;
+  string repository_url = 5;
+  string html_url = 6;
+  string title = 7;
+  GhUser user = 8;
+  optional string state = 9;
+  optional bool locked = 10;
+  optional bool draft = 11;
+  GhUser assignee = 12;
+  repeated GhUser assignees = 13;
+  repeated GhLabel labels = 14;
+  GhMilestone milestone = 15;
+  int32 comments = 16;
+  int64 created_at = 17;
+  int64 updated_at = 18;
+  optional int64 closed_at = 19;
+  string author_association = 20;
+  optional string active_lock_reason = 21;
+  optional string body = 22;
+  GhReactions reactions = 23;
+}
+
+message GhComment {
+  int64 id = 1;
+  string node_id = 2;
+  optional string url = 3;
+  string html_url = 4;
+  GhUser user = 5;
+  int64 created_at = 6;
+  int64 updated_at = 7;
+  string author_association = 8;
+  string body = 9;
+  optional string path = 10;
+  optional int32 position = 11;
+  optional int32 line = 12;
+  optional string commit_id = 13;
+  optional int64 pull_request_review_id = 14;
+  GhReactions reactions = 15;
+}
+
+message GhRef {
+  optional string label = 1;
+  string ref = 2;
+  string sha = 3;
+  GhUser user = 4;
+  GhRepository repo = 5;
+}
+
+message GhPullRequest {
+  int64 id = 1;
+  string node_id = 2;
+  int32 number = 3;
+  string url = 4;
+  string html_url = 5;
+  string diff_url = 6;
+  string patch_url = 7;
+  string issue_url = 8;
+  string commits_url = 9;
+  string statuses_url = 10;
+  string state = 11;
+  bool locked = 12;
+  optional bool draft = 13;
+  string title = 14;
+  GhUser user = 15;
+  optional string body = 16;
+  int64 created_at = 17;
+  int64 updated_at = 18;
+  optional int64 closed_at = 19;
+  optional int64 merged_at = 20;
+  optional string merge_commit_sha = 21;
+  GhUser assignee = 22;
+  repeated GhUser assignees = 23;
+  repeated GhUser requested_reviewers = 24;
+  repeated GhLabel labels = 25;
+  GhMilestone milestone = 26;
+  GhRef head = 27;
+  GhRef base = 28;
+  string author_association = 29;
+  optional bool merged = 30;
+  optional bool mergeable = 31;
+  optional string mergeable_state = 32;
+  optional int32 comments = 33;
+  optional int32 review_comments = 34;
+  optional int32 commits = 35;
+  optional int32 additions = 36;
+  optional int32 deletions = 37;
+  optional int32 changed_files = 38;
+}
+
+message GhRelease {
+  int64 id = 1;
+  string node_id = 2;
+  string url = 3;
+  string html_url = 4;
+  string upload_url = 5;
+  string tag_name = 6;
+  string target_commitish = 7;
+  optional string name = 8;
+  bool draft = 9;
+  bool prerelease = 10;
+  int64 created_at = 11;
+  int64 published_at = 12;
+  GhUser author = 13;
+  optional string body = 14;
+}
+
+message GhAuthor {
+  string name = 1;
+  optional string email = 2;
+  optional string username = 3;
+}
+
+message GhCommit {
+  string id = 1;
+  string tree_id = 2;
+  bool distinct = 3;
+  string message = 4;
+  int64 timestamp = 5;
+  string url = 6;
+  GhAuthor author = 7;
+  GhAuthor committer = 8;
+  repeated string added = 9;
+  repeated string removed = 10;
+  repeated string modified = 11;
+}
+
+message GhPusher {
+  string name = 1;
+  optional string email = 2;
+}
+
+message GhEvent {
+  string event = 1;
+  optional string action = 2;
+  GhUser sender = 3;
+  GhRepository repository = 4;
+  GhOrganization organization = 5;
+  GhInstallation installation = 6;
+  GhIssue issue = 7;
+  GhComment comment = 8;
+  GhPullRequest pull_request = 9;
+  GhRelease release = 10;
+  GhLabel label = 11;
+  optional int32 number = 12;
+  optional string ref = 13;
+  optional string ref_type = 14;
+  optional string master_branch = 15;
+  optional string description = 16;
+  optional string pusher_type = 17;
+  optional string before = 18;
+  optional string after = 19;
+  optional bool created = 20;
+  optional bool deleted = 21;
+  optional bool forced = 22;
+  optional string base_ref = 23;
+  optional string compare = 24;
+  repeated GhCommit commits = 25;
+  GhCommit head_commit = 26;
+  GhPusher pusher = 27;
+}

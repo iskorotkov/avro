@@ -9,6 +9,7 @@ import (
 
 	"github.com/iskorotkov/avro/bench/dataset"
 	"github.com/iskorotkov/avro/bench/datasets/earthquakes"
+	"github.com/iskorotkov/avro/bench/datasets/ghwebhooks"
 	"github.com/iskorotkov/avro/bench/datasets/nyctaxi"
 	"github.com/iskorotkov/avro/bench/datasets/superhero"
 	"github.com/iskorotkov/avro/bench/datasets/wikirc"
@@ -37,6 +38,8 @@ func (Format) Bind(ds dataset.Dataset) (*format.Subject, error) {
 		return bind(ds, fromQuake)
 	case wikirc.Name:
 		return bind(ds, fromRecentChange)
+	case ghwebhooks.Name:
+		return bind(ds, fromGhEvent)
 	default:
 		return nil, format.ErrUnsupported
 	}
