@@ -5,11 +5,15 @@ go 1.26.7
 replace github.com/iskorotkov/avro/v2 => ../
 
 require (
+	github.com/actgardner/gogen-avro/v10 v10.2.1
 	github.com/google/go-cmp v0.7.0
 	github.com/hamba/avro/v2 v2.31.0
+	github.com/heetch/avro v0.4.79
 	github.com/iskorotkov/avro/v2 v2.35.0
 	github.com/klauspost/compress v1.20.3
+	github.com/linkedin/goavro/v2 v2.15.0
 	github.com/parquet-go/parquet-go v0.32.0
+	github.com/twmb/avro v1.9.0
 	golang.org/x/perf v0.0.0-20261009192801-be2c69fb417e
 	google.golang.org/protobuf v1.36.12
 )
@@ -50,6 +54,7 @@ require (
 	github.com/docker/docker-credential-helpers v0.9.10 // indirect
 	github.com/docker/go-connections v0.8.2 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
+	github.com/ettle/strcase v0.2.0 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -109,6 +114,7 @@ require (
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/term v0.47.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
+	golang.org/x/tools v0.52.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20261005182115-fad411399dd8 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20261005182115-fad411399dd8 // indirect
 	mvdan.cc/xurls/v2 v2.6.0 // indirect
@@ -116,6 +122,9 @@ require (
 )
 
 tool (
+	github.com/actgardner/gogen-avro/v10/cmd/gogen-avro
 	github.com/bufbuild/buf/cmd/buf
+	github.com/heetch/avro/cmd/avrogo
+	github.com/iskorotkov/avro/v2/cmd/avrogen
 	google.golang.org/protobuf/cmd/protoc-gen-go
 )
