@@ -50,6 +50,26 @@
     "tracking": "fix/decoder-hardening (return io.ErrUnexpectedEOF for input truncated inside a value)"
   },
   {
+    "id": "ocf/null/java-to-go/nested/record/null-field",
+    "reason": "ocf.Decoder.Decode returns EOF for a block whose datums encode to zero bytes, so Java files of null-only records are unreadable.",
+    "tracking": "open library bug; no fix branch yet (still fails on fix/decoder-hardening)"
+  },
+  {
+    "id": "ocf/deflate/java-to-go/nested/record/null-field",
+    "reason": "ocf.Decoder.Decode returns EOF for a block whose datums encode to zero bytes, so Java files of null-only records are unreadable.",
+    "tracking": "open library bug; no fix branch yet (still fails on fix/decoder-hardening)"
+  },
+  {
+    "id": "ocf/snappy/java-to-go/nested/record/null-field",
+    "reason": "ocf.Decoder.Decode returns EOF for a block whose datums encode to zero bytes, so Java files of null-only records are unreadable.",
+    "tracking": "open library bug; no fix branch yet (still fails on fix/decoder-hardening)"
+  },
+  {
+    "id": "ocf/zstandard/java-to-go/nested/record/null-field",
+    "reason": "ocf.Decoder.Decode returns EOF for a block whose datums encode to zero bytes, so Java files of null-only records are unreadable.",
+    "tracking": "open library bug; no fix branch yet (still fails on fix/decoder-hardening)"
+  },
+  {
     "id": "resolve/union/writer-union-reader-plain",
     "reason": "Resolve rejects a writer union when any branch is unreadable; the spec resolves only the branch actually written.",
     "tracking": "open library bug; no fix branch yet"
@@ -103,6 +123,176 @@
     "id": "schema/logical/duration",
     "reason": "Schema.String keeps logicalType, precision and scale, but Parsing Canonical Form keeps only type, name, fields, symbols, items, values and size, so fingerprints differ from Java.",
     "tracking": "open library bug; no fix branch yet"
+  },
+  {
+    "id": "soe/java-encode/logical/date/2020",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-encode/logical/date/pre-epoch",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-encode/logical/time-millis",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-encode/logical/time-micros",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-encode/logical/timestamp-millis",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-encode/logical/timestamp-micros",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-encode/logical/timestamp-nanos",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-encode/logical/local-timestamp-millis",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-encode/logical/local-timestamp-micros",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-encode/logical/local-timestamp-nanos",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-encode/logical/decimal-bytes/positive",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-encode/logical/decimal-bytes/negative",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-encode/logical/decimal-fixed/negative",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-encode/logical/uuid",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-encode/logical/duration",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-decode/logical/date/2020",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-decode/logical/date/pre-epoch",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-decode/logical/time-millis",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-decode/logical/time-micros",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-decode/logical/timestamp-millis",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-decode/logical/timestamp-micros",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-decode/logical/timestamp-nanos",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-decode/logical/local-timestamp-millis",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-decode/logical/local-timestamp-micros",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-decode/logical/local-timestamp-nanos",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-decode/logical/decimal-bytes/positive",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-decode/logical/decimal-bytes/negative",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-decode/logical/decimal-fixed/negative",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-decode/logical/uuid",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "soe/java-decode/logical/duration",
+    "reason": "Single-object fingerprints use the non-canonical form with logicalType, so Java and Go cannot read each other's messages for logical-type schemas.",
+    "tracking": "open library bug; no fix branch yet (same root cause as schema/logical/*)"
+  },
+  {
+    "id": "java/invalid/boolean/2",
+    "reason": "Java reads any boolean byte other than 1 as false; the spec allows only 0 and 1.",
+    "tracking": "Avro Java 1.12.2 divergence; this library follows the spec, no change planned"
+  },
+  {
+    "id": "java/resolve/name/record-mismatch",
+    "reason": "Java's resolving decoder ignores record names outside unions although its SchemaCompatibility reports the pair incompatible; the spec requires equal names or aliases.",
+    "tracking": "Avro Java 1.12.2 divergence; this library follows the spec, no change planned"
+  },
+  {
+    "id": "java/resolve/union/writer-plain-reader-union-first-match",
+    "reason": "Java picks the exact int branch over the earlier promotable long; the spec picks the first matching branch.",
+    "tracking": "Avro Java 1.12.2 divergence; this library follows the spec, no change planned"
+  },
+  {
+    "id": "java/schema/invalid/default-enum-not-symbol",
+    "reason": "Java checks enum field defaults only for being strings; the spec requires one of the symbols.",
+    "tracking": "Avro Java 1.12.2 divergence; this library follows the spec, no change planned"
   },
   {
     "id": "resolve-cache/default-then-skip",

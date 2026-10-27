@@ -40,6 +40,9 @@ func conformanceCaseIDs(t *testing.T) []string {
 	for _, v := range allSchemaVectors(t) {
 		ids = append(ids, "schema/"+v.id)
 	}
+	for _, c := range javaCases(t, "") {
+		ids = append(ids, c.ID)
+	}
 	return ids
 }
 

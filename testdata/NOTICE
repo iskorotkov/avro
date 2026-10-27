@@ -18,3 +18,8 @@ conformance/
   Expected values written for this repository from the Apache Avro
   specification and checked against Apache Avro Java; no Apache Avro test
   data is copied.
+
+javadiff/
+  A test harness that builds against Apache Avro Java (org.apache.avro:avro,
+  Apache License 2.0) downloaded from Maven Central at build time; no Apache
+  Avro code or binaries are redistributed in this repository.
