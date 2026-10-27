@@ -111,11 +111,60 @@ func decoderOfMap(d *decoderContext, m *MapSchema, typ reflect.Type) ValDecoder 
 	case reflect.TypeFor[map[string]any]():
 		return &nativeMapDecoder[any]{typ: typ, decoder: decoder}
 	default:
+		if native := nativeMapDecoderOf(typ, decoder); native != nil {
+			return native
+		}
 		return &mapDecoder{typ: typ, decoder: decoder, elem: newMapElem(typ.Elem())}
 	}
 }
 
-// nativeMapDecoder decodes into maps whose exact type is map[string]V.
+// nativeMapDecoderOf returns a decoder filling the map as a map[string]V of the same memory layout, or nil if it has none.
+func nativeMapDecoderOf(typ reflect.Type, decoder ValDecoder) ValDecoder {
+	elemType := typ.Elem()
+	if decodeExposesAddress(elemType) || accumulates(elemType) {
+		return nil
+	}
+
+	// Only primitive, pointer, slice and empty interface types qualify, as sameLayout ignores pointer positions.
+	switch elemType.Kind() {
+	case reflect.String:
+		return newNativeMapDecoder[string](typ, decoder)
+	case reflect.Slice:
+		return newNativeMapDecoder[[]byte](typ, decoder)
+	case reflect.Pointer:
+		return newNativeMapDecoder[unsafe.Pointer](typ, decoder)
+	case reflect.Interface:
+		if elemType.NumMethod() == 0 {
+			return newNativeMapDecoder[any](typ, decoder)
+		}
+	case reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
+		reflect.Float32, reflect.Float64:
+		switch elemType.Size() {
+		case 1:
+			return newNativeMapDecoder[uint8](typ, decoder)
+		case 2:
+			return newNativeMapDecoder[uint16](typ, decoder)
+		case 4:
+			return newNativeMapDecoder[uint32](typ, decoder)
+		case 8:
+			return newNativeMapDecoder[uint64](typ, decoder)
+		}
+	default:
+	}
+
+	return nil
+}
+
+// newNativeMapDecoder returns a nativeMapDecoder, or nil when V differs in layout from the map's element.
+func newNativeMapDecoder[V any](typ reflect.Type, decoder ValDecoder) ValDecoder {
+	if !sameLayout(typ.Elem(), reflect.TypeFor[V]()) {
+		return nil
+	}
+	return &nativeMapDecoder[V]{typ: typ, decoder: decoder}
+}
+
+// nativeMapDecoder decodes into maps with string-kinded keys whose layout matches map[string]V.
 type nativeMapDecoder[V any] struct {
 	typ     reflect.Type
 	decoder ValDecoder

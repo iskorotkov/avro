@@ -90,3 +90,51 @@ func TestNativeMapEncoderOf_RejectsUnsupportedLayouts(t *testing.T) {
 	assert.Nil(t, nativeMapEncoderOf[string](arrays))
 	assert.Nil(t, newNativeMapEncoder[string, uint64](ints))
 }
+
+func TestDecoderOfMap_SelectsNativeDecoder(t *testing.T) {
+	tests := []struct {
+		typ    reflect.Type
+		values string
+		want   string
+	}{
+		{typ: reflect.TypeFor[map[nativeMapKey]nativeMapInt16](), values: `"int"`, want: "[uint16]"},
+		{typ: reflect.TypeFor[map[nativeMapKey]string](), values: `"string"`, want: "[string]"},
+		{typ: reflect.TypeFor[map[string][]int](), values: `{"type":"array","items":"int"}`, want: "[[]uint8]"},
+		{typ: reflect.TypeFor[map[string]*int64](), values: `["null","long"]`, want: "[unsafe.Pointer]"},
+		{typ: reflect.TypeFor[map[nativeMapKey]any](), values: `"long"`, want: "[interface {}]"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.typ.String(), func(t *testing.T) {
+			dec := testMapDecoder(test.typ, test.values)
+
+			assert.Equal(t, "*avro.nativeMapDecoder"+test.want, fmt.Sprintf("%T", dec))
+		})
+	}
+}
+
+func TestDecoderOfMap_FallsBackToReflection(t *testing.T) {
+	tests := []struct {
+		typ    reflect.Type
+		values string
+	}{
+		{typ: reflect.TypeFor[map[string]struct{ A, B int64 }](), values: `{"type":"record","name":"r","fields":[{"name":"A","type":"long"},{"name":"B","type":"long"}]}`},
+		{typ: reflect.TypeFor[map[string]textPtrUnmarshalInt](), values: `"string"`},
+		{typ: reflect.TypeFor[map[string]map[string]int64](), values: `{"type":"map","values":"long"}`},
+		{typ: reflect.TypeFor[map[string]*struct{ M map[string]int64 }](), values: `{"type":"record","name":"r","fields":[{"name":"M","type":{"type":"map","values":"long"}}]}`},
+	}
+
+	for _, test := range tests {
+		t.Run(test.typ.String(), func(t *testing.T) {
+			dec := testMapDecoder(test.typ, test.values)
+
+			assert.IsType(t, &mapDecoder{}, dec)
+		})
+	}
+}
+
+func testMapDecoder(typ reflect.Type, values string) ValDecoder {
+	schema := MustParse(`{"type":"map","values":` + values + `}`)
+
+	return decoderOfType(newDecoderContext(Config{}.Freeze().(*frozenConfig)), schema, typ)
+}
