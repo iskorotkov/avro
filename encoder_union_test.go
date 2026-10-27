@@ -340,6 +340,13 @@ type unionMapString string
 
 func (s unionMapString) String() string { return string(s) }
 
+func TestEncoder_UnionMapNamedEmptyInterface(t *testing.T) {
+	got, err := avro.Marshal(avro.MustParse(`["null", "string"]`), map[string]unionMapAny{"string": "foo"})
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x02, 0x06, 0x66, 0x6F, 0x6F}, got)
+}
+
 func TestEncoder_UnionMapNonEmptyInterface(t *testing.T) {
 	schema := avro.MustParse(`["null", "string"]`)
 

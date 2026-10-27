@@ -217,6 +217,25 @@ func TestDecoderTypeConverter_ErrorUnionNullablePtr(t *testing.T) {
 	assert.Nil(t, got)
 }
 
+func TestDecoderTypeConverter_UnionNullablePtrOwnsConvertedValue(t *testing.T) {
+	api := avro.Config{}.Freeze()
+	api.RegisterTypeConverters(avro.TypeConversionFuncs{
+		AvroType: avro.Union,
+		DecoderTypeConversion: func(any, avro.Schema) (any, error) {
+			return int64(5), nil
+		},
+	})
+
+	var got *int64
+	err := api.Unmarshal(avro.MustParse(`["null", "long"]`), []byte{0x02, 0x02}, &got)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+
+	*got = 99
+	var five any = int64(5)
+	assert.Equal(t, int64(5), five)
+}
+
 func TestDecoderTypeConverter_GenericPrimitives(t *testing.T) {
 	schema := avro.MustParse(`{"type":"record","name":"prims","fields":[
 		{"name":"b","type":"boolean"},{"name":"i","type":"int"},{"name":"l","type":"long"},
@@ -366,4 +385,113 @@ func TestDecoderTypeConverter_UnionNullableSliceWrongType(t *testing.T) {
 	err := avro.Unmarshal(avro.MustParse(`["null", "bytes"]`), []byte{0x02, 0x06, 'f', 'o', 'o'}, &got)
 
 	assert.EqualError(t, err, "avro: type converter returned string, expected []uint8")
+}
+
+type (
+	namedIntPtr *int
+	namedBytes  []byte
+)
+
+func TestDecoderTypeConverter_UnionNullableAssignable(t *testing.T) {
+	t.Run("named pointer", func(t *testing.T) {
+		defer ConfigTeardown()
+		avro.RegisterTypeConverters(avro.TypeConversionFuncs{
+			AvroType: avro.Union,
+			DecoderTypeConversion: func(in any, _ avro.Schema) (any, error) {
+				v := in.(int) * 2
+				return &v, nil
+			},
+		})
+
+		var got namedIntPtr
+		err := avro.Unmarshal(avro.MustParse(`["null", "int"]`), []byte{0x02, 0x36}, &got)
+
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, 54, *got)
+	})
+
+	t.Run("named pointer element value", func(t *testing.T) {
+		defer ConfigTeardown()
+		avro.RegisterTypeConverters(avro.TypeConversionFuncs{
+			AvroType: avro.Union,
+			DecoderTypeConversion: func(in any, _ avro.Schema) (any, error) {
+				return in.(int) * 2, nil
+			},
+		})
+
+		var got namedIntPtr
+		err := avro.Unmarshal(avro.MustParse(`["null", "int"]`), []byte{0x02, 0x36}, &got)
+
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, 54, *got)
+	})
+
+	t.Run("named slice", func(t *testing.T) {
+		defer ConfigTeardown()
+		avro.RegisterTypeConverters(avro.TypeConversionFuncs{
+			AvroType: avro.Union,
+			DecoderTypeConversion: func(in any, _ avro.Schema) (any, error) {
+				return namedBytes(bytes.ToUpper(in.([]byte))), nil
+			},
+		})
+
+		var got []byte
+		err := avro.Unmarshal(avro.MustParse(`["null", "bytes"]`), []byte{0x02, 0x06, 'f', 'o', 'o'}, &got)
+
+		require.NoError(t, err)
+		assert.Equal(t, []byte("FOO"), got)
+	})
+
+	t.Run("pointer to any", func(t *testing.T) {
+		defer ConfigTeardown()
+		avro.RegisterTypeConverters(avro.TypeConversionFuncs{
+			AvroType: avro.Union,
+			DecoderTypeConversion: func(in any, _ avro.Schema) (any, error) {
+				return "converted", nil
+			},
+		})
+
+		var got *any
+		err := avro.Unmarshal(avro.MustParse(`["null", "int"]`), []byte{0x02, 0x36}, &got)
+
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, "converted", *got)
+	})
+}
+
+func TestDecoderTypeConverter_UnionNullableWithoutUnionConverter(t *testing.T) {
+	schema := avro.MustParse(`["null", "int"]`)
+	api := avro.Config{}.Freeze()
+	api.RegisterTypeConverters(
+		intConverter,
+		avro.TypeConversionFuncs{AvroType: avro.Union, EncoderTypeConversion: floatToAvroInt},
+	)
+
+	var got *int
+	err := api.Unmarshal(schema, []byte{0x02, 0x36}, &got)
+
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, 27, *got)
+}
+
+func TestDecoderTypeConverter_ErrorWinsOverStoreError(t *testing.T) {
+	schema := avro.MustParse(`["null", "int"]`)
+	testError := errors.New("test error")
+	api := avro.Config{}.Freeze()
+	api.RegisterTypeConverters(avro.TypeConversionFuncs{
+		AvroType: avro.Union,
+		DecoderTypeConversion: func(any, avro.Schema) (any, error) {
+			return "not an int", testError
+		},
+	})
+
+	var got *int
+	err := api.Unmarshal(schema, []byte{0x02, 0x36}, &got)
+
+	assert.ErrorIs(t, err, testError)
+	assert.NotContains(t, err.Error(), "type converter returned")
 }

@@ -81,10 +81,11 @@ func createEncoderOfUnion(e *encoderContext, schema *UnionSchema, typ reflect2.T
 	return encoderOfResolverUnion(e, schema, typ)
 }
 
-// isUnionMap reports whether typ is map[string]any; other interface elements have a different memory layout.
+// isUnionMap reports whether typ is a string-keyed map of empty interfaces; non-empty interfaces have a different memory layout.
 func isUnionMap(typ reflect2.Type) bool {
 	mapType := typ.(reflect2.MapType)
-	return mapType.Key().Kind() == reflect.String && mapType.Elem().Type1() == reflect.TypeFor[any]()
+	elem := mapType.Elem().Type1()
+	return mapType.Key().Kind() == reflect.String && elem.Kind() == reflect.Interface && elem.NumMethod() == 0
 }
 
 func decoderOfMapUnion(d *decoderContext, union *UnionSchema, typ reflect2.Type) ValDecoder {
@@ -190,7 +191,7 @@ func (e *mapUnionEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 		return
 	}
 
-	val, ok := w.cfg.typeConverters.encodeConverted(val, e.converterSchema(schema, w), w)
+	val, ok := e.encodeConverted(val, schema, w)
 	if !ok {
 		return
 	}
@@ -198,15 +199,22 @@ func (e *mapUnionEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 	e.cfg.EncoderOf(schema, reflect2.TypeOf(val)).Encode(reflect2.PtrOf(val), w)
 }
 
-// converterSchema picks the branch schema for converter lookup, falling back to the union for compatibility.
-func (e *mapUnionEncoder) converterSchema(branch Schema, w *Writer) Schema {
-	if !w.cfg.typeConverters.HasAny() {
-		return branch
+// encodeConverted runs the branch encode converter, falling back to the union one for compatibility.
+func (e *mapUnionEncoder) encodeConverted(val any, branch Schema, w *Writer) (any, bool) {
+	convs := w.cfg.typeConverters
+	if !convs.HasAny() {
+		return val, true
 	}
-	if _, ok := w.cfg.typeConverters.getTypeConverter(branch); ok {
-		return branch
+
+	out, err := convs.EncodeTypeConvert(val, branch)
+	if errors.Is(err, errNoTypeConverter) {
+		out, err = convs.EncodeTypeConvert(val, e.schema)
 	}
-	return e.schema
+	if err != nil && !errors.Is(err, errNoTypeConverter) {
+		w.Error = err
+		return nil, false
+	}
+	return out, true
 }
 
 func decoderOfNullableUnion(d *decoderContext, schema Schema, typ reflect2.Type) ValDecoder {
@@ -304,7 +312,7 @@ func (d *unionNullableDecoder) convert(ptr unsafe.Pointer, r *Reader) {
 	}
 }
 
-// store writes a converter result into the target, boxing an element value when the target is a pointer.
+// store writes a converter result assignable to the target, or boxes one assignable to the pointer target's element.
 func (d *unionNullableDecoder) store(ptr unsafe.Pointer, obj any) error {
 	target := reflect.NewAt(d.target, ptr).Elem()
 	if obj == nil {
@@ -313,12 +321,12 @@ func (d *unionNullableDecoder) store(ptr unsafe.Pointer, obj any) error {
 	}
 
 	val := reflect.ValueOf(obj)
-	if d.isPtr && val.Type() == d.target.Elem() {
-		boxed := reflect.New(val.Type())
+	if d.isPtr && !val.Type().AssignableTo(d.target) && val.Type().AssignableTo(d.target.Elem()) {
+		boxed := reflect.New(d.target.Elem())
 		boxed.Elem().Set(val)
 		val = boxed
 	}
-	if val.Type() != d.target {
+	if !val.Type().AssignableTo(d.target) {
 		return fmt.Errorf("avro: type converter returned %s, expected %s", val.Type(), d.target)
 	}
 

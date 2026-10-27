@@ -248,6 +248,16 @@ func TestDecoder_UnionMapInvalidMap(t *testing.T) {
 	assert.Error(t, err)
 }
 
+type unionMapAny any
+
+func TestDecoder_UnionMapNamedEmptyInterface(t *testing.T) {
+	var got map[string]unionMapAny
+	err := avro.Unmarshal(avro.MustParse(`["null", "string"]`), []byte{0x02, 0x06, 0x66, 0x6F, 0x6F}, &got)
+
+	require.NoError(t, err)
+	assert.Equal(t, map[string]unionMapAny{"string": "foo"}, got)
+}
+
 func TestDecoder_UnionMapNonEmptyInterface(t *testing.T) {
 	data := []byte{0x02, 0x06, 0x66, 0x6F, 0x6F}
 	schema := avro.MustParse(`["null", "string"]`)

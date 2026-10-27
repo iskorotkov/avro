@@ -3,6 +3,7 @@ package avro_test
 import (
 	"bytes"
 	"errors"
+	"strconv"
 	"testing"
 
 	"github.com/iskorotkov/avro/v2"
@@ -360,4 +361,70 @@ func TestEncoderTypeConverter_MapUnionBranch(t *testing.T) {
 			assert.Equal(t, test.want, got)
 		})
 	}
+}
+
+func TestEncoderTypeConverter_MapUnionFallsBackToUnion(t *testing.T) {
+	defer ConfigTeardown()
+
+	avro.RegisterTypeConverters(
+		avro.TypeConversionFuncs{
+			AvroType: avro.Long,
+			DecoderTypeConversion: func(in any, _ avro.Schema) (any, error) {
+				return in, nil
+			},
+		},
+		avro.TypeConversionFuncs{
+			AvroType: avro.Union,
+			EncoderTypeConversion: func(in any, _ avro.Schema) (any, error) {
+				return strconv.ParseInt(in.(string), 10, 64)
+			},
+		},
+	)
+
+	got, err := avro.Marshal(avro.MustParse(`["null","long"]`), map[string]any{"long": "27"})
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x02, 0x36}, got)
+}
+
+func TestEncoderTypeConverter_MapUnionBranchWinsOverUnion(t *testing.T) {
+	unionCalls := 0
+	api := avro.Config{}.Freeze()
+	api.RegisterTypeConverters(
+		longStringConverter,
+		avro.TypeConversionFuncs{
+			AvroType: avro.Union,
+			EncoderTypeConversion: func(in any, _ avro.Schema) (any, error) {
+				unionCalls++
+				return int64(1), nil
+			},
+		},
+	)
+
+	got, err := api.Marshal(avro.MustParse(`["null","long"]`), map[string]any{"long": "27"})
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x02, 0x36}, got)
+	assert.Zero(t, unionCalls)
+}
+
+func TestEncoderTypeConverter_MapUnionBranchErrorDoesNotFallBack(t *testing.T) {
+	branchError := errors.New("branch error")
+	unionCalls := 0
+	api := avro.Config{}.Freeze()
+	api.RegisterTypeConverters(
+		errorConverter(avro.Long, branchError),
+		avro.TypeConversionFuncs{
+			AvroType: avro.Union,
+			EncoderTypeConversion: func(in any, _ avro.Schema) (any, error) {
+				unionCalls++
+				return int64(1), nil
+			},
+		},
+	)
+
+	_, err := api.Marshal(avro.MustParse(`["null","long"]`), map[string]any{"long": "27"})
+
+	assert.ErrorIs(t, err, branchError)
+	assert.Zero(t, unionCalls)
 }
