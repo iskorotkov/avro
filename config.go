@@ -133,6 +133,7 @@ type API interface {
 	Register(name string, obj any)
 
 	// RegisterTypeConverters registers type conversion functions.
+	// Map union encoding prefers branch-type converters and falls back to Union converters; map union decoding uses branch-type converters only.
 	RegisterTypeConverters(conv ...TypeConverter)
 
 	// TypeOf returns the schema type for a given name.

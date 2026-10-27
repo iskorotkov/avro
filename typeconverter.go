@@ -114,6 +114,7 @@ func (c *TypeConverters) getTypeConverter(schema Schema) (TypeConverter, bool) {
 }
 
 // RegisterTypeConverters registers type converters for encoding and decoding the data type specified in the converter.
+// Map union encoding prefers branch-type converters and falls back to Union converters; map union decoding uses branch-type converters only.
 func RegisterTypeConverters(convs ...TypeConverter) {
 	DefaultConfig.RegisterTypeConverters(convs...)
 }

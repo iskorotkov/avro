@@ -232,6 +232,12 @@ This requires the use of `map[string]any` or `[]any`.
 The type conversion for encoding will receive the original value that is to be encoded, and must return a data type that is compatible with the schema, as specified in the table above.
 The type conversion for decoding will receive the decoded value with a data type that is compatible with the schema, and its return value will be used as the final decoded value.
 
+Converters are matched by Avro type and logical type. Unions follow these rules:
+
+- Encoding a union from `map[string]any`: the converter registered for the selected branch type wins; a converter registered for `avro.Union` runs only when the branch type has none. An error from the branch converter is returned as is, without falling back.
+- Decoding a union into `map[string]any`: only branch-type converters run.
+- Decoding a union into `any` or into a nullable pointer or slice: only the `avro.Union` converter runs.
+
 #### Untrusted Input
 
 When processing untrusted Avro data, it is important to configure protection against Denial of Service (DoS) attacks. The library provides three configuration options to limit resource allocation:
