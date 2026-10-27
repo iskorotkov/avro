@@ -6,6 +6,7 @@ import (
 	"github.com/iskorotkov/avro/bench/datasets/earthquakes"
 	"github.com/iskorotkov/avro/bench/datasets/ghwebhooks"
 	"github.com/iskorotkov/avro/bench/datasets/nyctaxi"
+	"github.com/iskorotkov/avro/bench/datasets/otel"
 	"github.com/iskorotkov/avro/bench/datasets/superhero"
 	"github.com/iskorotkov/avro/bench/datasets/wikirc"
 )
@@ -18,5 +19,6 @@ func All() []dataset.Provider {
 		earthquakes.Provider{},
 		wikirc.Provider{},
 		ghwebhooks.Provider{},
+		otel.Provider{},
 	}
 }

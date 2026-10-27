@@ -1,0 +1,106 @@
+{
+    "type": "record",
+    "name": "ResourceSpans",
+    "namespace": "io.opentelemetry.bench",
+    "fields": [
+        {"name": "resource", "type": {
+            "type": "record",
+            "name": "Resource",
+            "fields": [
+                {"name": "attributes", "type": {"type": "map", "values": {
+                    "type": "record",
+                    "name": "AnyValue",
+                    "fields": [
+                        {"name": "string_value", "type": ["null", "string"], "default": null},
+                        {"name": "bool_value", "type": ["null", "boolean"], "default": null},
+                        {"name": "int_value", "type": ["null", "long"], "default": null},
+                        {"name": "double_value", "type": ["null", "double"], "default": null},
+                        {"name": "bytes_value", "type": ["null", "bytes"], "default": null},
+                        {"name": "array_value", "type": ["null", {"type": "array", "items": "AnyValue"}], "default": null}
+                    ]
+                }}},
+                {"name": "dropped_attributes_count", "type": "int"}
+            ]
+        }},
+        {"name": "schema_url", "type": "string"},
+        {"name": "scope_spans", "type": {"type": "array", "items": {
+            "type": "record",
+            "name": "ScopeSpans",
+            "fields": [
+                {"name": "scope", "type": {
+                    "type": "record",
+                    "name": "InstrumentationScope",
+                    "fields": [
+                        {"name": "name", "type": "string"},
+                        {"name": "version", "type": "string"},
+                        {"name": "attributes", "type": {"type": "map", "values": "AnyValue"}},
+                        {"name": "dropped_attributes_count", "type": "int"}
+                    ]
+                }},
+                {"name": "schema_url", "type": "string"},
+                {"name": "spans", "type": {"type": "array", "items": {
+                    "type": "record",
+                    "name": "Span",
+                    "fields": [
+                        {"name": "trace_id", "type": {"type": "fixed", "name": "TraceId", "size": 16}},
+                        {"name": "span_id", "type": {"type": "fixed", "name": "SpanId", "size": 8}},
+                        {"name": "parent_span_id", "type": ["null", "SpanId"], "default": null},
+                        {"name": "trace_state", "type": "string"},
+                        {"name": "name", "type": "string"},
+                        {"name": "kind", "type": {
+                            "type": "enum",
+                            "name": "SpanKind",
+                            "symbols": [
+                                "SPAN_KIND_UNSPECIFIED",
+                                "SPAN_KIND_INTERNAL",
+                                "SPAN_KIND_SERVER",
+                                "SPAN_KIND_CLIENT",
+                                "SPAN_KIND_PRODUCER",
+                                "SPAN_KIND_CONSUMER"
+                            ]
+                        }},
+                        {"name": "start_time", "type": {"type": "long", "logicalType": "timestamp-micros"}},
+                        {"name": "end_time", "type": {"type": "long", "logicalType": "timestamp-micros"}},
+                        {"name": "attributes", "type": {"type": "map", "values": "AnyValue"}},
+                        {"name": "dropped_attributes_count", "type": "int"},
+                        {"name": "events", "type": {"type": "array", "items": {
+                            "type": "record",
+                            "name": "Event",
+                            "fields": [
+                                {"name": "time", "type": {"type": "long", "logicalType": "timestamp-micros"}},
+                                {"name": "name", "type": "string"},
+                                {"name": "attributes", "type": {"type": "map", "values": "AnyValue"}},
+                                {"name": "dropped_attributes_count", "type": "int"}
+                            ]
+                        }}},
+                        {"name": "dropped_events_count", "type": "int"},
+                        {"name": "links", "type": {"type": "array", "items": {
+                            "type": "record",
+                            "name": "Link",
+                            "fields": [
+                                {"name": "trace_id", "type": "TraceId"},
+                                {"name": "span_id", "type": "SpanId"},
+                                {"name": "trace_state", "type": "string"},
+                                {"name": "attributes", "type": {"type": "map", "values": "AnyValue"}},
+                                {"name": "dropped_attributes_count", "type": "int"}
+                            ]
+                        }}},
+                        {"name": "dropped_links_count", "type": "int"},
+                        {"name": "status", "type": {
+                            "type": "record",
+                            "name": "Status",
+                            "fields": [
+                                {"name": "code", "type": {
+                                    "type": "enum",
+                                    "name": "StatusCode",
+                                    "symbols": ["STATUS_CODE_UNSET", "STATUS_CODE_OK", "STATUS_CODE_ERROR"]
+                                }},
+                                {"name": "message", "type": "string"}
+                            ]
+                        }}
+                    ]
+                }}}
+            ]
+        }}}
+    ]
+}
