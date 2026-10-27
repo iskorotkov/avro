@@ -1,0 +1,99 @@
+syntax = "proto3";
+
+package bench;
+
+option go_package = "github.com/iskorotkov/avro/bench/formats/protobuf";
+
+// Modelled on opentelemetry-proto v1.5.0 (trace/v1, resource/v1, common/v1); KeyValue lists are maps and times are microseconds.
+
+message OtelResourceSpans {
+  OtelResource resource = 1;
+  string schema_url = 3;
+  repeated OtelScopeSpans scope_spans = 2;
+}
+
+message OtelResource {
+  map<string, OtelAnyValue> attributes = 1;
+  int32 dropped_attributes_count = 2;
+}
+
+message OtelAnyValue {
+  oneof value {
+    string string_value = 1;
+    bool bool_value = 2;
+    int64 int_value = 3;
+    double double_value = 4;
+    bytes bytes_value = 5;
+    OtelArrayValue array_value = 6;
+  }
+}
+
+message OtelArrayValue {
+  repeated OtelAnyValue values = 1;
+}
+
+message OtelScopeSpans {
+  OtelInstrumentationScope scope = 1;
+  string schema_url = 3;
+  repeated OtelSpan spans = 2;
+}
+
+message OtelInstrumentationScope {
+  string name = 1;
+  string version = 2;
+  map<string, OtelAnyValue> attributes = 3;
+  int32 dropped_attributes_count = 4;
+}
+
+enum OtelSpanKind {
+  OTEL_SPAN_KIND_UNSPECIFIED = 0;
+  OTEL_SPAN_KIND_INTERNAL = 1;
+  OTEL_SPAN_KIND_SERVER = 2;
+  OTEL_SPAN_KIND_CLIENT = 3;
+  OTEL_SPAN_KIND_PRODUCER = 4;
+  OTEL_SPAN_KIND_CONSUMER = 5;
+}
+
+enum OtelStatusCode {
+  OTEL_STATUS_CODE_UNSET = 0;
+  OTEL_STATUS_CODE_OK = 1;
+  OTEL_STATUS_CODE_ERROR = 2;
+}
+
+message OtelSpan {
+  bytes trace_id = 1;
+  bytes span_id = 2;
+  optional bytes parent_span_id = 4;
+  string trace_state = 3;
+  string name = 5;
+  OtelSpanKind kind = 6;
+  sfixed64 start_time_unix_micro = 7;
+  sfixed64 end_time_unix_micro = 8;
+  map<string, OtelAnyValue> attributes = 9;
+  int32 dropped_attributes_count = 10;
+  repeated OtelEvent events = 11;
+  int32 dropped_events_count = 12;
+  repeated OtelLink links = 13;
+  int32 dropped_links_count = 14;
+  OtelStatus status = 15;
+}
+
+message OtelEvent {
+  sfixed64 time_unix_micro = 1;
+  string name = 2;
+  map<string, OtelAnyValue> attributes = 3;
+  int32 dropped_attributes_count = 4;
+}
+
+message OtelLink {
+  bytes trace_id = 1;
+  bytes span_id = 2;
+  string trace_state = 3;
+  map<string, OtelAnyValue> attributes = 4;
+  int32 dropped_attributes_count = 5;
+}
+
+message OtelStatus {
+  string message = 2;
+  OtelStatusCode code = 3;
+}
