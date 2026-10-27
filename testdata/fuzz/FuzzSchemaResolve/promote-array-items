@@ -1,0 +1,4 @@
+go test fuzz v1
+string("{\"type\":\"array\",\"items\":\"long\"}")
+string("{\"type\":\"array\",\"items\":\"int\"}")
+[]byte("\x04\x02\x04\x00")

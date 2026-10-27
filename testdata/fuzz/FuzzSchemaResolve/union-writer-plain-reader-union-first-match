@@ -1,0 +1,4 @@
+go test fuzz v1
+string("[\"null\",\"long\",\"int\"]")
+string("\"int\"")
+[]byte("\x02")

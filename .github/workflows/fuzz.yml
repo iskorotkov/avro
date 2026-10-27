@@ -29,6 +29,8 @@ jobs:
             pkg: ./ocf
           - name: FuzzReaderReadNext
             pkg: .
+          - name: FuzzSchemaResolve
+            pkg: .
           - name: FuzzCodecDecode
             pkg: ./soe
           - name: FuzzDecoderDecode

@@ -2,22 +2,35 @@ package registry_test
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"slices"
 	"testing"
 
+	"github.com/iskorotkov/avro/v2"
+	"github.com/iskorotkov/avro/v2/internal/fuzzcheck"
 	"github.com/iskorotkov/avro/v2/registry"
 )
 
 // fuzzFrame is a valid Confluent wire-format prefix for schema id 42.
 var fuzzFrame = []byte{0x00, 0x00, 0x00, 0x00, 0x2a}
 
-// FuzzDecoderDecode decodes arbitrary payloads framed for a pre-cached registry schema.
+const fuzzSchema = `{"type":"record","name":"R","fields":[{"name":"a","type":"long"},{"name":"b","type":["null","string"]}]}`
+
+// FuzzDecoderDecode decodes arbitrary payloads framed for a pre-cached registry schema and round-trips valid ones.
 func FuzzDecoderDecode(f *testing.F) {
+	schema, err := avro.Parse(fuzzSchema)
+	if err != nil {
+		f.Fatalf("parse schema: %v", err)
+	}
+	body, err := json.Marshal(map[string]string{"schema": fuzzSchema})
+	if err != nil {
+		f.Fatalf("marshal schema response: %v", err)
+	}
 	h := http.NewServeMux()
 	h.HandleFunc("/schemas/ids/42", func(rw http.ResponseWriter, _ *http.Request) {
-		_, _ = rw.Write([]byte(`{"schema":"{\"type\":\"record\",\"name\":\"R\",\"fields\":[{\"name\":\"a\",\"type\":\"long\"},{\"name\":\"b\",\"type\":[\"null\",\"string\"]}]}"}`))
+		_, _ = rw.Write(body)
 	})
 	h.HandleFunc("/", func(rw http.ResponseWriter, _ *http.Request) {
 		rw.WriteHeader(http.StatusNotFound)
@@ -45,11 +58,21 @@ func FuzzDecoderDecode(f *testing.F) {
 	f.Add([]byte{0x02, 0x00})
 	f.Add([]byte{})
 
-	f.Fuzz(func(_ *testing.T, data []byte) {
+	decode := func(data []byte) (any, error) {
+		var v any
+		err := decoder.Decode(context.Background(), append(slices.Clip(fuzzFrame), data...), &v)
+		return v, err
+	}
+	encode := func(v any) ([]byte, error) { return avro.Marshal(schema, v) }
+
+	f.Fuzz(func(t *testing.T, data []byte) {
 		if len(data) > 1<<16 {
 			return
 		}
-		var v any
-		_ = decoder.Decode(context.Background(), append(slices.Clip(fuzzFrame), data...), &v)
+		if _, err := fuzzcheck.Decode(avro.DefaultConfig, schema, data); err != nil {
+			_, _ = decode(data)
+			return
+		}
+		fuzzcheck.RoundTrip(t, data, decode, encode)
 	})
 }
