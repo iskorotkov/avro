@@ -10,7 +10,7 @@ import (
 
 type efaceDecoder struct {
 	schema Schema
-	typ    reflect.Type
+	alloc  func() unsafe.Pointer
 	box    unsafex.Boxer
 	dec    ValDecoder
 }
@@ -21,7 +21,7 @@ func newEfaceDecoder(d *decoderContext, schema Schema) *efaceDecoder {
 
 	return &efaceDecoder{
 		schema: schema,
-		typ:    typ,
+		alloc:  genericAllocator(typ),
 		box:    unsafex.NewBoxer(typ),
 		dec:    dec,
 	}
@@ -39,13 +39,13 @@ func (d *efaceDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 	}()
 
 	if *pObj == nil {
-		*pObj = genericDecode(d.typ, d.box, d.dec, r)
+		*pObj = genericDecode(d.alloc, d.box, d.dec, r)
 		return
 	}
 
 	typ := reflect.TypeOf(*pObj)
 	if typ.Kind() != reflect.Pointer {
-		*pObj = genericDecode(d.typ, d.box, d.dec, r)
+		*pObj = genericDecode(d.alloc, d.box, d.dec, r)
 		return
 	}
 

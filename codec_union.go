@@ -457,7 +457,7 @@ func (d *unionResolvedDecoder) Decode(ptr unsafe.Pointer, r *Reader) {
 			r.ReportError("Union", err.Error())
 			return
 		}
-		obj[name] = genericDecode(vTyp, unsafex.NewBoxer(vTyp), decoderOfType(newDecoderContext(d.cfg), schema, vTyp), r)
+		obj[name] = genericDecode(genericAllocator(vTyp), unsafex.NewBoxer(vTyp), decoderOfType(newDecoderContext(d.cfg), schema, vTyp), r)
 
 		*pObj = obj
 		return

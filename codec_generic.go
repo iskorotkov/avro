@@ -5,12 +5,13 @@ import (
 	"math/big"
 	"reflect"
 	"time"
+	"unsafe"
 
 	"github.com/iskorotkov/avro/v2/internal/unsafex"
 )
 
-func genericDecode(typ reflect.Type, box unsafex.Boxer, dec ValDecoder, r *Reader) any {
-	ptr := reflect.New(typ).UnsafePointer()
+func genericDecode(alloc func() unsafe.Pointer, box unsafex.Boxer, dec ValDecoder, r *Reader) any {
+	ptr := alloc()
 	dec.Decode(ptr, r)
 	if r.Error != nil {
 		return nil
@@ -21,6 +22,36 @@ func genericDecode(typ reflect.Type, box unsafex.Boxer, dec ValDecoder, r *Reade
 		return nil
 	}
 	return obj
+}
+
+// genericAllocators allocate generic receiver types without the pointer type lookup reflect.New does.
+var genericAllocators = map[reflect.Type]func() unsafe.Pointer{
+	reflect.TypeFor[*null]():           newGeneric[*null],
+	reflect.TypeFor[bool]():            newGeneric[bool],
+	reflect.TypeFor[int]():             newGeneric[int],
+	reflect.TypeFor[int64]():           newGeneric[int64],
+	reflect.TypeFor[float32]():         newGeneric[float32],
+	reflect.TypeFor[float64]():         newGeneric[float64],
+	reflect.TypeFor[string]():          newGeneric[string],
+	reflect.TypeFor[[]byte]():          newGeneric[[]byte],
+	reflect.TypeFor[[]any]():           newGeneric[[]any],
+	reflect.TypeFor[map[string]any]():  newGeneric[map[string]any],
+	reflect.TypeFor[time.Time]():       newGeneric[time.Time],
+	reflect.TypeFor[time.Duration]():   newGeneric[time.Duration],
+	reflect.TypeFor[*big.Rat]():        newGeneric[*big.Rat],
+	reflect.TypeFor[LogicalDuration](): newGeneric[LogicalDuration],
+}
+
+func newGeneric[T any]() unsafe.Pointer {
+	return unsafe.Pointer(new(T))
+}
+
+// genericAllocator returns a function allocating zeroed values of typ.
+func genericAllocator(typ reflect.Type) func() unsafe.Pointer {
+	if alloc, ok := genericAllocators[typ]; ok {
+		return alloc
+	}
+	return func() unsafe.Pointer { return reflect.New(typ).UnsafePointer() }
 }
 
 func genericReceiver(schema Schema) (reflect.Type, error) {

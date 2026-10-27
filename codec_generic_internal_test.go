@@ -258,7 +258,7 @@ func TestGenericDecode(t *testing.T) {
 			require.NoError(t, err)
 			dec := decoderOfType(newDecoderContext(DefaultConfig.(*frozenConfig)), schema, typ)
 
-			got := genericDecode(typ, unsafex.NewBoxer(typ), dec, r)
+			got := genericDecode(genericAllocator(typ), unsafex.NewBoxer(typ), dec, r)
 
 			test.wantErr(t, r.Error)
 			assert.Equal(t, test.want, got)
@@ -293,7 +293,7 @@ func TestGenericDecode_MaxInt(t *testing.T) {
 	require.NoError(t, err)
 	dec := decoderOfType(newDecoderContext(DefaultConfig.(*frozenConfig)), schema, typ)
 
-	genericDecode(typ, unsafex.NewBoxer(typ), dec, r)
+	genericDecode(genericAllocator(typ), unsafex.NewBoxer(typ), dec, r)
 
 	assert.EqualError(t, r.Error, "avro: decode array: size is greater than `Config.MaxSliceAllocSize`")
 }
