@@ -114,3 +114,63 @@ func TestDecoder_MapMergesDuplicateKeys(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, map[string]map[string]int64{"k": {"x": 1, "y": 2}}, got)
 }
+
+// retainedPtrEnum is a direct interface type whose text method keeps its receiver.
+type retainedPtrEnum struct {
+	p *int
+}
+
+var retainedPtrEnums []*retainedPtrEnum
+
+func (e *retainedPtrEnum) MarshalText() ([]byte, error) {
+	retainedPtrEnums = append(retainedPtrEnums, e)
+	return []byte("s" + strconv.Itoa(*e.p)), nil
+}
+
+//go:noinline
+func clobberStack(n int) int {
+	var buf [256]int
+	for i := range buf {
+		buf[i] = -1
+	}
+	if n > 0 {
+		return clobberStack(n-1) + buf[n]
+	}
+	return buf[0]
+}
+
+func TestEncoder_DirectValueKeepsRetainedReceiverValid(t *testing.T) {
+	t.Cleanup(func() { retainedPtrEnums = nil })
+	retainedPtrEnums = nil
+	schema := avro.MustParse(`{"type":"enum","name":"e","symbols":["s0","s1","s2","s3"]}`)
+	v := 2
+
+	_, err := avro.Marshal(schema, retainedPtrEnum{p: &v})
+	require.NoError(t, err)
+	clobberStack(8)
+
+	require.Len(t, retainedPtrEnums, 1)
+	assert.Same(t, &v, retainedPtrEnums[0].p)
+}
+
+func TestDecoder_AnyMapDuplicateKeysReplaceValues(t *testing.T) {
+	schema := avro.MustParse(`{"type":"map","values":{"type":"map","values":"long"}}`)
+	buf := &bytes.Buffer{}
+	w := avro.NewWriter(buf, 64)
+	w.WriteBlockHeader(2, 0)
+	for _, key := range []string{"x", "y"} {
+		w.WriteString("k")
+		w.WriteBlockHeader(1, 0)
+		w.WriteString(key)
+		w.WriteLong(1)
+		w.WriteBlockHeader(0, 0)
+	}
+	w.WriteBlockHeader(0, 0)
+	require.NoError(t, w.Flush())
+
+	var got map[string]any
+	err := avro.Unmarshal(schema, buf.Bytes(), &got)
+
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"k": map[string]any{"y": int64(1)}}, got)
+}

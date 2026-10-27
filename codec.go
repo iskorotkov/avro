@@ -176,11 +176,32 @@ func (c *frozenConfig) EncoderOf(schema Schema, typ reflect.Type) ValEncoder {
 	}
 
 	encoder = encoderOfType(newEncoderContext(c), schema, typ)
-	if unsafex.IsDirect(typ) {
-		encoder = &onePtrEncoder{encoder}
-	}
+	encoder = directEncoder(typ, encoder)
 	c.addEncoderToCache(schema.CacheFingerprint(), rtype, encoder)
 	return encoder
+}
+
+// directEncoder adapts enc to the data word of interfaces holding typ, which for direct types is the value itself.
+func directEncoder(typ reflect.Type, enc ValEncoder) ValEncoder {
+	switch {
+	case !unsafex.IsDirect(typ):
+		return enc
+	case exposesAddress(typ):
+		return &heapPtrEncoder{enc}
+	default:
+		return &onePtrEncoder{enc}
+	}
+}
+
+// heapPtrEncoder is a onePtrEncoder for values whose address may reach user methods.
+type heapPtrEncoder struct {
+	enc ValEncoder
+}
+
+func (e *heapPtrEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
+	p := new(unsafe.Pointer)
+	*p = ptr
+	e.enc.Encode(unsafe.Pointer(p), w)
 }
 
 type onePtrEncoder struct {

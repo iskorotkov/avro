@@ -178,9 +178,7 @@ func (e *mapUnionEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 	elemPtr := unsafex.DataOf(val)
 
 	encoder := encoderOfType(newEncoderContext(e.cfg), schema, elemType)
-	if unsafex.IsDirect(elemType) {
-		encoder = &onePtrEncoder{encoder}
-	}
+	encoder = directEncoder(elemType, encoder)
 	encoder.Encode(elemPtr, w)
 }
 

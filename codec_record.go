@@ -235,9 +235,7 @@ func encoderOfStruct(e *encoderContext, rec *RecordSchema, typ reflect.Type) Val
 
 		defaultType := reflect.TypeOf(def)
 		defaultEncoder := encoderOfType(e, field.Type(), defaultType)
-		if unsafex.IsDirect(defaultType) {
-			defaultEncoder = &onePtrEncoder{defaultEncoder}
-		}
+		defaultEncoder = directEncoder(defaultType, defaultEncoder)
 		fields = append(fields, structFieldEncoder{
 			defaultPtr: unsafex.DataOf(def),
 			encoder:    defaultEncoder,
@@ -370,9 +368,7 @@ func encoderOfRecord(e *encoderContext, rec *RecordSchema, typ reflect.Type) Val
 
 			defaultType := reflect.TypeOf(fields[i].def)
 			fields[i].defEncoder = encoderOfType(e, field.Type(), defaultType)
-			if unsafex.IsDirect(defaultType) {
-				fields[i].defEncoder = &onePtrEncoder{fields[i].defEncoder}
-			}
+			fields[i].defEncoder = directEncoder(defaultType, fields[i].defEncoder)
 		}
 	}
 

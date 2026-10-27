@@ -16,9 +16,7 @@ func createDefaultDecoder(d *decoderContext, field *Field, typ reflect.Type) Val
 			defaultType = reflect.TypeFor[*null]()
 		}
 		defaultEncoder := encoderOfType(newEncoderContext(cfg), field.Type(), defaultType)
-		if unsafex.IsDirect(defaultType) {
-			defaultEncoder = &onePtrEncoder{defaultEncoder}
-		}
+		defaultEncoder = directEncoder(defaultType, defaultEncoder)
 		w := cfg.borrowWriter()
 		defer cfg.returnWriter(w)
 
