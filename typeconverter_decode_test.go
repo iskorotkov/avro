@@ -495,3 +495,36 @@ func TestDecoderTypeConverter_ErrorWinsOverStoreError(t *testing.T) {
 	assert.ErrorIs(t, err, testError)
 	assert.NotContains(t, err.Error(), "type converter returned")
 }
+
+func TestDecoderTypeConverter_UnionIntoInterfaceUsesUnionConverterOnly(t *testing.T) {
+	schema := avro.MustParse(`["null", "long"]`)
+	data := []byte{0x02, 0x36}
+	unionConv := avro.TypeConversionFuncs{
+		AvroType: avro.Union,
+		DecoderTypeConversion: func(in any, _ avro.Schema) (any, error) {
+			return fmt.Sprintf("union:%v", in), nil
+		},
+	}
+
+	tests := []struct {
+		name  string
+		convs []avro.TypeConverter
+		want  any
+	}{
+		{name: "branch only", convs: []avro.TypeConverter{longStringConverter}, want: int64(27)},
+		{name: "branch and union", convs: []avro.TypeConverter{longStringConverter, unionConv}, want: "union:27"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			api := avro.Config{}.Freeze()
+			api.RegisterTypeConverters(test.convs...)
+
+			var got any
+			err := api.Unmarshal(schema, data, &got)
+
+			require.NoError(t, err)
+			assert.Equal(t, test.want, got)
+		})
+	}
+}

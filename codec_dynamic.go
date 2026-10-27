@@ -84,12 +84,23 @@ type typedEncoder struct {
 func (e *interfaceEncoder) Encode(ptr unsafe.Pointer, w *Writer) {
 	obj := e.typ.UnsafeIndirect(ptr)
 
-	obj, ok := w.cfg.typeConverters.encodeConverted(obj, e.schema, w)
-	if !ok {
-		return
+	if w.cfg.typeConverters.HasAny() && !e.holdsUnionMap(obj) {
+		var ok bool
+		if obj, ok = w.cfg.typeConverters.encodeConverted(obj, e.schema, w); !ok {
+			return
+		}
 	}
 
 	e.encoderOf(obj).Encode(reflect2.PtrOf(obj), w)
+}
+
+// holdsUnionMap reports whether obj is encoded by a map union encoder, which runs the converters itself.
+func (e *interfaceEncoder) holdsUnionMap(obj any) bool {
+	if e.schema.Type() != Union {
+		return false
+	}
+	typ := reflect.TypeOf(obj)
+	return typ != nil && typ.Kind() == reflect.Map && isUnionMap(reflect2.Type2(typ))
 }
 
 func (e *interfaceEncoder) encoderOf(obj any) ValEncoder {

@@ -428,3 +428,41 @@ func TestEncoderTypeConverter_MapUnionBranchErrorDoesNotFallBack(t *testing.T) {
 	assert.ErrorIs(t, err, branchError)
 	assert.Zero(t, unionCalls)
 }
+
+func TestEncoderTypeConverter_InterfaceUnionMapConvertsOnce(t *testing.T) {
+	var unionInputs []any
+	api := avro.Config{}.Freeze()
+	api.RegisterTypeConverters(avro.TypeConversionFuncs{
+		AvroType: avro.Union,
+		EncoderTypeConversion: func(in any, _ avro.Schema) (any, error) {
+			unionInputs = append(unionInputs, in)
+			if s, ok := in.(string); ok {
+				return strconv.ParseInt(s, 10, 64)
+			}
+			return in, nil
+		},
+	})
+	schema := avro.MustParse(`{"type":"record","name":"rec","fields":[{"name":"u","type":["null","long"]}]}`)
+
+	got, err := api.Marshal(schema, map[string]any{"u": map[string]any{"long": "27"}})
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x02, 0x36}, got)
+	assert.Equal(t, []any{"27"}, unionInputs)
+}
+
+func TestEncoderTypeConverter_InterfaceUnionValueUsesUnionConverter(t *testing.T) {
+	api := avro.Config{}.Freeze()
+	api.RegisterTypeConverters(longStringConverter, avro.TypeConversionFuncs{
+		AvroType: avro.Union,
+		EncoderTypeConversion: func(in any, _ avro.Schema) (any, error) {
+			return int64(len(in.(string))), nil
+		},
+	})
+	schema := avro.MustParse(`{"type":"record","name":"rec","fields":[{"name":"u","type":["null","long"]}]}`)
+
+	got, err := api.Marshal(schema, map[string]any{"u": "27"})
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x02, 0x04}, got)
+}
