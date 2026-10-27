@@ -35,6 +35,12 @@ Unresolved issues from hamba/avro are tracked in [ISSUES.md](./ISSUES.md).
 - **CI updated:** tested on Go 1.26 and 1.27; tools (golangci-lint, gotestsum) pinned via `go.mod` `tool` directive
 - **19.5% decode speedup on internally used benchmark:** optimized inlining and bounds checks in number parsing; iskorotkov/avro now decodes at 118.6 ns/op vs hamba/avro's 147.3 ns/op (Apple M4 Pro, zero allocations)
 
+## Breaking changes
+
+- **Limits can no longer be disabled.** `Config.MaxByteSliceSize`, `Config.MaxSliceAllocSize`, `Config.MaxMapAllocSize`, `ocf.WithMaxBlockBytes` and `ocf.WithMaxDecompressedBlockBytes` treat zero and negative values, including `-1`, as "use the default". Previously `-1` disabled `MaxByteSliceSize` and zero or negative values left the other limits unbounded. To accept larger data, set an explicit large value, for example `MaxByteSliceSize: 256 << 20`.
+- **Stricter defaults.** Strings and bytes are limited to 1 MiB, arrays and maps to 67,108,864 items in total per decoded value, OCF blocks to 64 MiB compressed and decompressed, and recursive records to 1000 levels (`Config.MaxDepth`).
+- **Truncated input is an error.** `Unmarshal`, `Decoder.Decode` and `Reader.ReadNext` return an error wrapping `io.ErrUnexpectedEOF` when the input ends inside a value. `Decoder.Decode` still returns `io.EOF` at a clean value boundary.
+
 ## How to migrate from hamba/avro?
 
 You have 2 options:
