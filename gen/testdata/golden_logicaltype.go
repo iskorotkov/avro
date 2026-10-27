@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/iskorotkov/avro/v2"
+	"github.com/iskorotkov/avro/v3"
 )
 
 // InnerRecord is a generated struct.

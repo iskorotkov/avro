@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/iskorotkov/avro/v2"
+	"github.com/iskorotkov/avro/v3"
 )
 
 func BenchmarkUnionConverterEncoderBuild(b *testing.B) {

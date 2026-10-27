@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/iskorotkov/avro/v2"
+	"github.com/iskorotkov/avro/v3"
 )
 
 // Magic is the two-byte magic marker described in:

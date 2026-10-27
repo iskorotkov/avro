@@ -3,9 +3,9 @@ package soe_test
 import (
 	"testing"
 
-	"github.com/iskorotkov/avro/v2"
-	"github.com/iskorotkov/avro/v2/soe"
-	"github.com/iskorotkov/avro/v2/soe/internal/testdata"
+	"github.com/iskorotkov/avro/v3"
+	"github.com/iskorotkov/avro/v3/soe"
+	"github.com/iskorotkov/avro/v3/soe/internal/testdata"
 	"github.com/stretchr/testify/require"
 )
 

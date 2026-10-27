@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/iskorotkov/avro/v2"
+	"github.com/iskorotkov/avro/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

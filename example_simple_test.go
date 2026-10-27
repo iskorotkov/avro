@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/iskorotkov/avro/v2"
+	"github.com/iskorotkov/avro/v3"
 )
 
 var Schema = `{

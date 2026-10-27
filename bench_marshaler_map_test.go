@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/iskorotkov/avro/v2"
+	"github.com/iskorotkov/avro/v3"
 )
 
 type benchTextKey int

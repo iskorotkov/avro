@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/iskorotkov/avro/v2"
+	"github.com/iskorotkov/avro/v3"
 )
 
 const contentType = "application/vnd.schemaregistry.v1+json"

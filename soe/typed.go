@@ -1,7 +1,7 @@
 package soe
 
 import (
-	"github.com/iskorotkov/avro/v2"
+	"github.com/iskorotkov/avro/v3"
 )
 
 // AvroGenerated is implemented by all avrogen-generated Avro types.

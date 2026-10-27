@@ -14,7 +14,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/iskorotkov/avro/v2/pkg/crc64"
+	"github.com/iskorotkov/avro/v3/pkg/crc64"
 )
 
 type nullDefaultType struct{}

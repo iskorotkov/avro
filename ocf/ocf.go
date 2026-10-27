@@ -14,8 +14,8 @@ import (
 	"math"
 	"os"
 
-	"github.com/iskorotkov/avro/v2"
-	"github.com/iskorotkov/avro/v2/internal/bytesx"
+	"github.com/iskorotkov/avro/v3"
+	"github.com/iskorotkov/avro/v3/internal/bytesx"
 	"github.com/klauspost/compress/zstd"
 )
 

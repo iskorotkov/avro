@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/iskorotkov/avro/v2"
-	"github.com/iskorotkov/avro/v2/gen"
+	"github.com/iskorotkov/avro/v3"
+	"github.com/iskorotkov/avro/v3/gen"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/tools/imports"

@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/iskorotkov/avro/v2"
+	"github.com/iskorotkov/avro/v3"
 )
 
 type benchEnumTextMarshaler int

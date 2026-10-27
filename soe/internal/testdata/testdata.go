@@ -1,7 +1,7 @@
 package testdata
 
 import (
-	"github.com/iskorotkov/avro/v2"
+	"github.com/iskorotkov/avro/v3"
 )
 
 // Basic annotated type

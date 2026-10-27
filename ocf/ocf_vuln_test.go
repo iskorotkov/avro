@@ -10,8 +10,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/iskorotkov/avro/v2"
-	"github.com/iskorotkov/avro/v2/ocf"
+	"github.com/iskorotkov/avro/v3"
+	"github.com/iskorotkov/avro/v3/ocf"
 	"github.com/klauspost/compress/zstd"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

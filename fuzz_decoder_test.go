@@ -3,7 +3,7 @@ package avro_test
 import (
 	"testing"
 
-	"github.com/iskorotkov/avro/v2"
+	"github.com/iskorotkov/avro/v3"
 )
 
 const fuzzDecoderSchema = `{

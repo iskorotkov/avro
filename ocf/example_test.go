@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/iskorotkov/avro/v2/ocf"
+	"github.com/iskorotkov/avro/v3/ocf"
 )
 
 func ExampleNewDecoder() {
