@@ -1,0 +1,187 @@
+commit: 0123456789abcdef0123456789abcdef01234567-dirty
+date: 2026-10-27T12:00:00Z
+go: go1.26.0
+gomaxprocs: 4
+flags: -count=6 -benchtime=200ms -procs=4 -dataset=.* -op=.* -format=.*
+
+goos: linux
+goarch: amd64
+pkg: github.com/iskorotkov/avro/bench/suite
+cpu: Example CPU @ 3.00GHz
+BenchmarkSuite/dataset=superhero/op=encode/format=avro-4	100	395772 ns/op	454.81 MB/s	200000 B/op	2000 allocs/op	395.77 ns/rec	2526707 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=encode/format=hamba-4	100	313296 ns/op	574.54 MB/s	120000 B/op	1200 allocs/op	313.30 ns/rec	3191867 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=encode/format=json-4	100	1251230 ns/op	489.12 MB/s	500000 B/op	5000 allocs/op	1251.23 ns/rec	799214 rec/s	612.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=encode/format=protobuf-4	100	214356 ns/op	923.70 MB/s	60000 B/op	600 allocs/op	214.36 ns/rec	4665133 rec/s	198.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=decode/format=avro-4	100	561206 ns/op	320.74 MB/s	280000 B/op	2800 allocs/op	561.21 ns/rec	1781878 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=decode/format=hamba-4	100	444390 ns/op	405.05 MB/s	168000 B/op	1680 allocs/op	444.39 ns/rec	2250277 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=decode/format=json-4	100	1689961 ns/op	362.14 MB/s	700000 B/op	7000 allocs/op	1689.96 ns/rec	591730 rec/s	612.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=decode/format=protobuf-4	100	308137 ns/op	642.57 MB/s	84000 B/op	840 allocs/op	308.14 ns/rec	3245305 rec/s	198.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=container-write-zstd/format=avro-4	100	855580 ns/op	210.38 MB/s	440000 B/op	4400 allocs/op	855.58 ns/rec	1168798 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=container-write-zstd/format=hamba-4	100	701197 ns/op	256.70 MB/s	264000 B/op	2640 allocs/op	701.20 ns/rec	1426132 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=container-write-zstd/format=json-4	100	2657594 ns/op	230.28 MB/s	1100000 B/op	11000 allocs/op	2657.59 ns/rec	376280 rec/s	612.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=container-write-zstd/format=protobuf-4	100	472114 ns/op	419.39 MB/s	132000 B/op	1320 allocs/op	472.11 ns/rec	2118131 rec/s	198.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=encode/format=avro-4	100	1990942 ns/op	150.68 MB/s	1000000 B/op	10000 allocs/op	398.19 ns/rec	2511374 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=encode/format=hamba-4	100	1631378 ns/op	183.89 MB/s	600000 B/op	6000 allocs/op	326.28 ns/rec	3064894 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=encode/format=json-4	100	6060054 ns/op	168.32 MB/s	2500000 B/op	25000 allocs/op	1212.01 ns/rec	825075 rec/s	204.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=encode/format=protobuf-4	100	1081734 ns/op	305.07 MB/s	300000 B/op	3000 allocs/op	216.35 ns/rec	4622209 rec/s	66.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=decode/format=avro-4	100	2821409 ns/op	106.33 MB/s	1400000 B/op	14000 allocs/op	564.28 ns/rec	1772164 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=decode/format=hamba-4	100	2300172 ns/op	130.43 MB/s	840000 B/op	8400 allocs/op	460.03 ns/rec	2173750 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=decode/format=json-4	100	8720155 ns/op	116.97 MB/s	3500000 B/op	35000 allocs/op	1744.03 ns/rec	573384 rec/s	204.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=decode/format=protobuf-4	100	1530453 ns/op	215.62 MB/s	420000 B/op	4200 allocs/op	306.09 ns/rec	3267006 rec/s	66.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=avro-4	100	4525731 ns/op	66.29 MB/s	2200000 B/op	22000 allocs/op	905.15 ns/rec	1104794 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=hamba-4	100	3424238 ns/op	87.61 MB/s	1320000 B/op	13200 allocs/op	684.85 ns/rec	1460179 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=json-4	100	13933371 ns/op	73.21 MB/s	5500000 B/op	55000 allocs/op	2786.67 ns/rec	358851 rec/s	204.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=protobuf-4	100	2389451 ns/op	138.11 MB/s	660000 B/op	6600 allocs/op	477.89 ns/rec	2092531 rec/s	66.0 wire-B/rec
+PASS
+
+goos: linux
+goarch: amd64
+pkg: github.com/iskorotkov/avro/bench/suite
+cpu: Example CPU @ 3.00GHz
+BenchmarkSuite/dataset=superhero/op=encode/format=hamba-4	100	313170 ns/op	574.77 MB/s	120000 B/op	1200 allocs/op	313.17 ns/rec	3193157 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=encode/format=json-4	100	1211564 ns/op	505.13 MB/s	500000 B/op	5000 allocs/op	1211.56 ns/rec	825380 rec/s	612.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=encode/format=protobuf-4	100	217472 ns/op	910.46 MB/s	60000 B/op	600 allocs/op	217.47 ns/rec	4598294 rec/s	198.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=encode/format=avro-4	100	407587 ns/op	441.62 MB/s	200000 B/op	2000 allocs/op	407.59 ns/rec	2453464 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=decode/format=hamba-4	100	439418 ns/op	409.63 MB/s	168000 B/op	1680 allocs/op	439.42 ns/rec	2275738 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=decode/format=json-4	100	1744499 ns/op	350.82 MB/s	700000 B/op	7000 allocs/op	1744.50 ns/rec	573230 rec/s	612.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=decode/format=protobuf-4	100	310567 ns/op	637.54 MB/s	84000 B/op	840 allocs/op	310.57 ns/rec	3219916 rec/s	198.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=decode/format=avro-4	100	555713 ns/op	323.91 MB/s	280000 B/op	2800 allocs/op	555.71 ns/rec	1799491 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=container-write-zstd/format=hamba-4	100	706017 ns/op	254.95 MB/s	264000 B/op	2640 allocs/op	706.02 ns/rec	1416397 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=container-write-zstd/format=json-4	100	2656437 ns/op	230.38 MB/s	1100000 B/op	11000 allocs/op	2656.44 ns/rec	376444 rec/s	612.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=container-write-zstd/format=protobuf-4	100	471211 ns/op	420.19 MB/s	132000 B/op	1320 allocs/op	471.21 ns/rec	2122192 rec/s	198.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=container-write-zstd/format=avro-4	100	864475 ns/op	208.22 MB/s	440000 B/op	4400 allocs/op	864.47 ns/rec	1156772 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=encode/format=hamba-4	100	1617318 ns/op	185.49 MB/s	600000 B/op	6000 allocs/op	323.46 ns/rec	3091537 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=encode/format=json-4	100	6173064 ns/op	165.23 MB/s	2500000 B/op	25000 allocs/op	1234.61 ns/rec	809970 rec/s	204.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=encode/format=protobuf-4	100	1087734 ns/op	303.38 MB/s	300000 B/op	3000 allocs/op	217.55 ns/rec	4596713 rec/s	66.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=encode/format=avro-4	100	2010267 ns/op	149.23 MB/s	1000000 B/op	10000 allocs/op	402.05 ns/rec	2487231 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=decode/format=hamba-4	100	2233708 ns/op	134.31 MB/s	840000 B/op	8400 allocs/op	446.74 ns/rec	2238430 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=decode/format=json-4	100	12863578 ns/op	79.29 MB/s	3500000 B/op	35000 allocs/op	2572.72 ns/rec	388694 rec/s	204.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=decode/format=protobuf-4	100	1567201 ns/op	210.57 MB/s	420000 B/op	4200 allocs/op	313.44 ns/rec	3190402 rec/s	66.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=decode/format=avro-4	100	2833431 ns/op	105.88 MB/s	1400000 B/op	14000 allocs/op	566.69 ns/rec	1764645 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=hamba-4	100	3465953 ns/op	86.56 MB/s	1320000 B/op	13200 allocs/op	693.19 ns/rec	1442605 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=json-4	100	13700908 ns/op	74.45 MB/s	5500000 B/op	55000 allocs/op	2740.18 ns/rec	364939 rec/s	204.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=protobuf-4	100	2423659 ns/op	136.16 MB/s	660000 B/op	6600 allocs/op	484.73 ns/rec	2062997 rec/s	66.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=avro-4	100	4499036 ns/op	66.68 MB/s	2200000 B/op	22000 allocs/op	899.81 ns/rec	1111349 rec/s	60.0 wire-B/rec
+PASS
+
+goos: linux
+goarch: amd64
+pkg: github.com/iskorotkov/avro/bench/suite
+cpu: Example CPU @ 3.00GHz
+BenchmarkSuite/dataset=superhero/op=encode/format=json-4	100	1257071 ns/op	486.85 MB/s	500000 B/op	5000 allocs/op	1257.07 ns/rec	795500 rec/s	612.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=encode/format=protobuf-4	100	217201 ns/op	911.60 MB/s	60000 B/op	600 allocs/op	217.20 ns/rec	4604035 rec/s	198.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=encode/format=avro-4	100	411524 ns/op	437.40 MB/s	200000 B/op	2000 allocs/op	411.52 ns/rec	2429991 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=encode/format=hamba-4	100	312667 ns/op	575.69 MB/s	120000 B/op	1200 allocs/op	312.67 ns/rec	3198292 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=decode/format=json-4	100	1727472 ns/op	354.27 MB/s	700000 B/op	7000 allocs/op	1727.47 ns/rec	578881 rec/s	612.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=decode/format=protobuf-4	100	312752 ns/op	633.09 MB/s	84000 B/op	840 allocs/op	312.75 ns/rec	3197422 rec/s	198.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=decode/format=avro-4	100	548307 ns/op	328.28 MB/s	280000 B/op	2800 allocs/op	548.31 ns/rec	1823797 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=decode/format=hamba-4	100	447703 ns/op	402.05 MB/s	168000 B/op	1680 allocs/op	447.70 ns/rec	2233622 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=container-write-zstd/format=json-4	100	2652577 ns/op	230.72 MB/s	1100000 B/op	11000 allocs/op	2652.58 ns/rec	376992 rec/s	612.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=container-write-zstd/format=protobuf-4	100	488885 ns/op	405.00 MB/s	132000 B/op	1320 allocs/op	488.88 ns/rec	2045471 rec/s	198.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=container-write-zstd/format=avro-4	100	893969 ns/op	201.35 MB/s	440000 B/op	4400 allocs/op	893.97 ns/rec	1118607 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=container-write-zstd/format=hamba-4	100	707085 ns/op	254.57 MB/s	264000 B/op	2640 allocs/op	707.08 ns/rec	1414258 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=encode/format=json-4	100	6339678 ns/op	160.89 MB/s	2500000 B/op	25000 allocs/op	1267.94 ns/rec	788684 rec/s	204.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=encode/format=protobuf-4	100	1087707 ns/op	303.39 MB/s	300000 B/op	3000 allocs/op	217.54 ns/rec	4596825 rec/s	66.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=encode/format=avro-4	100	2023435 ns/op	148.26 MB/s	1000000 B/op	10000 allocs/op	404.69 ns/rec	2471045 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=encode/format=hamba-4	100	1609060 ns/op	186.44 MB/s	600000 B/op	6000 allocs/op	321.81 ns/rec	3107405 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=decode/format=json-4	100	8721609 ns/op	116.95 MB/s	3500000 B/op	35000 allocs/op	1744.32 ns/rec	573289 rec/s	204.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=decode/format=protobuf-4	100	1535953 ns/op	214.85 MB/s	420000 B/op	4200 allocs/op	307.19 ns/rec	3255307 rec/s	66.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=decode/format=avro-4	100	2857115 ns/op	105.00 MB/s	1400000 B/op	14000 allocs/op	571.42 ns/rec	1750017 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=decode/format=hamba-4	100	2299765 ns/op	130.45 MB/s	840000 B/op	8400 allocs/op	459.95 ns/rec	2174135 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=json-4	100	13618802 ns/op	74.90 MB/s	5500000 B/op	55000 allocs/op	2723.76 ns/rec	367139 rec/s	204.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=protobuf-4	100	2443835 ns/op	135.03 MB/s	660000 B/op	6600 allocs/op	488.77 ns/rec	2045965 rec/s	66.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=avro-4	100	4284017 ns/op	70.03 MB/s	2200000 B/op	22000 allocs/op	856.80 ns/rec	1167129 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=hamba-4	100	3562555 ns/op	84.21 MB/s	1320000 B/op	13200 allocs/op	712.51 ns/rec	1403487 rec/s	60.0 wire-B/rec
+PASS
+
+goos: linux
+goarch: amd64
+pkg: github.com/iskorotkov/avro/bench/suite
+cpu: Example CPU @ 3.00GHz
+BenchmarkSuite/dataset=superhero/op=encode/format=protobuf-4	100	221942 ns/op	892.12 MB/s	60000 B/op	600 allocs/op	221.94 ns/rec	4505680 rec/s	198.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=encode/format=avro-4	100	411834 ns/op	437.07 MB/s	200000 B/op	2000 allocs/op	411.83 ns/rec	2428161 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=encode/format=hamba-4	100	326181 ns/op	551.84 MB/s	120000 B/op	1200 allocs/op	326.18 ns/rec	3065783 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=encode/format=json-4	100	1223974 ns/op	500.01 MB/s	500000 B/op	5000 allocs/op	1223.97 ns/rec	817011 rec/s	612.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=decode/format=protobuf-4	100	305889 ns/op	647.29 MB/s	84000 B/op	840 allocs/op	305.89 ns/rec	3269155 rec/s	198.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=decode/format=avro-4	100	565667 ns/op	318.21 MB/s	280000 B/op	2800 allocs/op	565.67 ns/rec	1767825 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=decode/format=hamba-4	100	435166 ns/op	413.63 MB/s	168000 B/op	1680 allocs/op	435.17 ns/rec	2297971 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=decode/format=json-4	100	1732010 ns/op	353.35 MB/s	700000 B/op	7000 allocs/op	1732.01 ns/rec	577364 rec/s	612.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=container-write-zstd/format=protobuf-4	100	474360 ns/op	417.40 MB/s	132000 B/op	1320 allocs/op	474.36 ns/rec	2108103 rec/s	198.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=container-write-zstd/format=avro-4	100	859783 ns/op	209.36 MB/s	440000 B/op	4400 allocs/op	859.78 ns/rec	1163085 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=container-write-zstd/format=hamba-4	100	685370 ns/op	262.63 MB/s	264000 B/op	2640 allocs/op	685.37 ns/rec	1459065 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=container-write-zstd/format=json-4	100	2771904 ns/op	220.79 MB/s	1100000 B/op	11000 allocs/op	2771.90 ns/rec	360763 rec/s	612.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=encode/format=protobuf-4	100	1075536 ns/op	306.82 MB/s	300000 B/op	3000 allocs/op	215.11 ns/rec	4648843 rec/s	66.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=encode/format=avro-4	100	1969714 ns/op	152.31 MB/s	1000000 B/op	10000 allocs/op	393.94 ns/rec	2538440 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=encode/format=hamba-4	100	1589531 ns/op	188.73 MB/s	600000 B/op	6000 allocs/op	317.91 ns/rec	3145582 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=encode/format=json-4	100	6338169 ns/op	160.93 MB/s	2500000 B/op	25000 allocs/op	1267.63 ns/rec	788871 rec/s	204.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=decode/format=protobuf-4	100	1501246 ns/op	219.82 MB/s	420000 B/op	4200 allocs/op	300.25 ns/rec	3330567 rec/s	66.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=decode/format=avro-4	100	2791463 ns/op	107.47 MB/s	1400000 B/op	14000 allocs/op	558.29 ns/rec	1791175 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=decode/format=hamba-4	100	2246645 ns/op	133.53 MB/s	840000 B/op	8400 allocs/op	449.33 ns/rec	2225541 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=decode/format=json-4	100	13319499 ns/op	76.58 MB/s	3500000 B/op	35000 allocs/op	2663.90 ns/rec	375389 rec/s	204.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=protobuf-4	100	2466359 ns/op	133.80 MB/s	660000 B/op	6600 allocs/op	493.27 ns/rec	2027280 rec/s	66.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=avro-4	100	4496092 ns/op	66.72 MB/s	2200000 B/op	22000 allocs/op	899.22 ns/rec	1112077 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=hamba-4	100	3473203 ns/op	86.38 MB/s	1320000 B/op	13200 allocs/op	694.64 ns/rec	1439594 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=json-4	100	13570679 ns/op	75.16 MB/s	5500000 B/op	55000 allocs/op	2714.14 ns/rec	368441 rec/s	204.0 wire-B/rec
+PASS
+
+goos: linux
+goarch: amd64
+pkg: github.com/iskorotkov/avro/bench/suite
+cpu: Example CPU @ 3.00GHz
+BenchmarkSuite/dataset=superhero/op=encode/format=avro-4	100	396611 ns/op	453.85 MB/s	200000 B/op	2000 allocs/op	396.61 ns/rec	2521365 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=encode/format=hamba-4	100	327377 ns/op	549.83 MB/s	120000 B/op	1200 allocs/op	327.38 ns/rec	3054587 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=encode/format=json-4	100	1274055 ns/op	480.36 MB/s	500000 B/op	5000 allocs/op	1274.06 ns/rec	784895 rec/s	612.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=encode/format=protobuf-4	100	215392 ns/op	919.25 MB/s	60000 B/op	600 allocs/op	215.39 ns/rec	4642695 rec/s	198.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=decode/format=avro-4	100	549121 ns/op	327.80 MB/s	280000 B/op	2800 allocs/op	549.12 ns/rec	1821093 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=decode/format=hamba-4	100	440795 ns/op	408.35 MB/s	168000 B/op	1680 allocs/op	440.80 ns/rec	2268628 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=decode/format=json-4	100	1708224 ns/op	358.27 MB/s	700000 B/op	7000 allocs/op	1708.22 ns/rec	585403 rec/s	612.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=decode/format=protobuf-4	100	307722 ns/op	643.44 MB/s	84000 B/op	840 allocs/op	307.72 ns/rec	3249685 rec/s	198.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=container-write-zstd/format=avro-4	100	884706 ns/op	203.46 MB/s	440000 B/op	4400 allocs/op	884.71 ns/rec	1130319 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=container-write-zstd/format=hamba-4	100	693978 ns/op	259.37 MB/s	264000 B/op	2640 allocs/op	693.98 ns/rec	1440967 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=container-write-zstd/format=json-4	100	2646830 ns/op	231.22 MB/s	1100000 B/op	11000 allocs/op	2646.83 ns/rec	377810 rec/s	612.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=container-write-zstd/format=protobuf-4	100	481646 ns/op	411.09 MB/s	132000 B/op	1320 allocs/op	481.65 ns/rec	2076213 rec/s	198.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=encode/format=avro-4	100	1984310 ns/op	151.19 MB/s	1000000 B/op	10000 allocs/op	396.86 ns/rec	2519767 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=encode/format=hamba-4	100	1606369 ns/op	186.76 MB/s	600000 B/op	6000 allocs/op	321.27 ns/rec	3112610 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=encode/format=json-4	100	6368552 ns/op	160.16 MB/s	2500000 B/op	25000 allocs/op	1273.71 ns/rec	785108 rec/s	204.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=encode/format=protobuf-4	100	1112573 ns/op	296.61 MB/s	300000 B/op	3000 allocs/op	222.51 ns/rec	4494089 rec/s	66.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=decode/format=avro-4	100	2802603 ns/op	107.04 MB/s	1400000 B/op	14000 allocs/op	560.52 ns/rec	1784056 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=decode/format=hamba-4	100	2255804 ns/op	132.99 MB/s	840000 B/op	8400 allocs/op	451.16 ns/rec	2216504 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=decode/format=json-4	100	8771765 ns/op	116.28 MB/s	3500000 B/op	35000 allocs/op	1754.35 ns/rec	570011 rec/s	204.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=decode/format=protobuf-4	100	1498789 ns/op	220.18 MB/s	420000 B/op	4200 allocs/op	299.76 ns/rec	3336027 rec/s	66.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=avro-4	100	4505477 ns/op	66.59 MB/s	2200000 B/op	22000 allocs/op	901.10 ns/rec	1109760 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=hamba-4	100	3579130 ns/op	83.82 MB/s	1320000 B/op	13200 allocs/op	715.83 ns/rec	1396988 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=json-4	100	13946502 ns/op	73.14 MB/s	5500000 B/op	55000 allocs/op	2789.30 ns/rec	358513 rec/s	204.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=protobuf-4	100	2463251 ns/op	133.97 MB/s	660000 B/op	6600 allocs/op	492.65 ns/rec	2029838 rec/s	66.0 wire-B/rec
+PASS
+
+goos: linux
+goarch: amd64
+pkg: github.com/iskorotkov/avro/bench/suite
+cpu: Example CPU @ 3.00GHz
+BenchmarkSuite/dataset=superhero/op=encode/format=hamba-4	100	317934 ns/op	566.16 MB/s	120000 B/op	1200 allocs/op	317.93 ns/rec	3145310 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=encode/format=json-4	100	1232484 ns/op	496.56 MB/s	500000 B/op	5000 allocs/op	1232.48 ns/rec	811370 rec/s	612.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=encode/format=protobuf-4	100	214767 ns/op	921.93 MB/s	60000 B/op	600 allocs/op	214.77 ns/rec	4656216 rec/s	198.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=encode/format=avro-4	100	403223 ns/op	446.40 MB/s	200000 B/op	2000 allocs/op	403.22 ns/rec	2480018 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=decode/format=hamba-4	100	436233 ns/op	412.62 MB/s	168000 B/op	1680 allocs/op	436.23 ns/rec	2292352 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=decode/format=json-4	100	1690935 ns/op	361.93 MB/s	700000 B/op	7000 allocs/op	1690.93 ns/rec	591389 rec/s	612.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=decode/format=protobuf-4	100	302618 ns/op	654.29 MB/s	84000 B/op	840 allocs/op	302.62 ns/rec	3304497 rec/s	198.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=decode/format=avro-4	100	548653 ns/op	328.08 MB/s	280000 B/op	2800 allocs/op	548.65 ns/rec	1822644 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=container-write-zstd/format=hamba-4	100	697244 ns/op	258.16 MB/s	264000 B/op	2640 allocs/op	697.24 ns/rec	1434218 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=container-write-zstd/format=json-4	100	2654766 ns/op	230.53 MB/s	1100000 B/op	11000 allocs/op	2654.77 ns/rec	376681 rec/s	612.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=container-write-zstd/format=protobuf-4	100	469487 ns/op	421.74 MB/s	132000 B/op	1320 allocs/op	469.49 ns/rec	2129985 rec/s	198.0 wire-B/rec
+BenchmarkSuite/dataset=superhero/op=container-write-zstd/format=avro-4	100	861587 ns/op	208.92 MB/s	440000 B/op	4400 allocs/op	861.59 ns/rec	1160649 rec/s	180.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=encode/format=hamba-4	100	1561741 ns/op	192.09 MB/s	600000 B/op	6000 allocs/op	312.35 ns/rec	3201556 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=encode/format=json-4	100	6149263 ns/op	165.87 MB/s	2500000 B/op	25000 allocs/op	1229.85 ns/rec	813106 rec/s	204.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=encode/format=protobuf-4	100	1068683 ns/op	308.79 MB/s	300000 B/op	3000 allocs/op	213.74 ns/rec	4678656 rec/s	66.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=encode/format=avro-4	100	2044920 ns/op	146.71 MB/s	1000000 B/op	10000 allocs/op	408.98 ns/rec	2445084 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=decode/format=hamba-4	100	2255331 ns/op	133.02 MB/s	840000 B/op	8400 allocs/op	451.07 ns/rec	2216970 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=decode/format=json-4	100	12745448 ns/op	80.03 MB/s	3500000 B/op	35000 allocs/op	2549.09 ns/rec	392297 rec/s	204.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=decode/format=protobuf-4	100	1517109 ns/op	217.52 MB/s	420000 B/op	4200 allocs/op	303.42 ns/rec	3295743 rec/s	66.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=decode/format=avro-4	100	2774361 ns/op	108.13 MB/s	1400000 B/op	14000 allocs/op	554.87 ns/rec	1802217 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=hamba-4	100	3491311 ns/op	85.93 MB/s	1320000 B/op	13200 allocs/op	698.26 ns/rec	1432127 rec/s	60.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=json-4	100	13331334 ns/op	76.51 MB/s	5500000 B/op	55000 allocs/op	2666.27 ns/rec	375056 rec/s	204.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=protobuf-4	100	2470666 ns/op	133.57 MB/s	660000 B/op	6600 allocs/op	494.13 ns/rec	2023746 rec/s	66.0 wire-B/rec
+BenchmarkSuite/dataset=nyctaxi/op=container-write-zstd/format=avro-4	100	4530179 ns/op	66.22 MB/s	2200000 B/op	22000 allocs/op	906.04 ns/rec	1103709 rec/s	60.0 wire-B/rec
+PASS
+
+BenchmarkSuite/dataset=nyctaxi/op=batch-encode/format=json-4	10	5000000 ns/op

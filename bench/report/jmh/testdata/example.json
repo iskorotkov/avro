@@ -1,0 +1,26 @@
+[
+  {
+    "jmhVersion": "1.37",
+    "benchmark": "com.example.SuiteBenchmark.run",
+    "mode": "avgt",
+    "threads": 1,
+    "forks": 2,
+    "params": {"dataset": "superhero", "op": "encode", "format": "java-avro", "records": "1000", "wireBytes": "50000"},
+    "primaryMetric": {
+      "score": 2.0,
+      "scoreError": 0.1,
+      "scoreUnit": "ms/op",
+      "rawData": [[1.9, 2.1], [2.0, 2.0]]
+    },
+    "secondaryMetrics": {
+      "·gc.alloc.rate.norm": {"score": 4096.0, "scoreUnit": "B/op", "rawData": [[4096.0, 4096.0], [4096.0, 4096.0]]}
+    }
+  },
+  {
+    "benchmark": "com.example.SuiteBenchmark.run",
+    "mode": "avgt",
+    "params": {"dataset": "nyctaxi", "op": "decode"},
+    "primaryMetric": {"score": 500.0, "scoreError": 5.0, "scoreUnit": "us/op", "rawData": [[500.0, 510.0]]},
+    "secondaryMetrics": {}
+  }
+]
