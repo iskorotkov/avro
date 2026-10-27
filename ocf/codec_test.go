@@ -146,10 +146,10 @@ func TestZStandardCodec_SharesDefaultInstances(t *testing.T) {
 func TestZstdDecoderCache_SharesUpToSize(t *testing.T) {
 	cache := newZstdDecoderCache(2)
 
-	a, sharedA := cache.get(10)
-	b, sharedB := cache.get(20)
-	again, sharedAgain := cache.get(10)
-	extra, sharedExtra := cache.get(30)
+	a, sharedA := cache.get(16 << 20)
+	b, sharedB := cache.get(17 << 20)
+	again, sharedAgain := cache.get(16 << 20)
+	extra, sharedExtra := cache.get(18 << 20)
 	defer extra.Close()
 
 	assert.True(t, sharedA)
@@ -163,10 +163,10 @@ func TestZstdDecoderCache_SharesUpToSize(t *testing.T) {
 
 func TestZStandardCodec_OwnsDecoderPastSharedLimit(t *testing.T) {
 	for limit := range maxSharedZstdDecoders + 1 {
-		require.NoError(t, newZStandardCodec(zstdOptions{}, 1<<20+limit).Close())
+		require.NoError(t, newZStandardCodec(zstdOptions{}, 16<<20+limit).Close())
 	}
 
-	codec := newZStandardCodec(zstdOptions{}, 2<<20)
+	codec := newZStandardCodec(zstdOptions{}, 32<<20)
 	defer codec.Close()
 
 	assert.False(t, codec.sharedDecoder)
@@ -174,6 +174,17 @@ func TestZStandardCodec_OwnsDecoderPastSharedLimit(t *testing.T) {
 	out, err := codec.Decode(codec.Encode([]byte("x")))
 	require.NoError(t, err)
 	assert.Equal(t, []byte("x"), out)
+}
+
+func TestZstdDecoderCache_SmallLimitsShareOneDecoder(t *testing.T) {
+	cache := newZstdDecoderCache(1)
+
+	a, sharedA := cache.get(1)
+	b, sharedB := cache.get(zstdMinDecoderMemory)
+
+	assert.True(t, sharedA)
+	assert.True(t, sharedB)
+	assert.Same(t, a, b)
 }
 
 // Run with -race: codecs built without options share the process-wide default encoder and decoder.

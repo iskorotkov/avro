@@ -75,10 +75,10 @@ func TestDecoder_RejectsSnappyInflatedHeader(t *testing.T) {
 func TestDecoder_RejectsZstdBomb(t *testing.T) {
 	original := buildOCF(t, ocf.ZStandard, []int64{1, 2, 3})
 
-	// 4 MiB of zeros compresses to a handful of bytes with zstd.
+	// 16 MiB of zeros compresses to a handful of bytes and exceeds the 8 MiB decoder memory floor.
 	enc, err := zstd.NewWriter(nil)
 	require.NoError(t, err)
-	bomb := enc.EncodeAll(bytes.Repeat([]byte{0}, 4<<20), nil)
+	bomb := enc.EncodeAll(bytes.Repeat([]byte{0}, 16<<20), nil)
 	require.NoError(t, enc.Close())
 
 	mutated := replaceFirstBlockPayload(t, original, bomb)
@@ -116,6 +116,22 @@ func TestDecoder_RejectsZstdBombViaSharedDecoder(t *testing.T) {
 	assert.False(t, dec.HasNext())
 	require.Error(t, dec.Error())
 	assert.ErrorIs(t, dec.Error(), ocf.ErrDecompressedBlockTooLarge)
+}
+
+func TestDecoder_ZstdAcceptsWindowAboveDecompressedCap(t *testing.T) {
+	// A streaming writer declares its window instead of the content size, as zstd-jni does for Java OCF files.
+	var frame bytes.Buffer
+	enc, err := zstd.NewWriter(&frame, zstd.WithWindowSize(4<<20), zstd.WithSingleSegment(false))
+	require.NoError(t, err)
+	_, err = enc.Write([]byte{2, 4, 6})
+	require.NoError(t, err)
+	require.NoError(t, enc.Close())
+	mutated := replaceFirstBlockPayload(t, buildOCF(t, ocf.ZStandard, []int64{1, 2, 3}), frame.Bytes())
+
+	got, err := decodeAllLongs(t, mutated, ocf.WithMaxDecompressedBlockBytes(3))
+
+	require.NoError(t, err)
+	assert.Equal(t, []int64{1, 2, 3}, got)
 }
 
 func TestDecoder_TruncatedBlockDoesNotPreAllocate(t *testing.T) {
@@ -347,8 +363,9 @@ func TestDecoder_DeflateCapAtMaxIntDoesNotOverflow(t *testing.T) {
 
 func TestDecoder_DecompressedSizeBoundary(t *testing.T) {
 	compressors := map[ocf.CodecName]func(testing.TB, []byte) []byte{
-		ocf.Deflate: craftDeflate,
-		ocf.Snappy:  craftSnappy,
+		ocf.Deflate:   craftDeflate,
+		ocf.Snappy:    craftSnappy,
+		ocf.ZStandard: craftZstd,
 	}
 	for codec, compress := range compressors {
 		t.Run(string(codec), func(t *testing.T) {
@@ -435,6 +452,15 @@ func craftSnappy(t testing.TB, payload []byte) []byte {
 	t.Helper()
 	out := snappy.Encode(nil, payload)
 	return binary.BigEndian.AppendUint32(out, crc32.ChecksumIEEE(payload))
+}
+
+// craftZstd returns the zstd-compressed form of payload for use as an OCF block body.
+func craftZstd(t testing.TB, payload []byte) []byte {
+	t.Helper()
+	enc, err := zstd.NewWriter(nil)
+	require.NoError(t, err)
+	defer enc.Close()
+	return enc.EncodeAll(payload, nil)
 }
 
 // craftDeflate returns the deflate-compressed form of payload for use as an OCF block body.
