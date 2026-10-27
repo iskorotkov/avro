@@ -20,6 +20,10 @@ type Options struct {
 	Dataset   string
 	Op        string
 	Format    string
+	// Tags are comma-separated build tags passed to go test -tags.
+	Tags string
+	// GoExperiment is the GOEXPERIMENT value the suite is built with.
+	GoExperiment string
 	// DataDir is passed as -suite.data when set.
 	DataDir string
 	// CPUProfileDir receives one profile per round when set.
@@ -43,6 +47,12 @@ func (o Options) FlagsLine() string {
 		"-dataset=" + orAny(o.Dataset),
 		"-op=" + orAny(o.Op),
 		"-format=" + orAny(o.Format),
+	}
+	if o.Tags != "" {
+		parts = append(parts, "-tags="+o.Tags)
+	}
+	if o.GoExperiment != "" {
+		parts = append(parts, "-goexperiment="+o.GoExperiment)
 	}
 	if o.DataDir != "" {
 		parts = append(parts, "-data="+o.DataDir)

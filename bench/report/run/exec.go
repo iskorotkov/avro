@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -45,7 +46,7 @@ func Execute(ctx context.Context, o Options, progress io.Writer, now time.Time) 
 	if err := os.MkdirAll(resultsDir, 0o750); err != nil {
 		return "", err
 	}
-	path := filepath.Join(resultsDir, fmt.Sprintf("%s-%s.txt", now.Format(time.DateOnly), rev.Short))
+	path := filepath.Join(resultsDir, fmt.Sprintf("%s-%s%s.txt", now.Format(time.DateOnly), rev.Short, o.fileSuffix()))
 	if err := o.record(ctx, binary, path, Header{Commit: rev.Full, Date: now, Go: goVersion, GOMAXPROCS: o.Procs, Flags: o.FlagsLine()}, progress); err != nil {
 		return "", err
 	}
@@ -84,13 +85,48 @@ func copyFile(src, dst string) error {
 }
 
 func (o Options) build(ctx context.Context, binary string, progress io.Writer) error {
-	cmd := exec.CommandContext(ctx, "go", "test", "-c", "-o", binary, o.Package) //nolint:gosec // Package comes from the tool itself.
+	cmd := exec.CommandContext(ctx, "go", o.buildArgs(binary)...) //nolint:gosec // Arguments come from the tool and its flags.
 	cmd.Dir = o.Dir
+	cmd.Env = o.buildEnv()
 	cmd.Stdout, cmd.Stderr = progress, progress
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("build suite: %w", err)
 	}
 	return nil
+}
+
+// fileSuffix keeps runs with different toolchain settings in separate files.
+func (o Options) fileSuffix() string {
+	var parts []string
+	for _, s := range []string{o.GoExperiment, o.Tags} {
+		if s != "" {
+			parts = append(parts, strings.NewReplacer(",", "+", "/", "_").Replace(s))
+		}
+	}
+
+	if len(parts) == 0 {
+		return ""
+	}
+
+	return "-" + strings.Join(parts, "-")
+}
+
+func (o Options) buildArgs(binary string) []string {
+	args := []string{"test", "-c", "-o", binary}
+	if o.Tags != "" {
+		args = append(args, "-tags="+o.Tags)
+	}
+
+	return append(args, o.Package)
+}
+
+func (o Options) buildEnv() []string {
+	env := os.Environ()
+	if o.GoExperiment != "" {
+		env = append(env, "GOEXPERIMENT="+o.GoExperiment)
+	}
+
+	return env
 }
 
 func (o Options) round(ctx context.Context, binary string, round int, out, progress io.Writer) error {

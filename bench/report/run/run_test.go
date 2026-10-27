@@ -49,3 +49,38 @@ func TestHeaderParses(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildFlags(t *testing.T) {
+	o := Options{Package: "./suite", Tags: "a,b", GoExperiment: "jsonv2"}
+
+	if got, want := strings.Join(o.buildArgs("out"), " "), "test -c -o out -tags=a,b ./suite"; got != want {
+		t.Errorf("args = %q, want %q", got, want)
+	}
+	if env := o.buildEnv(); env[len(env)-1] != "GOEXPERIMENT=jsonv2" {
+		t.Errorf("env lacks GOEXPERIMENT: %v", env[len(env)-1])
+	}
+
+	line := o.FlagsLine()
+	for _, want := range []string{"-tags=a,b", "-goexperiment=jsonv2"} {
+		if !strings.Contains(line, want) {
+			t.Errorf("flags %q lack %q", line, want)
+		}
+	}
+}
+
+func TestBuildFlagsEmpty(t *testing.T) {
+	o := Options{Package: "./suite", Count: 1}
+
+	if got, want := strings.Join(o.buildArgs("out"), " "), "test -c -o out ./suite"; got != want {
+		t.Errorf("args = %q, want %q", got, want)
+	}
+	if strings.Contains(o.FlagsLine(), "-tags") || strings.Contains(o.FlagsLine(), "-goexperiment") {
+		t.Errorf("flags line mentions unset flags: %q", o.FlagsLine())
+	}
+	if got := o.fileSuffix(); got != "" {
+		t.Errorf("suffix = %q, want empty", got)
+	}
+	if got := (Options{GoExperiment: "jsonv2", Tags: "a,b"}).fileSuffix(); got != "-jsonv2-a+b" {
+		t.Errorf("suffix = %q", got)
+	}
+}

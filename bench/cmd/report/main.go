@@ -50,6 +50,8 @@ func parseFlags(args []string) config {
 	fs.StringVar(&c.run.Dataset, "dataset", "", "regexp of datasets to run (default all)")
 	fs.StringVar(&c.run.Op, "op", "", "regexp of ops to run (default all)")
 	fs.StringVar(&c.run.Format, "format", "", "regexp of formats to run (default all)")
+	fs.StringVar(&c.run.Tags, "tags", "", "comma-separated build tags for the suite binary")
+	fs.StringVar(&c.run.GoExperiment, "goexperiment", "", "GOEXPERIMENT value for the suite binary, e.g. jsonv2")
 	fs.StringVar(&c.run.DataDir, "data", "", "dataset directory passed to the suite as -suite.data")
 	fs.StringVar(&c.run.CPUProfileDir, "cpuprofile", "", "directory for one CPU profile per round")
 	fs.StringVar(&c.run.ResultsDir, "results", "results", "directory for raw result files")
