@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package bench;
+
+option go_package = "github.com/iskorotkov/avro/bench/formats/protobuf";
+
+enum RcChangeType {
+  RC_CHANGE_TYPE_EDIT = 0;
+  RC_CHANGE_TYPE_NEW = 1;
+  RC_CHANGE_TYPE_LOG = 2;
+  RC_CHANGE_TYPE_CATEGORIZE = 3;
+}
+
+// RcChange stores Meta.dt as Unix milliseconds, matching Avro timestamp-millis on the wire.
+message RcChange {
+  string schema = 1;
+  RcMeta meta = 2;
+  optional int64 id = 3;
+  RcChangeType type = 4;
+  int32 namespace = 5;
+  string title = 6;
+  string title_url = 7;
+  string comment = 8;
+  string parsedcomment = 9;
+  int64 timestamp = 10;
+  string user = 11;
+  bool bot = 12;
+  optional bool minor = 13;
+  optional bool patrolled = 14;
+  RcLength length = 15;
+  RcRevision revision = 16;
+  string server_url = 17;
+  string server_name = 18;
+  string server_script_path = 19;
+  string wiki = 20;
+  string notify_url = 21;
+  optional int64 log_id = 22;
+  optional string log_type = 23;
+  optional string log_action = 24;
+  optional string log_action_comment = 25;
+  RcLogParams log_params = 26;
+}
+
+message RcMeta {
+  string uri = 1;
+  string request_id = 2;
+  string id = 3;
+  int64 dt = 4;
+  string domain = 5;
+  string stream = 6;
+  string topic = 7;
+  int32 partition = 8;
+  int64 offset = 9;
+}
+
+message RcLength {
+  optional int64 old = 1;
+  optional int64 new = 2;
+}
+
+message RcRevision {
+  optional int64 old = 1;
+  optional int64 new = 2;
+}
+
+message RcLogParams {
+  oneof params {
+    RcStringList list = 1;
+    RcStringMap fields = 2;
+    string text = 3;
+  }
+}
+
+message RcStringList {
+  repeated string items = 1;
+}
+
+message RcStringMap {
+  map<string, string> values = 1;
+}

@@ -11,6 +11,7 @@ import (
 	"github.com/iskorotkov/avro/bench/datasets/earthquakes"
 	"github.com/iskorotkov/avro/bench/datasets/nyctaxi"
 	"github.com/iskorotkov/avro/bench/datasets/superhero"
+	"github.com/iskorotkov/avro/bench/datasets/wikirc"
 	"github.com/iskorotkov/avro/bench/format"
 	"google.golang.org/protobuf/encoding/protodelim"
 	"google.golang.org/protobuf/proto"
@@ -34,6 +35,8 @@ func (Format) Bind(ds dataset.Dataset) (*format.Subject, error) {
 		return bind(ds, fromTrip)
 	case earthquakes.Name:
 		return bind(ds, fromQuake)
+	case wikirc.Name:
+		return bind(ds, fromRecentChange)
 	default:
 		return nil, format.ErrUnsupported
 	}
