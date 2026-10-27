@@ -5,12 +5,18 @@ File:    https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2024-01
 SHA-256: c4d59da7bbc8abaeeeb1727947ee93d9891a71acb42854bd80db1571b2030510
 Owner:   City of New York, Taxi and Limousine Commission (TLC)
 
-Terms: public data published under the NYC Open Data Law (Local Law 11 of 2012)
-and the NYC.gov Terms of Use (https://www.nyc.gov/main/terms-of-use), which is
-also the licence listed by the AWS Open Data Registry
-(https://registry.opendata.aws/nyc-tlc-trip-records-pds/). No formal open
-licence and no attribution requirement is stated. The records contain no
-personal data: only times, TLC zone IDs and fares.
+Terms: the same trip records are a public data set on NYC Open Data
+("2024 Yellow Taxi Trip Data", https://data.cityofnewyork.us/d/rwwi-khbc).
+NYC Administrative Code § 23-502(d) (Open Data Law, Local Law 11 of 2012)
+requires such public data sets to be "made available without any registration
+requirement, license requirement or restrictions on their use". No formal open
+licence is attached; the AWS Open Data Registry
+(https://registry.opendata.aws/nyc-tlc-trip-records-pds/) points to the NYC.gov
+Terms of Use (https://www.nyc.gov/main/terms-of-use), whose all-rights-reserved
+clause covers site materials rather than open data sets. Source credited as
+asked by the registry: New York City Taxi and Limousine Commission (TLC) Trip
+Record Data. The records contain no personal data: only times, TLC zone IDs
+and fares.
 
 Disclaimer from TLC: "The trip data was not created by the TLC, and TLC makes
 no representations as to the accuracy of these data."
