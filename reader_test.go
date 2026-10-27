@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"math"
 	"strconv"
 	"testing"
 	"testing/iotest"
@@ -786,11 +787,13 @@ func TestReader_ReadBytesLengthExceedsPlatformInt(t *testing.T) {
 	w.WriteLong(int64(1) << 33)
 	require.NoError(t, w.Flush())
 
-	r := avro.NewReader(bytes.NewReader(buf.Bytes()), 10)
+	// The largest limit is clamped to the platform int, so the length is still rejected.
+	api := avro.Config{MaxByteSliceSize: math.MaxInt}.Freeze()
+	r := avro.NewReader(bytes.NewReader(buf.Bytes()), 10, avro.WithReaderConfig(api))
 	got := r.ReadBytes()
 
 	assert.Nil(t, got)
-	require.ErrorContains(t, r.Error, "MaxByteSliceSize")
+	require.ErrorIs(t, r.Error, avro.ErrMaxByteSliceSize)
 }
 
 func TestReader_ReadString(t *testing.T) {
