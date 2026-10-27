@@ -99,3 +99,11 @@ func TestUnmarshal_NilPtr(t *testing.T) {
 
 	assert.Error(t, err)
 }
+
+func TestUnmarshal_NilTargetReturnsError(t *testing.T) {
+	schema := avro.MustParse(`"long"`)
+
+	err := avro.Unmarshal(schema, []byte{0x02}, nil)
+
+	assert.Error(t, err)
+}
