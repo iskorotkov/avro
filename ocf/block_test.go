@@ -3,6 +3,8 @@ package ocf_test
 import (
 	"bytes"
 	"io"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/iskorotkov/avro/v2/ocf"
@@ -173,6 +175,55 @@ func TestDecoder_SkipsEmptyBlockMidFile(t *testing.T) {
 	assert.Equal(t, []int64{1, 2, 3}, got)
 }
 
+type blobRecord struct {
+	Bytes  []byte `avro:"b"`
+	String string `avro:"s"`
+}
+
+const blobSchema = `{"type":"record","name":"Blob","fields":[{"name":"b","type":"bytes"},{"name":"s","type":"string"}]}`
+
+func TestDecoder_ValuesOutliveNextBlock(t *testing.T) {
+	want := []blobRecord{{[]byte("aaaa"), "AAAA"}, {[]byte("bbbb"), "BBBB"}, {[]byte("cccc"), "CCCC"}}
+
+	for _, codec := range []ocf.CodecName{ocf.Null, ocf.Deflate, ocf.Snappy, ocf.ZStandard} {
+		t.Run(string(codec), func(t *testing.T) {
+			var buf bytes.Buffer
+			enc, err := ocf.NewEncoder(blobSchema, &buf, ocf.WithCodec(codec), ocf.WithBlockLength(1))
+			require.NoError(t, err)
+			for _, v := range want {
+				require.NoError(t, enc.Encode(v))
+			}
+			require.NoError(t, enc.Close())
+
+			dec, err := ocf.NewDecoder(&buf)
+			require.NoError(t, err)
+			defer dec.Close()
+			var got []blobRecord
+			for dec.HasNext() {
+				var v blobRecord
+				require.NoError(t, dec.Decode(&v))
+				got = append(got, v)
+			}
+
+			require.NoError(t, dec.Error())
+			assert.Equal(t, want, got)
+		})
+	}
+}
+
+func TestDecoder_RejectsNilPointerTarget(t *testing.T) {
+	data := buildOCF(t, ocf.Null, []int64{1})
+	dec, err := ocf.NewDecoder(bytes.NewReader(data))
+	require.NoError(t, err)
+	require.True(t, dec.HasNext())
+
+	var nilPtr *int64
+	assert.ErrorContains(t, dec.Decode(nilPtr), "can not read into nil pointer")
+	var v int64
+	require.NoError(t, dec.Decode(&v))
+	assert.Equal(t, int64(1), v)
+}
+
 func TestDecoder_ZeroWidthCountBoundary(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -206,6 +257,31 @@ func TestDecoder_ZeroWidthCountBoundary(t *testing.T) {
 			}
 			require.NoError(t, dec.Error())
 			assert.Equal(t, tt.count, n)
+		})
+	}
+}
+
+func TestNewEncoder_AppendRejectsBrokenBlocks(t *testing.T) {
+	tests := []struct {
+		name    string
+		mutate  func([]byte) []byte
+		wantErr string
+	}{
+		{name: "truncated sync marker", mutate: func(b []byte) []byte { return b[:len(b)-5] }, wantErr: "truncated sync marker"},
+		{name: "wrong sync marker", mutate: func(b []byte) []byte { b[len(b)-1]++; return b }, wantErr: "invalid block"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "broken.avro")
+			require.NoError(t, os.WriteFile(path, tt.mutate(craftOCF(t, secSchema, 1, []byte{2})), 0o600))
+			f, err := os.OpenFile(path, os.O_RDWR, 0)
+			require.NoError(t, err)
+			defer f.Close()
+
+			_, err = ocf.NewEncoder(secSchema, f)
+
+			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}
 }
