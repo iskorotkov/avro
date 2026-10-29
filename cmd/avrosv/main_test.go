@@ -124,3 +124,44 @@ func TestAvroSv_Verbose(t *testing.T) {
 		})
 	}
 }
+
+func TestAvroSv_InfoFlags(t *testing.T) {
+	tests := []struct {
+		name         string
+		args         []string
+		wantExitCode int
+		wantStdout   string
+		wantStderr   string
+	}{
+		{
+			name:         "prints help",
+			args:         []string{"avrosv", "--help"},
+			wantExitCode: 0,
+			wantStderr:   "Usage: avrosv",
+		},
+		{
+			name:         "prints version",
+			args:         []string{"avrosv", "--version"},
+			wantExitCode: 0,
+			wantStdout:   "avrosv ",
+		},
+		{
+			name:         "rejects unknown flag",
+			args:         []string{"avrosv", "--unknown"},
+			wantExitCode: 2,
+			wantStderr:   "flag provided but not defined",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+
+			got := realMain(test.args, &stdout, &stderr)
+
+			assert.Equal(t, test.wantExitCode, got)
+			assert.Contains(t, stdout.String(), test.wantStdout)
+			assert.Contains(t, stderr.String(), test.wantStderr)
+		})
+	}
+}

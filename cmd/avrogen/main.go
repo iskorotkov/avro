@@ -14,6 +14,7 @@ import (
 
 	"github.com/iskorotkov/avro/v2"
 	"github.com/iskorotkov/avro/v2/gen"
+	"github.com/iskorotkov/avro/v2/internal/buildversion"
 	"github.com/iskorotkov/avro/v2/registry"
 	"golang.org/x/tools/imports"
 )
@@ -34,6 +35,7 @@ type config struct {
 	LogicalTypes   repeatedFlag
 	FieldTypes     repeatedFlag
 	EnumsGen       bool
+	Version        bool
 }
 
 type repeatedFlag []string
@@ -53,7 +55,7 @@ func main() {
 
 func realMain(args []string, stdout, stderr io.Writer) int {
 	var cfg config
-	flgs := flag.NewFlagSet("avrogen", flag.ExitOnError)
+	flgs := flag.NewFlagSet("avrogen", flag.ContinueOnError)
 	flgs.SetOutput(stderr)
 	flgs.StringVar(&cfg.Pkg, "pkg", "", "The package name of the output file.")
 	flgs.StringVar(&cfg.PkgDoc, "pkgdoc", "", "The package doc comment to output.")
@@ -67,6 +69,7 @@ func realMain(args []string, stdout, stderr io.Writer) int {
 	flgs.StringVar(&cfg.TemplateFileName, "template-filename", "", "Override output template with one loaded from file.")
 	flgs.StringVar(&cfg.SchemaRegistry, "schemaregistry", "", "The URL to schema registry, e.g.: http://localhost:8081.")
 	flgs.BoolVar(&cfg.EnumsGen, "enums", false, "Generate Go enums for Avro enums.")
+	flgs.BoolVar(&cfg.Version, "version", false, "Print the version and exit.")
 	flgs.Var(&cfg.LogicalTypes, "logicaltype",
 		"A logical type mapping of the form logicalType,goType[,import]. Can be specified multiple times.")
 	flgs.Var(&cfg.FieldTypes, "fieldtype",
@@ -78,7 +81,15 @@ func realMain(args []string, stdout, stderr io.Writer) int {
 		flgs.PrintDefaults()
 	}
 	if err := flgs.Parse(args[1:]); err != nil {
-		return 1
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 2
+	}
+
+	if cfg.Version {
+		_, _ = fmt.Fprintln(stdout, "avrogen "+buildversion.Get())
+		return 0
 	}
 
 	if err := validateOpts(flgs.NArg(), cfg); err != nil {

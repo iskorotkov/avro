@@ -460,3 +460,44 @@ func TestParseInitialisms(t *testing.T) {
 		})
 	}
 }
+
+func TestAvroGen_InfoFlags(t *testing.T) {
+	tests := []struct {
+		name         string
+		args         []string
+		wantExitCode int
+		wantStdout   string
+		wantStderr   string
+	}{
+		{
+			name:         "prints help",
+			args:         []string{"avrogen", "--help"},
+			wantExitCode: 0,
+			wantStderr:   "Usage: avrogen",
+		},
+		{
+			name:         "prints version",
+			args:         []string{"avrogen", "--version"},
+			wantExitCode: 0,
+			wantStdout:   "avrogen ",
+		},
+		{
+			name:         "rejects unknown flag",
+			args:         []string{"avrogen", "--unknown"},
+			wantExitCode: 2,
+			wantStderr:   "flag provided but not defined",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+
+			got := realMain(test.args, &stdout, &stderr)
+
+			assert.Equal(t, test.wantExitCode, got)
+			assert.Contains(t, stdout.String(), test.wantStdout)
+			assert.Contains(t, stderr.String(), test.wantStderr)
+		})
+	}
+}

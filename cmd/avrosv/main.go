@@ -1,16 +1,19 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 
 	"github.com/iskorotkov/avro/v2"
+	"github.com/iskorotkov/avro/v2/internal/buildversion"
 )
 
 type config struct {
 	Verbose bool
+	Version bool
 }
 
 func main() {
@@ -19,9 +22,10 @@ func main() {
 
 func realMain(args []string, stdout, stderr io.Writer) int {
 	var cfg config
-	flgs := flag.NewFlagSet("avrosv", flag.ExitOnError)
+	flgs := flag.NewFlagSet("avrosv", flag.ContinueOnError)
 	flgs.SetOutput(stderr)
 	flgs.BoolVar(&cfg.Verbose, "v", false, "Verbose output (dump final parsed schema).")
+	flgs.BoolVar(&cfg.Version, "version", false, "Print the version and exit.")
 	flgs.Usage = func() {
 		_, _ = fmt.Fprintln(stderr, "Usage: avrosv [options] schemas")
 		_, _ = fmt.Fprintln(stderr, "Options:")
@@ -29,7 +33,14 @@ func realMain(args []string, stdout, stderr io.Writer) int {
 		_, _ = fmt.Fprintln(stderr, "\nSchemas are processed in the order they appear.")
 	}
 	if err := flgs.Parse(args[1:]); err != nil {
-		return 1
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 2
+	}
+	if cfg.Version {
+		_, _ = fmt.Fprintln(stdout, "avrosv "+buildversion.Get())
+		return 0
 	}
 	if flgs.NArg() < 1 {
 		_, _ = fmt.Fprintln(stderr, "Error: at least one schema is required")
