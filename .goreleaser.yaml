@@ -1,4 +1,4 @@
-# Builds avrogen and avrosv archives; .github/workflows/release.yml uploads them to the published release.
+# Builds avrogen and avrosv archives; .github/workflows/release.yml uploads them to the release.
 version: 2
 
 builds:
@@ -10,22 +10,18 @@ builds:
       - CGO_ENABLED=0
     flags:
       - -trimpath
-    # Version comes from Go's VCS stamping of the release tag, so no -X flags are needed.
-    ldflags:
-      - -s -w
     mod_timestamp: "{{ .CommitTimestamp }}"
-    goos: [linux, darwin, windows]
-    goarch: ["386", amd64, arm, arm64, ppc64le, s390x]
-    goarm: ["7"]
-    ignore:
-      - { goos: darwin, goarch: "386" }
-      - { goos: darwin, goarch: arm }
-      - { goos: darwin, goarch: ppc64le }
-      - { goos: darwin, goarch: s390x }
-      - { goos: windows, goarch: arm }
-      - { goos: windows, goarch: arm64 }
-      - { goos: windows, goarch: ppc64le }
-      - { goos: windows, goarch: s390x }
+    targets:
+      - linux_386
+      - linux_amd64
+      - linux_arm_7
+      - linux_arm64
+      - linux_ppc64le
+      - linux_s390x
+      - darwin_amd64
+      - darwin_arm64
+      - windows_386
+      - windows_amd64
   - <<: *build
     id: avrosv
     main: ./cmd/avrosv
@@ -35,7 +31,7 @@ archives:
   - &archive
     id: avrogen
     ids: [avrogen]
-    name_template: "avrogen_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}"
+    name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}"
     formats: [tar.gz]
     format_overrides:
       - goos: windows
@@ -44,11 +40,6 @@ archives:
   - <<: *archive
     id: avrosv
     ids: [avrosv]
-    name_template: "avrosv_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}"
 
 checksum:
   name_template: checksums.txt
-
-# Release notes are written by hand.
-changelog:
-  disable: true
