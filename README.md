@@ -267,16 +267,48 @@ BenchmarkLinkedinEncode-12               4127374               288.0 ns/op      
 
 Always benchmark with your own workload. The result depends heavily on the data input.
 
+## Command-line tools
+
+The module ships two command-line tools: [`avrogen`](#go-structs-generation) generates Go structs from schemas and
+[`avrosv`](#avrosv) validates schemas. Both support `--help` and `--version`. Install them in one of these ways.
+
+As a Go tool pinned in your `go.mod` (Go 1.24+), so everyone on the project runs the same version:
+
+```shell
+go get -tool github.com/iskorotkov/avro/v2/cmd/avrogen@<version>
+go tool avrogen --version
+```
+
+With `go install`, which puts the binary in `$(go env GOPATH)/bin`:
+
+```shell
+go install github.com/iskorotkov/avro/v2/cmd/avrogen@<version>
+```
+
+As a prebuilt binary, without a Go toolchain (for example in CI). Releases after v2.35.0 have an archive for each tool
+named `<tool>_<version>_<os>_<arch>.tar.gz` (`.zip` on Windows), for Linux (`386`, `amd64`, `armv7`, `arm64`,
+`ppc64le`, `s390x`), macOS (`amd64`, `arm64`) and Windows (`386`, `amd64`), plus a `checksums.txt`:
+
+```shell
+VERSION=<version without the leading v>
+BASE_URL="https://github.com/iskorotkov/avro/releases/download/v${VERSION}"
+curl -fsSLO "${BASE_URL}/avrosv_${VERSION}_linux_amd64.tar.gz"
+curl -fsSLO "${BASE_URL}/checksums.txt"
+sha256sum --check --ignore-missing checksums.txt
+tar -xzf "avrosv_${VERSION}_linux_amd64.tar.gz" avrosv
+./avrosv --version
+```
+
+On macOS, verify the checksum with `shasum -a 256 --check --ignore-missing checksums.txt` instead of `sha256sum`.
+
+Replace `avrogen` with `avrosv` (or the other way round) in any of the commands above to get the other tool.
+
 ## Go structs generation
 
 Go structs can be generated for you from the schema. The types generated follow the same logic in [types conversions](#types-conversions)
 You can use the avrogen command line tool to generate the structs, or use it as a lib in internal commands, it's the `gen` package.
 
-Install the struct generator with:
-
-```shell
-go install github.com/iskorotkov/avro/v2/cmd/avrogen@<version>
-```
+Install the struct generator as described in [Command-line tools](#command-line-tools).
 
 Example usage assuming there's a valid schema in `in.avsc`:
 
@@ -332,11 +364,7 @@ A small Avro schema validation command-line utility is also available. This simp
 schema parsing functionality of the library, showing validation errors or optionally dumping parsed
 schemas to the console. It can be used in CI/CD pipelines to validate schema changes in a repository.
 
-Install the Avro schema validator with:
-
-```shell
-go install github.com/iskorotkov/avro/v2/cmd/avrosv@<version>
-```
+Install the Avro schema validator as described in [Command-line tools](#command-line-tools).
 
 Example usage assuming there's a valid schema in `in.avsc` (exit status code is `0`):
 
